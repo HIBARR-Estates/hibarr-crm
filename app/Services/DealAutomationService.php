@@ -16,6 +16,7 @@ use App\Models\Lead;
 use App\Models\LeadNote;
 use App\Models\PipelineStage;
 use App\Models\User;
+use App\Services\FinancialAssessment\FinancialAutomationFields;
 use App\Services\Notifications\MailDeliveryRecorder;
 use App\Support\AutomationV2Feature;
 use App\Traits\RecordsCrmEvents;
@@ -431,11 +432,20 @@ class DealAutomationService
         foreach ($automation->conditions as $condition) {
             $fieldValue = $this->fieldResolver->resolve($subject, $condition->field);
 
-            $passed = $this->conditionEvaluator->evaluate(
-                $fieldValue,
-                $condition,
-                $condition->operator === 'changed' ? $this->fieldChanged($subject, $condition->field) : null
-            );
+            // A financial figure a lead has no assessment for is "unknown", not zero:
+            // without this, `available now < 5000` would match every lead never assessed
+            // (PHP reads null < 5000 as true). Only `exists` can still answer for it.
+            if ($fieldValue === null
+                && $condition->operator !== 'exists'
+                && FinancialAutomationFields::isFinancialKey((string) $condition->field)) {
+                $passed = false;
+            } else {
+                $passed = $this->conditionEvaluator->evaluate(
+                    $fieldValue,
+                    $condition,
+                    $condition->operator === 'changed' ? $this->fieldChanged($subject, $condition->field) : null
+                );
+            }
 
             if ($isAny && $passed) {
                 return true; // OR logic: one pass is enough
@@ -1482,7 +1492,7 @@ class DealAutomationService
         // directly-POSTed variable mapping too, not just what the pickers
         // offer. See AutomationFieldCatalog::LEAD_MARKETING_CONDITION_ONLY_FIELDS.
         if (AutomationFieldCatalog::isOutboundBlockedField($fieldKey)) {
-            Log::warning('[DealAutomationService] Blocked a merge tag resolving to a restricted marketing identifier.', [
+            Log::warning('[DealAutomationService] Blocked a merge tag resolving to a condition-only field (marketing identifier or lead financial figure).', [
                 'tag' => $tag,
                 'field' => $fieldKey,
                 'subject_type' => $subject instanceof Lead ? 'lead' : 'deal',

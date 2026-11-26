@@ -2,6 +2,8 @@
 
 namespace App\Providers;
 
+use App\Events\FinancialAssessmentFinalised;
+use App\Events\FinancialAssessmentVerified;
 use App\Events\AppreciationEvent;
 use App\Events\AttendanceReminderEvent;
 use App\Events\AutoFollowUpReminderEvent;
@@ -107,6 +109,7 @@ use App\Listeners\EstimateDeclinedListener;
 use App\Listeners\EstimateRequestAcceptedListener;
 use App\Listeners\EstimateRequestRejectedListener;
 use App\Listeners\EventCompletedListener;
+use App\Listeners\FinancialAssessmentAutomationListener;
 use App\Listeners\EventInviteListener;
 use App\Listeners\EventInviteMentionListener;
 use App\Listeners\EventReminderListener;
@@ -511,6 +514,8 @@ class EventServiceProvider extends ServiceProvider
      * @var array
      */
     protected $listen = [
+        FinancialAssessmentFinalised::class => [[FinancialAssessmentAutomationListener::class, 'handleFinalised']],
+        FinancialAssessmentVerified::class => [[FinancialAssessmentAutomationListener::class, 'handleVerified']],
         NotificationSending::class => [SuppressBypassedNotification::class],
         Login::class => [LogSuccessfulLogin::class],
         Logout::class => [CaptureKeycloakLogoutUrl::class],

@@ -129,6 +129,17 @@ export function conditionValueOptions(fieldKey: string | null | undefined, catal
         return null;
     }
 
+    if (fieldKey.startsWith("lead_financial_")) {
+        // Flags are stored 0/1; amounts, days and dates stay free input.
+        if (catalog.leadFinancial?.types[fieldKey] === "boolean") {
+            return [
+                { value: "1", label: "True / Yes" },
+                { value: "0", label: "False / No" },
+            ];
+        }
+        return null;
+    }
+
     if (fieldKey.startsWith("custom_field_")) {
         const id = Number(fieldKey.slice("custom_field_".length));
         return customFieldValueOptions(catalog.dealCustomFields.find((f) => f.id === id));
@@ -184,7 +195,12 @@ export interface FieldOptionGroup {
  * lead-subject automation only ever sees the Lead Fields / Lead Custom
  * Fields groups (its "subject-group-deal" groups are hidden), a deal-subject
  * automation sees everything (a deal's linked lead fields are reachable too). */
-export function conditionFieldGroups(subjectType: SubjectType, catalog: AutomationCatalog): FieldOptionGroup[] {
+export function conditionFieldGroups(
+    subjectType: SubjectType,
+    catalog: AutomationCatalog,
+    /** True where the picked field's value is emitted (email variable mappings) rather than only evaluated. */
+    outbound = false,
+): FieldOptionGroup[] {
     const groups: FieldOptionGroup[] = [];
 
     if (subjectType === "deal") {
@@ -205,6 +221,14 @@ export function conditionFieldGroups(subjectType: SubjectType, catalog: Automati
         label: "Lead Marketing",
         options: toOptions(catalog.leadMarketingFields, "lead_marketing_"),
     });
+    // Condition-only: financial figures steer an automation but are never offered where the value
+    // would be emitted (merge tags, email variable mappings) and are blocked server-side as well.
+    if (!outbound) {
+        groups.push({
+            label: "Lead Financial (reporting currency)",
+            options: Object.entries(catalog.leadFinancial?.fields ?? {}).map(([value, label]) => ({ value, label })),
+        });
+    }
     groups.push({
         label: "Lead Custom Fields",
         options: catalog.leadCustomFields.map((f) => ({
@@ -393,6 +417,12 @@ export function fieldValueType(fieldKey: string | null | undefined, catalog: Aut
         const id = Number(fieldKey.slice("lead_custom_field_".length));
         const field = catalog.leadCustomFields.find((f) => f.id === id);
         return (field && CUSTOM_FIELD_TYPE_CATEGORY[field.type]) || "unknown";
+    }
+
+    if (fieldKey.startsWith("lead_financial_")) {
+        const type = catalog.leadFinancial?.types[fieldKey];
+        if (type === "boolean") return "select";
+        return type ?? "unknown";
     }
 
     if (fieldKey.startsWith("lead_marketing_")) {

@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Deal;
 use App\Models\Lead;
+use App\Services\FinancialAssessment\FinancialAutomationFields;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
@@ -112,6 +113,12 @@ class FieldResolverService
             return $this->resolveFollowupField($deal, $field);
         }
 
+        // 3b. Lead financial fields (format: lead_financial_{metric}) — read from
+        // the contact's current final assessment. Condition-only (never a merge tag).
+        if (FinancialAutomationFields::isFinancialKey($field)) {
+            return app(FinancialAutomationFields::class)->resolveKey($deal->contact, $field);
+        }
+
         // 4. Lead marketing fields (format: lead_marketing_{column}) — checked
         // before the lead_ prefixes below, which would otherwise swallow it.
         if (Str::startsWith($field, 'lead_marketing_')) {
@@ -150,6 +157,7 @@ class FieldResolverService
         if ($subject instanceof Lead) {
             if (Str::startsWith($field, 'lead_custom_field_')
                 || Str::startsWith($field, 'custom_field_')
+                || FinancialAutomationFields::isFinancialKey($field)
                 || Str::startsWith($field, 'lead_marketing_')
                 || Str::startsWith($field, 'followup_')
                 || Str::startsWith($field, 'last_followup_')) {
@@ -166,6 +174,7 @@ class FieldResolverService
             || Str::startsWith($field, 'followup_')
             || Str::startsWith($field, 'last_followup_')
             || Str::startsWith($field, 'lead_marketing_')
+            || FinancialAutomationFields::isFinancialKey($field)
             || Str::startsWith($field, 'lead_custom_field_')
             || Str::startsWith($field, 'lead_field_')) {
             return null;
@@ -188,6 +197,10 @@ class FieldResolverService
 
         if (Str::startsWith($field, 'custom_field_')) {
             return $this->resolveLeadCustomFieldFor($lead, Str::after($field, 'custom_field_'));
+        }
+
+        if (FinancialAutomationFields::isFinancialKey($field)) {
+            return app(FinancialAutomationFields::class)->resolveKey($lead, $field);
         }
 
         if (Str::startsWith($field, 'lead_marketing_')) {

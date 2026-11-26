@@ -65,6 +65,8 @@ class AutomationSettingController extends AccountBaseController
                 'leadMarketingFields' => AutomationFieldCatalog::LEAD_MARKETING_FIELDS,
                 'leadMarketingBooleanFields' => AutomationFieldCatalog::LEAD_MARKETING_BOOLEAN_FIELDS,
                 'leadMarketingConditionOnlyFields' => AutomationFieldCatalog::LEAD_MARKETING_CONDITION_ONLY_FIELDS,
+                // Lead financial figures — condition-only, empty while the financial assessments flag is off.
+                'leadFinancial' => AutomationFieldCatalog::leadFinancial((int) company()->id),
                 'relatedFields' => AutomationFieldCatalog::RELATED_FIELDS,
                 'leadFields' => AutomationFieldCatalog::LEAD_FIELDS,
                 'leadSettableFields' => AutomationFieldCatalog::LEAD_SETTABLE_FIELDS,

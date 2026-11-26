@@ -49,7 +49,7 @@ export default function TemplateEditor({ template, onBack }: TemplateEditorProps
     const [frameHeight, setFrameHeight] = useState(480);
 
     const saveInProgress = isSaving(template?.id ?? "new");
-    const fieldGroups = useMemo(() => (catalog ? conditionFieldGroups("deal", catalog) : []), [catalog]);
+    const fieldGroups = useMemo(() => (catalog ? conditionFieldGroups("deal", catalog, true) : []), [catalog]);
     const mergeGroups = useMemo(() => (catalog ? mergeTagGroups("deal", catalog) : []), [catalog]);
     const subjectRef = useRef<HTMLInputElement | null>(null);
     const bodyRef = useRef<HTMLTextAreaElement | null>(null);

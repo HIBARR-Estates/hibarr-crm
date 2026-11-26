@@ -31,6 +31,14 @@
         <option value="lead_marketing_{{ $key }}" data-type="{{ $type }}" {{ $selectedField == 'lead_marketing_'.$key ? 'selected' : '' }}>{{ $label }}</option>
     @endforeach
 </optgroup>
+{{-- Financial figures are condition-only: never offered where the value is emitted (outbound). --}}
+@if(! ($outbound ?? false) && ! empty($leadFinancial['fields'] ?? []))
+    <optgroup label="{{ td('Lead Financial') }}">
+        @foreach($leadFinancial['fields'] as $key => $label)
+            <option value="{{ $key }}" data-type="{{ $leadFinancial['types'][$key] ?? 'number' }}" {{ $selectedField == $key ? 'selected' : '' }}>{{ $label }}</option>
+        @endforeach
+    </optgroup>
+@endif
 <optgroup label="{{ td('Lead Custom Fields') }}">
     @foreach($leadCustomFields as $field)
         @php

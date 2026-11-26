@@ -83,6 +83,11 @@
                             <option value="meeting_attended" data-subject="any" {{ ($automation->trigger ?? '') == 'meeting_attended' ? 'selected' : '' }}>{{ td('Meeting Attended') }}</option>
                             <option value="deal_payment_received" data-subject="deal" {{ ($automation->trigger ?? '') == 'deal_payment_received' ? 'selected' : '' }}>{{ td('Payment Received') }}</option>
                             <option value="date_based" data-subject="any" {{ ($automation->trigger ?? '') == 'date_based' ? 'selected' : '' }}>{{ td('Specific Date / Birthday') }}</option>
+                            @if(! empty($leadFinancial['fields'] ?? []))
+                                <option value="financial_assessment_finalised" data-subject="lead" {{ ($automation->trigger ?? '') == 'financial_assessment_finalised' ? 'selected' : '' }}>{{ td('Financial Assessment Finalised') }}</option>
+                                <option value="financial_assessment_verified" data-subject="lead" {{ ($automation->trigger ?? '') == 'financial_assessment_verified' ? 'selected' : '' }}>{{ td('Financial Assessment Verified') }}</option>
+                                <option value="financial_assessment_stale" data-subject="lead" {{ ($automation->trigger ?? '') == 'financial_assessment_stale' ? 'selected' : '' }}>{{ td('Financial Assessment Stale') }}</option>
+                            @endif
                         </x-forms.select>
                         <p class="f-11 text-lightest mt-1" id="trigger-help-text">
                             @if(($automation->trigger ?? '') == '')
@@ -107,6 +112,12 @@
                                 Evaluates once, when a payment on the deal is confirmed as paid.
                             @elseif(($automation->trigger ?? '') == 'date_based')
                                 Runs once per matching day from the daily scheduler — pick the date field and whether it repeats every year (birthdays) or fires one time only.
+                            @elseif(($automation->trigger ?? '') == 'financial_assessment_finalised')
+                                Evaluates when a person finalises a financial assessment on the lead.
+                            @elseif(($automation->trigger ?? '') == 'financial_assessment_verified')
+                                Evaluates when a person marks the lead's financial assessment as verified.
+                            @elseif(($automation->trigger ?? '') == 'financial_assessment_stale')
+                                Evaluates once, when the lead's current financial assessment passes its refresh-due date (checked daily).
                             @endif
                         </p>
                         <div id="trigger-warning" class="alert alert-warning f-13 mt-2 p-2" style="display: none;">
@@ -247,7 +258,10 @@
                 'lead_followup_created': 'Evaluates when a follow-up/meeting is added to the lead (not to a deal).',
                 'meeting_attended': 'Evaluates when a meeting's outcome changes into Attended — a deal meeting for deal automations, a lead-only meeting for lead automations.',
                 'deal_payment_received': 'Evaluates once, when a payment on the deal is confirmed as paid.',
-                'date_based': 'Runs once per matching day from the daily scheduler — pick the date field and whether it repeats every year or fires one time only.'
+                'date_based': 'Runs once per matching day from the daily scheduler — pick the date field and whether it repeats every year or fires one time only.',
+                'financial_assessment_finalised': 'Evaluates when a person finalises a financial assessment on the lead.',
+                'financial_assessment_verified': 'Evaluates when a person marks the lead\'s financial assessment as verified.',
+                'financial_assessment_stale': 'Evaluates once, when the lead\'s current financial assessment passes its refresh-due date (checked daily).'
             };
 
             // Date-based trigger extras: shown only for trigger = 'date_based',

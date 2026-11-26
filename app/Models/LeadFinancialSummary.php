@@ -25,6 +25,7 @@ class LeadFinancialSummary extends BaseModel
         'as_of_date' => 'date',
         'finalised_at' => 'datetime',
         'refresh_due_on' => 'date',
+        'stale_notified_for' => 'date',
         'verified' => 'boolean',
         'verified_at' => 'datetime',
         'available_now' => 'decimal:2',

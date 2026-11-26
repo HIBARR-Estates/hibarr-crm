@@ -24,7 +24,10 @@ export type TriggerKey =
     | "lead_created_api"
     | "lead_updated_api"
     | "deal_created_api"
-    | "deal_updated_api";
+    | "deal_updated_api"
+    | "financial_assessment_finalised"
+    | "financial_assessment_verified"
+    | "financial_assessment_stale";
 
 export type ActionType =
     | "stage_transition"
@@ -313,6 +316,12 @@ export interface AutomationCatalog {
      * them. See AutomationFieldCatalog::LEAD_MARKETING_CONDITION_ONLY_FIELDS.
      */
     leadMarketingConditionOnlyFields: string[];
+    /**
+     * Lead financial figures (`lead_financial_{name}`) with each field's value type. Condition-only —
+     * never offered as a merge tag, and blocked server-side. Empty/absent while the financial
+     * assessments flag is off.
+     */
+    leadFinancial?: { fields: Record<string, string>; types: Record<string, "number" | "date" | "boolean"> };
     relatedFields: Record<string, string>;
     leadFields: Record<string, string>;
     leadSettableFields: Record<string, string>;

@@ -27,6 +27,7 @@ abstract class FinancialAssessmentTestCase extends TestCase
         '2026_11_25_100000_create_financial_assessment_config_tables.php',
         '2026_11_25_100100_create_financial_assessments_tables.php',
         '2026_11_25_100200_add_financial_assessment_settings_to_lead_setting.php',
+        '2026_11_27_100000_add_stale_notified_for_to_lead_financial_summaries.php',
     ];
 
     protected function setUp(): void

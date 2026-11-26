@@ -29,6 +29,9 @@ class AutomationV2Feature
         DealAutomation::TRIGGER_LEAD_UPDATED_API,
         DealAutomation::TRIGGER_DEAL_CREATED_API,
         DealAutomation::TRIGGER_DEAL_UPDATED_API,
+        DealAutomation::TRIGGER_FINANCIAL_ASSESSMENT_FINALISED,
+        DealAutomation::TRIGGER_FINANCIAL_ASSESSMENT_VERIFIED,
+        DealAutomation::TRIGGER_FINANCIAL_ASSESSMENT_STALE,
     ];
 
     public static function enabled(): bool

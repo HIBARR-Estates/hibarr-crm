@@ -24,6 +24,7 @@ use App\Console\Commands\InActiveEmployee;
 use App\Console\Commands\LeavesQuotaRenew;
 use App\Console\Commands\MigrateFilesToExternalStorage;
 use App\Console\Commands\ProcessAutomationDateTriggers;
+use App\Console\Commands\ProcessFinancialStaleAssessments;
 use App\Console\Commands\ProcessAutomationPendingRuns;
 use App\Console\Commands\RecalculateLeavesQuotas;
 use App\Console\Commands\RecoverProjectFacilities;
@@ -99,6 +100,7 @@ class Kernel extends ConsoleKernel
         TestNotificationsCommand::class,
         SendMlmApproachingNotifications::class,
         ProcessAutomationDateTriggers::class,
+        ProcessFinancialStaleAssessments::class,
         ProcessAutomationPendingRuns::class,
     ];
 
@@ -148,6 +150,7 @@ class Kernel extends ConsoleKernel
         $schedule->command('send-approaching-deal-close-date-notifications')->dailyAt('08:00');
         $schedule->command('send-mlm-approaching-notifications')->dailyAt('08:15');
         $schedule->command('deal-automations:process-date-triggers')->dailyAt('08:30')->withoutOverlapping();
+        $schedule->command('financial-assessments:process-stale')->dailyAt('08:45')->withoutOverlapping();
         $schedule->command('deal-automations:process-pending-runs')->everyMinute()->withoutOverlapping();
         $schedule->command('reminders:prepare')->everyFifteenMinutes();
         $schedule->command('reminders:send-due')->everyMinute();

@@ -229,3 +229,28 @@ Delivered behind `crm.lead-financial-assessments` (everything below is invisible
 **Crypto rates** - settings and env keys were delivered in Phase 1 (`COINGECKO_API_KEY`, `COINMARKETCAP_API_KEY`, `CRYPTO_RATE_PROVIDER`); nothing further was needed here.
 
 **Verification and limits.** The full app cannot boot in the build environment, so verification used a scratch harness: 96 tests / 427 assertions pass (the new ones cover the catalog, write path, both mappings, and the read API controller called directly), Pint is clean on all new files, and `tsc` shows only the 7 pre-existing unrelated errors. The controllers' HTTP wiring (middleware, token auth, Inertia pages) and the new UI were **not exercised in a running app** and need a smoke test in staging. Pint was deliberately not run over pre-existing files I only edited, to avoid unrelated style churn.
+
+## 15. Phase 4 as built (automations)
+
+Delivered behind `crm.lead-financial-assessments` **and** `crm.automation-v2` (the automation hub's own flag). Built on the engine people actually use: `DealAutomation` rows with `subject_type = lead|deal`, run by `DealAutomationService` and `FieldResolverService`. The older `LeadAutomationService` (`lead_automations` tables, flag `crm.lead-automation-engine`) has no builder UI and was left alone.
+
+**Condition fields** - `lead_financial_{name}` (same prefix convention as `lead_marketing_`), resolved by `FinancialAutomationFields` from the lead's summary row, so only the current *final* assessment is ever visible; a draft changes nothing. Works for lead automations directly and for deal automations through the deal's contact.
+- Amounts: available now, projected, uncertain, monthly income / commitments / disposable, assets total, funding total, plus a total per active type (`lead_financial_total_{type}`; admin-added types appear automatically).
+- Movement: `available_now_change` and `disposable_monthly_change` (new minus the assessment it replaced; unknown for a first assessment or if the reporting currency changed). This is the "previous vs new" answer; the native `changed` operator is deliberately not offered for financial fields.
+- Flags (always 0/1): verified, has an assessment, has a draft, refresh overdue. Numbers/dates: days since assessed, days until refresh (negative when overdue), assessed-as-of, verified-at, refresh-due-on.
+- Amounts are in the assessment's reporting currency, and the group is labelled that way in the picker.
+- **Unknown is not zero.** A lead with no assessment never satisfies `<`, `>` or `=` on a financial amount (PHP would otherwise read null < 5000 as true); only `exists` or the `has_assessment` flag can express "none yet".
+- **Condition-only.** `AutomationFieldCatalog::isOutboundBlockedField()` now also blocks `lead_financial_*`, at the same single chokepoint as the marketing identifiers (`resolveTagValue`), so a hand-typed tag or a posted variable mapping can't email the figures either. They are left out of the merge-tag and email-variable-mapping pickers.
+
+**Triggers** (lead automations): `financial_assessment_finalised`, `financial_assessment_verified`, `financial_assessment_stale`.
+- Finalised / verified fire from the existing domain events through `FinancialAssessmentAutomationListener` -> `FinancialAutomationTrigger` -> `DealAutomationService::processLead`. They run after the assessment's own transaction commits, and a failing automation is logged and never blocks finalising or verifying. Because finalising is always manual, assessments added by the API, imports or qualification stay drafts and fire nothing by themselves.
+- Stale: daily command `financial-assessments:process-stale` (08:45) via `FinancialStaleScanner`. A lead whose refresh-due date has passed fires once; `lead_financial_summaries.stale_notified_for` (new migration) records the due date already notified, so it re-arms when a new final assessment sets a new date. A company with no active stale automation is skipped *without marking anything*, so an automation switched on later also reaches leads that are already overdue (one burst, by design; stated in the trigger's help text). A failed run stays unmarked and is retried on the next scan.
+- As with every other lead trigger, an automation with **no** trigger set ("run on any update") also evaluates on these.
+
+**UI** - React hub: trigger labels/explanations/icons in `shared.ts`, a "Lead Financial (reporting currency)" condition group with Yes/No pickers for flags and number/date operators; Blade editor: same group and triggers (shown only while the flag is on).
+
+**Deviations / notes**
+- The plan said `financial_*` in `LeadFieldResolverService`; the prefix is `lead_financial_` and the resolver is `FieldResolverService`, for the reasons above.
+- Not built: finalise/verify triggers for deal-subject automations (conditions already reach a deal's contact), and opt-in financial merge tags (still condition-only).
+- Verification: 117 harness tests (21 new: field values, change deltas, draft invisibility, flag-off, null guard, condition evaluation through `DealAutomationService`, merge-tag block, listener firing, failure isolation, stale scan once / re-arm / retry / company isolation); Pint clean on new files; `tsc` shows only the 7 pre-existing errors. The scheduler entry, the real event wiring in `EventServiceProvider`, and both editors were **not run in a live app**.
+- Noticed, not touched: `deal-automation/edit.blade.php`'s `triggerHelp` JS object has an unescaped apostrophe in the `meeting_attended` string (`meeting's`), which is a JS syntax error in that script block independent of this work.

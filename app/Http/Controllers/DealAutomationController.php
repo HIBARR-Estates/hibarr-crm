@@ -592,6 +592,7 @@ class DealAutomationController extends AccountBaseController
         $this->leadCustomFields = AutomationFieldCatalog::leadCustomFields();
         $this->hibarrFields = AutomationFieldCatalog::HIBARR_FIELDS;
         $this->leadMarketingFields = AutomationFieldCatalog::LEAD_MARKETING_FIELDS;
+        $this->leadFinancial = AutomationFieldCatalog::leadFinancial((int) company()->id);
         $this->relatedFields = AutomationFieldCatalog::RELATED_FIELDS;
         $this->leadFields = AutomationFieldCatalog::LEAD_FIELDS;
         $this->leadSettableFields = AutomationFieldCatalog::LEAD_SETTABLE_FIELDS;
@@ -698,6 +699,9 @@ class DealAutomationController extends AccountBaseController
             DealAutomation::TRIGGER_LEAD_FOLLOWUP_CREATED,
             DealAutomation::TRIGGER_LEAD_CREATED_API,
             DealAutomation::TRIGGER_LEAD_UPDATED_API,
+            DealAutomation::TRIGGER_FINANCIAL_ASSESSMENT_FINALISED,
+            DealAutomation::TRIGGER_FINANCIAL_ASSESSMENT_VERIFIED,
+            DealAutomation::TRIGGER_FINANCIAL_ASSESSMENT_STALE,
         ];
 
         return array_merge(

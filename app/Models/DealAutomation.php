@@ -81,6 +81,18 @@ class DealAutomation extends BaseModel
     public const TRIGGER_DEAL_UPDATED_API = 'deal_updated_api';
 
     /**
+     * Lead financial assessment triggers (lead-subject automations only). The first two fire when
+     * a person finalises / verifies an assessment on the lead page; the stale one fires from a
+     * daily scheduler once the current final assessment passes its refresh-due date, and fires
+     * once per assessment (see FinancialStaleScanner).
+     */
+    public const TRIGGER_FINANCIAL_ASSESSMENT_FINALISED = 'financial_assessment_finalised';
+
+    public const TRIGGER_FINANCIAL_ASSESSMENT_VERIFIED = 'financial_assessment_verified';
+
+    public const TRIGGER_FINANCIAL_ASSESSMENT_STALE = 'financial_assessment_stale';
+
+    /**
      * How a date_based trigger repeats: on the matching month/day every year
      * (birthdays/anniversaries) or only on the exact date, once ever.
      */

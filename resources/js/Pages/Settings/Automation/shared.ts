@@ -72,6 +72,9 @@ const TRIGGER_LABEL: Record<TriggerKey, string> = {
     lead_updated_api: "Lead Updated (via API)",
     deal_created_api: "Deal Created (via API)",
     deal_updated_api: "Deal Updated (via API)",
+    financial_assessment_finalised: "Financial Assessment Finalised",
+    financial_assessment_verified: "Financial Assessment Verified",
+    financial_assessment_stale: "Financial Assessment Stale",
 };
 
 /** English source string — wrap with td() at the render site. */
@@ -96,6 +99,9 @@ export const TRIGGER_SUBJECT: Record<TriggerKey, "deal" | "lead" | "any"> = {
     lead_updated_api: "lead",
     deal_created_api: "deal",
     deal_updated_api: "deal",
+    financial_assessment_finalised: "lead",
+    financial_assessment_verified: "lead",
+    financial_assessment_stale: "lead",
 };
 
 const TRIGGER_ICON: Record<TriggerKey, string> = {
@@ -113,6 +119,9 @@ const TRIGGER_ICON: Record<TriggerKey, string> = {
     lead_updated_api: "edit",
     deal_created_api: "zap",
     deal_updated_api: "edit",
+    financial_assessment_finalised: "check-square",
+    financial_assessment_verified: "check-square",
+    financial_assessment_stale: "clock",
 };
 
 /** Plain-language explanation of exactly what fires each trigger, rendered
@@ -136,6 +145,9 @@ const TRIGGER_EXPLANATION: Record<TriggerKey, string> = {
     lead_updated_api: "Fires whenever an external system updates an existing lead's details through the CRM's API (contact/create or deal/create) — this is the only reliable trigger for API-originated lead edits, since those API writes normally bypass the regular \"Lead Updated\" trigger above.",
     deal_created_api: "Fires whenever an external system creates a new deal through the CRM's API (deal/create) — this is the only reliable trigger for API-originated deals, since those API writes normally bypass the regular \"Deal Created\" trigger above.",
     deal_updated_api: "Fires whenever an external system updates an existing deal through the CRM's API (deal/create with an existing lead_id) — this is the only reliable trigger for API-originated deal edits, since those API writes normally bypass the regular \"Deal Updated\" trigger above.",
+    financial_assessment_finalised: "Fires when a person finalises a financial assessment on the lead page, including an update that replaces an earlier one. Assessments an external system, an import or a call script adds stay drafts until a person finalises them, so those never fire this by themselves. Use the \"change since the previous assessment\" conditions to react to movement.",
+    financial_assessment_verified: "Fires when a person marks the lead's financial assessment as verified (proof checked).",
+    financial_assessment_stale: "Fires once, when the lead's current financial assessment passes its refresh-due date (checked daily, so it can run up to a day late). It fires once per assessment, and also for leads that are already overdue when the automation is first switched on. Pair it with \"Create task\" to ask for a fresh assessment.",
 };
 
 /** English source string — wrap with td() at the render site. Null (no

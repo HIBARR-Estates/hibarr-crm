@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\CustomField;
 use App\Models\CustomFieldGroup;
+use App\Services\FinancialAssessment\FinancialAutomationFields;
 use Illuminate\Support\Collection;
 
 /**
@@ -109,6 +110,13 @@ class AutomationFieldCatalog
      */
     public static function isOutboundBlockedField(string $fieldKey): bool
     {
+        // A lead's financial figures are condition-only: they can steer an
+        // automation but never be written into an email, task or note, because a
+        // send_email action can address any typed address.
+        if (FinancialAutomationFields::isFinancialKey($fieldKey)) {
+            return true;
+        }
+
         if (! str_starts_with($fieldKey, 'lead_marketing_')) {
             return false;
         }
@@ -118,6 +126,17 @@ class AutomationFieldCatalog
             self::LEAD_MARKETING_CONDITION_ONLY_FIELDS,
             true
         );
+    }
+
+    /**
+     * Lead financial fields (`lead_financial_*`) for the condition pickers, per company, with each
+     * field's value type (number|date|boolean). Empty while the feature flag is off. Condition-only.
+     *
+     * @return array{fields: array<string, string>, types: array<string, string>}
+     */
+    public static function leadFinancial(int $companyId): array
+    {
+        return app(FinancialAutomationFields::class)->catalog($companyId);
     }
 
     /** Marketing columns stored as 0/1 — offered as a Yes/No picker, not free text. */
