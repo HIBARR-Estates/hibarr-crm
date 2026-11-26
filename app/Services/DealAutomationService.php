@@ -847,6 +847,12 @@ class DealAutomationService
         $subject->{$fieldName} = $fieldValue;
         $subject->saveQuietly(); // Bypass observer to prevent cascading
 
+        // Quiet saves skip the observer's owner hook, so a contact clock waiting for an owner is started here.
+        if ($fieldName === 'lead_owner' && $subject instanceof Lead && $subject->wasChanged('lead_owner') && $subject->lead_owner) {
+            $sla = app(LeadContactSlaService::class);
+            $sla->safely(fn () => $sla->ownerAssigned($subject));
+        }
+
         $description = "Set {$fieldName} = {$fieldValue}";
         Log::info("Action executed for {$label}. {$description}");
         $this->logAction($subject, $automation, $description, DealAutomationLog::STATUS_SUCCESS, 'field');

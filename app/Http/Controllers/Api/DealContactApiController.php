@@ -286,12 +286,16 @@ class DealContactApiController extends Controller
                 $changeRecorder->recordUpdated((int) $contactId, $before, LeadApiChangeRecorder::CHANNEL_DEAL_CREATE);
                 // After marketing + the deal job, even if the job failed — the
                 // lead row already exists and a retry may look like an update.
-                if ($shouldFireLeadTrigger) {
-                    $this->fireLeadApiTrigger((int) $contactId, $leadWasCreated);
+                try {
+                    if ($shouldFireLeadTrigger) {
+                        $this->fireLeadApiTrigger((int) $contactId, $leadWasCreated);
+                    }
+                } finally {
+                    // Last, so lead_*_api automations see the state they always did. Even when the
+                    // deal job failed, or one of those automations threw: the lead exists and did come
+                    // in through this channel, and the entry must be recorded.
+                    $this->receiveLeadEntry($request, (int) $contactId, $companyId);
                 }
-                // Last, so lead_*_api automations see the state they always did. Even when the
-                // deal job failed: the lead exists and did come in through this channel.
-                $this->receiveLeadEntry($request, (int) $contactId, $companyId);
             }
 
             $savedReferrerId = $this->leadReferrerIdForCompany((int) $contactId, $companyId);
@@ -593,12 +597,16 @@ class DealContactApiController extends Controller
                     $updatedFields = $changeRecorder->recordUpdated((int) $contactId, $before, LeadApiChangeRecorder::CHANNEL_CONTACT_CREATE);
                 }
 
-                if ($shouldFireLeadTrigger) {
-                    $this->fireLeadApiTrigger((int) $contactId, $isNewContact);
+                try {
+                    if ($shouldFireLeadTrigger) {
+                        $this->fireLeadApiTrigger((int) $contactId, $isNewContact);
+                    }
+                } finally {
+                    // An entry counts even when nothing on the lead changed: a returning lead coming
+                    // back through a new channel is exactly what routing has to see. And even when a
+                    // lead_*_api automation threw: the lead did come in through this channel.
+                    $this->receiveLeadEntry($request, (int) $contactId, $companyId);
                 }
-                // An entry counts even when nothing on the lead changed: a returning lead coming
-                // back through a new channel is exactly what routing has to see.
-                $this->receiveLeadEntry($request, (int) $contactId, $companyId);
 
                 $savedContact = Lead::query()->find($contactId);
                 $preferredContactTimes = $savedContact?->resolvedPreferredContactTimes() ?? [];
