@@ -547,6 +547,7 @@ class DealContactApiController extends Controller
                     $this->applyLeadCategories($contact, $request);
                     $this->applyLeadCustomFields($contact, $request);
                     $contactId = $contact->id;
+                    $this->logSkippedLeadFields($contactId);
                     $shouldFireLeadTrigger = true;
                 } else {
                     // Existing contact: fill what is empty, never overwrite (see fillExistingContactBasics)
@@ -575,6 +576,7 @@ class DealContactApiController extends Controller
                     }
                     $customFieldsChanged = $this->applyLeadCustomFields($existingContact, $request);
                     $contactId = $existingContact->id;
+                    $this->logSkippedLeadFields($contactId);
                     // A custom-field-only change (no core field touched) still
                     // counts as an update — otherwise lead_updated_api would
                     // never fire for it at all. Marketing-only writes do not.
@@ -972,14 +974,25 @@ class DealContactApiController extends Controller
 
         $result = app(LeadFieldWriter::class)->apply($lead, $input);
         $this->skippedLeadFields = $result['skipped'];
-        if ($result['skipped'] !== []) {
-            Log::warning('DealContactApi: lead_fields skipped', [
-                'lead_id' => $lead->id,
-                'skipped' => $result['skipped'],
-            ]);
-        }
 
         return $result['changed'];
+    }
+
+    /**
+     * Log what applyLeadFields() skipped. Called once the lead is saved: for a
+     * newly created contact applyLeadFields() runs before the insert, so the
+     * lead has no id yet and a warning logged there couldn't be correlated.
+     */
+    private function logSkippedLeadFields(int|string|null $leadId): void
+    {
+        if ($this->skippedLeadFields === []) {
+            return;
+        }
+
+        Log::warning('DealContactApi: lead_fields skipped', [
+            'lead_id' => $leadId,
+            'skipped' => $this->skippedLeadFields,
+        ]);
     }
 
     /**
