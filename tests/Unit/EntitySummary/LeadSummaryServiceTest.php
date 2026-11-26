@@ -77,7 +77,7 @@ class LeadSummaryServiceTest extends TestCase
     {
         $summary = $this->fallback([
             'now' => '2026-11-02T10:00:00Z',
-            'lead' => ['type' => 'buyer', 'source' => 'Google Ads', 'category' => 'Investor'],
+            'lead' => ['type' => 'buyer', 'source' => 'Google Ads', 'categories' => ['Investor']],
             'sections' => [
                 'qualification_calls' => [['answers' => [['answer' => 'a'], ['answer' => 'b'], ['answer' => 'c']]]],
                 'notes' => [['days_ago' => 4, 'text' => 'x'], ['days_ago' => 9, 'text' => 'y']],
@@ -201,8 +201,8 @@ class LeadSummaryServiceTest extends TestCase
     }
 
     /**
-     * The lead is named once, in the header (status_line). The summary, facts and next step
-     * say "they", because the reader has just seen the name in the header.
+     * The lead is named once, in the header (status_line). The summary, facts and next
+     * step use pronouns (gendered when profile.gender is set, otherwise they/their).
      *
      * @param  array<string, mixed>  $example
      */

@@ -10,7 +10,7 @@ import { useUserDateTime } from "@/Hooks/useUserDateTime";
 import { formatCallDuration } from "@/lib/crmEvents/callSummary";
 import type { CallLogRow } from "./types";
 import CallLegs from "./CallLegs";
-import { CallDirectionIcon, OUTCOME_KEYS, formatCallFailure, getRecordingStatus } from "./callFormat";
+import { CallDirectionIcon, OUTCOME_KEYS, formatCallFailure, getRecordingStatus, isMissedOrFailedCall } from "./callFormat";
 
 interface CallLogItemProps {
     row: CallLogRow;
@@ -43,7 +43,8 @@ export default function CallLogItem({ row, showEntity = false, timeOnly = false 
     const duration = row.duration ? formatCallDuration(row.duration, t) : "";
     const meta = [when, duration, row.phone_number].filter(Boolean).join(" · ");
 
-    const failureText = formatCallFailure(row.failure_reason, row.failure_message);
+    const isRed = isMissedOrFailedCall(row.outcome);
+    const failureText = formatCallFailure(row.failure_reason, row.failure_message, t);
     const rec = row.recording;
     const recState = getRecordingStatus(row);
     const playable = Boolean(rec?.can_play && rec.play_url);
@@ -60,15 +61,15 @@ export default function CallLogItem({ row, showEntity = false, timeOnly = false 
             }}
         >
             <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 12 }}>
-                <CallDirectionIcon direction={row.direction} />
+                <CallDirectionIcon direction={row.direction} outcome={row.outcome} />
 
                 <div style={{ display: "flex", flexDirection: "column", gap: 2, flex: "1 1 280px", minWidth: 0 }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                        <span style={{ fontWeight: 600, fontSize: 14, color: T.TEXT }}>
+                        <span style={{ fontWeight: 600, fontSize: 14, color: isRed ? T.RED : T.TEXT }}>
                             {direction} · {outcome}
                         </span>
                         {failureText && (
-                            <Badge variant="red" style={{ fontSize: 11, padding: "1px 8px" }}>
+                            <Badge variant={isRed ? "red" : "gray"} style={{ fontSize: 11, padding: "1px 8px" }}>
                                 {failureText}
                             </Badge>
                         )}

@@ -94,4 +94,21 @@ class LeadUtmFirstTouchTest extends TestCase
         $this->assertFalse($touches[1]->is_first_touch);
         $this->assertSame('facebook', LeadMarketing::where('lead_id', $lead->id)->value('utm_source'));
     }
+
+    public function test_created_at_is_visible_when_serialized_for_the_marketing_tab(): void
+    {
+        // ApiModel hides timestamps by default; the Marketing tab date next to
+        // First touch / Latest depends on created_at surviving JSON serialization.
+        $touch = LeadUtmTouch::create([
+            'lead_id' => 1,
+            'utm_source' => 'facebook',
+            'is_first_touch' => true,
+        ]);
+
+        $payload = $touch->toArray();
+
+        $this->assertArrayHasKey('created_at', $payload);
+        $this->assertNotEmpty($payload['created_at']);
+        $this->assertArrayNotHasKey('pivot', $payload);
+    }
 }

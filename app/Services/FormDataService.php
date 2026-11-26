@@ -255,6 +255,7 @@ class FormDataService
     {
         $query = LeadPipeline::select('id', 'name', 'default')
             ->where('company_id', company()->id)
+            ->visibleInSystem()
             ->orderBy('default', 'DESC');
 
         if ($request->filled('search')) {

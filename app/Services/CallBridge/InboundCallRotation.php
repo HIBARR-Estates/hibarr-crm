@@ -20,6 +20,33 @@ class InboundCallRotation
     /** Long enough for the longest rotation; the state is useless after the call. */
     public const TTL_SECONDS = 900;
 
+    /** Ring time per rotation slot when the company has not set one. */
+    public const DEFAULT_SLOT_SECONDS = 20;
+
+    /** Never call a ring stale sooner than this, even for a tiny roster. */
+    public const MIN_RING_SECONDS = 120;
+
+    /** Extra time the final fallback voice message may play (see SoftphoneDock). */
+    private const VOICE_MESSAGE_GRACE_SECONDS = 15;
+
+    /**
+     * The longest an inbound call can keep ringing before every slot has
+     * timed out: each roster agent (plus a lead owner outside it) may ring
+     * twice because busy agents are moved to the back once, then the final
+     * fallback window and its voice message. Clamped to [MIN_RING_SECONDS,
+     * TTL_SECONDS] since the rotation state itself expires after the TTL.
+     */
+    public static function maxRingSeconds(int $slotSeconds, int $rosterSize): int
+    {
+        $slotSeconds = max(1, $slotSeconds);
+        $slots = 2 * (max(0, $rosterSize) + 1) + 1;
+
+        return (int) min(
+            self::TTL_SECONDS,
+            max(self::MIN_RING_SECONDS, $slotSeconds * $slots + self::VOICE_MESSAGE_GRACE_SECONDS),
+        );
+    }
+
     public static function cacheKey(int $companyId, string $callKey): string
     {
         return sprintf('softphone:call_rotation:%d:%s', $companyId, $callKey);

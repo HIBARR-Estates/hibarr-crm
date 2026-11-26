@@ -366,8 +366,8 @@ class PartnerLeadService
             ->orderByDesc('created_at')
             ->get([
                 'id', 'name', 'lead_id', 'agent_id', 'company_id', 'value', 'currency_id',
-                'exchange_rate', 'max_commission_percentage', 'referral_pool_rate',
-                'referral_fixed_amount', 'commission_locked', 'outcome_status', 'won_at', 'close_date',
+                'exchange_rate', 'max_commission_percentage', 'referral_commission_type',
+                'referral_commission_value', 'commission_locked', 'outcome_status', 'won_at', 'close_date',
                 'created_at',
             ]);
 

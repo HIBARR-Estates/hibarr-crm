@@ -97,6 +97,18 @@ class CallBridgeIntegrationsController extends Controller
             abort(400, "Invalid platform: {$platform}.");
         }
 
+        // The documented contract only; the local registry entry carries more
+        // (messages, realm, limits) that is not part of this API.
+        $defaults = ['wss' => $defaults['wss'] ?? null, 'sipUriFormat' => $defaults['sipUriFormat'] ?? null];
+
+        // How this CRM's softphone behaves for the platform (wording, ICE,
+        // Digest algorithms), so the settings form can test an unsaved line
+        // the same way a saved one runs. Always the local registry: OL does
+        // not know about the browser client.
+        if (SipProviderRegistry::supports($platform)) {
+            $defaults['profile'] = SipProviderRegistry::clientProfile($platform);
+        }
+
         return response()->json([
             'status' => 'success',
             'data' => $defaults,

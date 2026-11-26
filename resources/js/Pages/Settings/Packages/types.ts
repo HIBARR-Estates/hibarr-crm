@@ -53,12 +53,27 @@ export interface PackageFormValues {
     routing_triggers: RoutingTrigger[];
 }
 
+/**
+ * One agent's row on one package. It holds what they earn as the closer and, with
+ * the referral feature on, what they earn as the referrer, so an agent who is
+ * both is set up, and read, in one place.
+ */
 export interface AgentOverride {
     agent_id: number;
     agent_name: string;
-    commission_type: PackageCommissionType;
-    /** Null when commission_type is "none" — there is nothing to store. */
+    /** Null: no closer override, the package default applies. */
+    commission_type: PackageCommissionType | null;
+    /** Null when commission_type is "none" or unset — there is nothing to store. */
     commission_value: number | null;
+    /** Served only with the referral feature on. Null: no referral terms. */
+    referral_commission_type?: PackageCommissionType | null;
+    referral_commission_value?: number | null;
+}
+
+/** One role's rule as the editor holds it. A null type means "not set". */
+export interface CommissionRule {
+    type: PackageCommissionType | null;
+    value: number | null;
 }
 
 export interface AgentOption {

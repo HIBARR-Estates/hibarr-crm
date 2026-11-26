@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Actions\Packages\SaveAgentPackageTerms;
 use App\Enums\PackageCommissionType;
 use App\Models\AgentPackageCommissionRate;
 use App\Models\LeadAgent;
@@ -10,6 +11,7 @@ use App\Models\Package;
 use App\Models\PipelineStage;
 use App\Services\PackagePipelineRouterService;
 use App\Services\PackageRoutingFieldCatalog;
+use App\Support\FeatureFlags;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -59,6 +61,7 @@ class PackageSettingsController extends AccountBaseController
                 ])
                 ->values(),
             'pipelines' => LeadPipeline::where('company_id', $companyId)
+                ->visibleInSystem()
                 ->get(['id', 'name'])
                 ->values(),
             'stages' => PipelineStage::where('company_id', $companyId)
@@ -134,26 +137,32 @@ class PackageSettingsController extends AccountBaseController
         ]);
     }
 
+    /**
+     * Sets what one agent earns on this package, as the closer and (with the
+     * referral feature on) as the referrer. Both roles share the row, and a role
+     * left out of the request is left as it was. A row with neither role is
+     * removed.
+     */
     public function upsertOverride(Request $request, Package $package, LeadAgent $agent): JsonResponse
     {
-        $validated = $request->validate([
-            'commission_type' => ['required', Rule::enum(PackageCommissionType::class)],
-            'commission_value' => $this->commissionValueRules($request),
-        ]);
+        $referralEnabled = $this->referralEnabled();
 
-        AgentPackageCommissionRate::updateOrCreate(
-            ['agent_id' => $agent->id, 'package_id' => $package->id],
-            [
-                // CompanyScope only filters reads; it never fills this in.
-                'company_id' => company()->id,
-                'commission_type' => $validated['commission_type'],
-                // None has nothing to store — never trust a stray value the
-                // client happened to still be holding for a type it just left.
-                'commission_value' => $validated['commission_type'] === PackageCommissionType::None->value
-                    ? null
-                    : ($validated['commission_value'] ?? null),
-            ]
+        $validated = $request->validate(SaveAgentPackageTerms::rules($request, $referralEnabled));
+
+        $result = app(SaveAgentPackageTerms::class)->handleRequest(
+            $package,
+            $agent,
+            $request,
+            $validated,
+            company()->id,
+            $referralEnabled,
         );
+
+        if ($result === SaveAgentPackageTerms::EMPTY) {
+            throw ValidationException::withMessages([
+                'commission_type' => __('messages.packageOverrideNeedsTerms'),
+            ]);
+        }
 
         return response()->json([
             'status' => 'success',
@@ -289,23 +298,14 @@ class PackageSettingsController extends AccountBaseController
      * that distinction: it fires on the two types that need a number, not on
      * every non-null type.
      *
+     * $typeField names the type this value belongs to: the closer's commission
+     * or the referral commission, which share these rules.
+     *
      * @return array<int, string>
      */
-    protected function commissionValueRules(Request $request): array
+    protected function commissionValueRules(Request $request, string $typeField = 'commission_type'): array
     {
-        return array_merge(
-            [
-                'nullable',
-                'required_if:commission_type,'.PackageCommissionType::Percentage->value.','.PackageCommissionType::Fixed->value,
-                'numeric',
-                'min:0',
-            ],
-            // Only a percentage is bounded at 100 — a flat fee is money, and
-            // capping it at 100 would quietly reject a 250 package fee.
-            $request->input('commission_type') === PackageCommissionType::Percentage->value
-                ? ['max:100']
-                : []
-        );
+        return SaveAgentPackageTerms::valueRules($request, $typeField);
     }
 
     /**
@@ -340,13 +340,23 @@ class PackageSettingsController extends AccountBaseController
         return $attributes;
     }
 
+    /** The referral terms on a package are served and accepted only with the feature on. */
+    protected function referralEnabled(): bool
+    {
+        return FeatureFlags::enabled('crm.partner-referral-commission');
+    }
+
     /**
      * @return array<int, array<string, mixed>>
      */
     protected function packagePayload(): array
     {
         return Package::with('packagePipeline')
-            ->withCount(['agentCommissionRates', 'routingTriggers'])
+            ->withCount([
+                'agentCommissionRates' => fn ($query) => $query
+                    ->when(! $this->referralEnabled(), fn ($query) => $query->whereNotNull('commission_type')),
+                'routingTriggers',
+            ])
             ->orderBy('name')
             ->get()
             ->map(fn (Package $package) => $this->packageRow($package))
@@ -376,7 +386,9 @@ class PackageSettingsController extends AccountBaseController
                 ? (float) $package->commission_value
                 : null,
             'overrides_count' => (int) ($package->agent_commission_rates_count
-                ?? $package->agentCommissionRates()->count()),
+                ?? $package->agentCommissionRates()
+                    ->when(! $this->referralEnabled(), fn ($query) => $query->whereNotNull('commission_type'))
+                    ->count()),
             'routing_triggers_count' => (int) ($package->routing_triggers_count
                 ?? $package->routingTriggers()->count()),
         ];
@@ -388,16 +400,23 @@ class PackageSettingsController extends AccountBaseController
     protected function overridePayload(Package $package): array
     {
         return AgentPackageCommissionRate::where('package_id', $package->id)
+            ->when(! $this->referralEnabled(), fn ($query) => $query->whereNotNull('commission_type'))
             ->with('agent.user:id,name,email')
             ->get()
-            ->map(fn (AgentPackageCommissionRate $rate) => [
+            ->map(fn (AgentPackageCommissionRate $rate) => array_merge([
                 'agent_id' => $rate->agent_id,
                 'agent_name' => $rate->agent?->user?->name ?? 'Unknown',
-                'commission_type' => $rate->commission_type->value,
+                // Null: no closer override, the package default applies.
+                'commission_type' => $rate->commission_type?->value,
                 'commission_value' => $rate->commission_value !== null
                     ? (float) $rate->commission_value
                     : null,
-            ])
+            ], $this->referralEnabled() ? [
+                'referral_commission_type' => $rate->referral_commission_type?->value,
+                'referral_commission_value' => $rate->referral_commission_value !== null
+                    ? (float) $rate->referral_commission_value
+                    : null,
+            ] : []))
             ->values()
             ->all();
     }

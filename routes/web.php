@@ -1497,7 +1497,8 @@ Route::group(['middleware' => ['auth', 'partner.restrict'], 'prefix' => 'account
     Route::get('telephony/softphone/devices', [App\Http\Controllers\TelephonySoftphoneDeviceController::class, 'index'])->name('telephony.softphone.devices.index');
     Route::post('telephony/softphone/devices', [App\Http\Controllers\TelephonySoftphoneDeviceController::class, 'store'])->name('telephony.softphone.devices.store');
     Route::get('telephony/softphone/devices/{id}', [App\Http\Controllers\TelephonySoftphoneDeviceController::class, 'show'])->name('telephony.softphone.devices.show')->whereNumber('id');
-    Route::get('telephony/softphone/devices/{id}/credentials', [App\Http\Controllers\TelephonySoftphoneDeviceController::class, 'credentials'])->name('telephony.softphone.devices.credentials')->whereNumber('id');
+    Route::get('telephony/softphone/devices/{id}/credentials', [App\Http\Controllers\TelephonySoftphoneDeviceController::class, 'credentials'])->name('telephony.softphone.devices.credentials')->whereNumber('id')->middleware('throttle:30,1');
+    Route::post('telephony/softphone/devices/{id}/sign-challenge', [App\Http\Controllers\TelephonySoftphoneDeviceController::class, 'signChallenge'])->name('telephony.softphone.devices.sign-challenge')->whereNumber('id')->middleware('throttle:120,1');
     Route::post('telephony/softphone/devices/{id}/capacity/reserve', [App\Http\Controllers\TelephonySoftphoneDeviceController::class, 'reserveCapacity'])->name('telephony.softphone.devices.capacity.reserve')->whereNumber('id');
     Route::post('telephony/softphone/devices/{id}/capacity/release', [App\Http\Controllers\TelephonySoftphoneDeviceController::class, 'releaseCapacity'])->name('telephony.softphone.devices.capacity.release')->whereNumber('id');
 
@@ -1603,6 +1604,9 @@ Route::group(['middleware' => ['auth', 'partner.restrict'], 'prefix' => 'account
             Route::post('agents/{agentId}/assign-level', [App\Http\Controllers\MlmAdminApiController::class, 'assignAgentLevel'])->name('agent_assign_level');
             Route::get('agents/{agentId}/commission-profile', [App\Http\Controllers\MlmAdminApiController::class, 'getAgentCommissionProfile'])->name('agent_commission_profile.show');
             Route::patch('agents/{agentId}/commission-profile', [App\Http\Controllers\MlmAdminApiController::class, 'updateAgentCommissionProfile'])->name('agent_commission_profile.update');
+            Route::get('agents/{agentId}/package-terms', [App\Http\Controllers\MlmAdminApiController::class, 'getAgentPackageTerms'])->name('agent_package_terms.index');
+            Route::put('agents/{agentId}/package-terms/{packageId}', [App\Http\Controllers\MlmAdminApiController::class, 'upsertAgentPackageTerms'])->name('agent_package_terms.upsert');
+            Route::delete('agents/{agentId}/package-terms/{packageId}', [App\Http\Controllers\MlmAdminApiController::class, 'destroyAgentPackageTerms'])->name('agent_package_terms.destroy');
 
             // Level History
             Route::get('level-history', [App\Http\Controllers\MlmAdminApiController::class, 'getLevelHistory'])->name('level_history');

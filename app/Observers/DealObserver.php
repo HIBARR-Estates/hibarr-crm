@@ -203,7 +203,7 @@ class DealObserver
         // stay writable.
         if ($deal->getOriginal('commission_locked') && ! $deal->isDirty('commission_locked')) {
             $protected = array_merge(
-                ['agent_id', 'referral_pool_rate', 'referral_fixed_amount'],
+                ['agent_id', 'referral_commission_type', 'referral_commission_value'],
                 Deal::VALUE_AFFECTING_KEYS,
             );
             $blocked = [];

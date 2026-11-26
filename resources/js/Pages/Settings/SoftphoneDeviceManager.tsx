@@ -24,6 +24,7 @@ import useSoftphoneLineTest, { type LineTestState } from "@/Hooks/useSoftphoneLi
 import useTranslation from "@/Hooks/useTranslation";
 import { ApiSuccessResponse } from "@/lib/api/types";
 import type {
+    SipProviderProfile,
     SoftphoneConfig,
     SoftphoneDeviceDetails,
     SoftphoneDeviceSummary,
@@ -71,6 +72,8 @@ interface ProvidersResponse {
 interface PlatformDefaults {
     wss: string;
     sipUriFormat: string;
+    /** How the softphone behaves for this platform (wording, Digest, ICE). */
+    profile?: SipProviderProfile;
 }
 
 interface PlatformResponse {
@@ -350,8 +353,10 @@ export default function SoftphoneDeviceManager() {
             authorization_username: trimmedUsername || null,
             authorization_password: password,
             display_name: displayName.trim() || null,
+            provider: provider ?? null,
+            provider_profile: platformDefaults.profile ?? null,
         };
-    }, [platformDefaults, username, password, displayName]);
+    }, [platformDefaults, provider, username, password, displayName]);
 
     const draftTestKey = editing ? String(editing.id) : "draft";
     const draftTest = lineTest.states[draftTestKey];

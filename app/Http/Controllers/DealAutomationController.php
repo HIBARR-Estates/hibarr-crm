@@ -54,7 +54,9 @@ class DealAutomationController extends AccountBaseController
             return Reply::dataOnly(['status' => 'success', 'data' => $automations]);
         }
 
-        return redirect()->route('company-settings.deal_automations');
+        return redirect()->route(
+            AutomationV2Feature::enabled() ? 'settings-automation.index' : 'company-settings.deal_automations'
+        );
     }
 
     public function create()

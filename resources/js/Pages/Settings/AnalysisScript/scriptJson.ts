@@ -96,6 +96,47 @@ function reference(catalog: ScriptCatalog) {
  * deliberately not the pipeline's current script — this is the format spec, and the
  * `reference` block beside it is the list of keys a real file may use.
  */
+/**
+ * Export the current canvas as importable JSON (same shape as sample/import,
+ * without the `reference` catalog block — callers can attach that if wanted).
+ */
+export function currentScriptJson(sections: BuilderSection[]): ScriptJson {
+    return {
+        version: 1,
+        sections: sections.map((section) => {
+            if (section.kind === "category") {
+                return {
+                    kind: "category" as const,
+                    categoryId: Number(section.categoryId),
+                    title: section.title || null,
+                    description: section.description,
+                };
+            }
+            return {
+                kind: "custom" as const,
+                title: section.title || null,
+                description: section.description,
+                rows: section.rows.map((row): JsonRow => {
+                    if (row.type === "question" || row.type === "instruction") {
+                        return {
+                            type: row.type,
+                            text: row.guide_text,
+                            required: row.type === "question" ? row.is_required : undefined,
+                        };
+                    }
+                    return {
+                        type: row.type as RowType,
+                        key: row.item_key,
+                        label: row.label_override,
+                        text: row.guide_text,
+                        required: row.is_required || undefined,
+                    };
+                }),
+            };
+        }),
+    };
+}
+
 export function sampleScriptJson(catalog: ScriptCatalog): ScriptJson {
     const rows: JsonRow[] = [
         { type: "instruction", text: "Introduce yourself and confirm you are speaking to the right person." },

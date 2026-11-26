@@ -38,7 +38,7 @@ class PackageController extends AccountBaseController
 
     public function create()
     {
-        $this->pipelines = LeadPipeline::where('company_id', company()->id)->get();
+        $this->pipelines = LeadPipeline::where('company_id', company()->id)->visibleInSystem()->get();
         $this->stages = PipelineStage::where('company_id', company()->id)
             ->orderBy('lead_pipeline_id')
             ->orderBy('priority')
@@ -81,7 +81,7 @@ class PackageController extends AccountBaseController
     public function edit($id)
     {
         $this->package = Package::with(['packagePipeline', 'routingTriggers'])->findOrFail($id);
-        $this->pipelines = LeadPipeline::where('company_id', company()->id)->get();
+        $this->pipelines = LeadPipeline::where('company_id', company()->id)->visibleInSystem()->get();
         $this->stages = PipelineStage::where('company_id', company()->id)
             ->orderBy('lead_pipeline_id')
             ->orderBy('priority')

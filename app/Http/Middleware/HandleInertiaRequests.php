@@ -372,6 +372,7 @@ class HandleInertiaRequests extends Middleware
             }
 
             $query = \App\Models\LeadPipeline::has('stages')
+                ->visibleInSystem()
                 ->select('id', 'name', 'default');
 
             if (FeatureFlags::enabled('crm.pipeline-nav-visibility')) {

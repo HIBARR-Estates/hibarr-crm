@@ -1,5 +1,6 @@
 import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
 import useTranslation from "@/Hooks/useTranslation";
+import { isMissedOrFailedCall } from "./callFormat";
 import type { CallLeg, CallLogRow } from "./types";
 
 /** How one agent's leg of the call ended, from that agent's side. */
@@ -23,19 +24,19 @@ function legKey(outcome: string): string {
     }
 }
 
-type CallLegsRow = Pick<CallLogRow, "direction" | "user_name" | "answered" | "answered_by_user_name" | "legs">;
+type CallLegsRow = Pick<CallLogRow, "direction" | "outcome" | "user_name" | "answered" | "answered_by_user_name" | "legs">;
 
 function legColor(outcome: string): string {
     if (outcome === "ended") {
         return T.GREEN;
     }
-    if (outcome === "started") {
-        return T.TEXT_MUTED;
+    if (isMissedOrFailedCall(outcome)) {
+        return T.RED;
     }
     if (outcome === "declined") {
         return T.AMBER;
     }
-    return T.RED;
+    return T.TEXT_MUTED;
 }
 
 /**
@@ -65,7 +66,7 @@ export default function CallLegs({ row, compact = false }: { row: CallLegsRow; c
                 style={{
                     fontSize: compact ? 12 : 14,
                     fontWeight: compact ? 500 : 400,
-                    color: row.answered || !headline ? T.TEXT : T.RED,
+                    color: !row.answered && headline && isMissedOrFailedCall(row.outcome) ? T.RED : T.TEXT,
                 }}
             >
                 {headline ?? "—"}
