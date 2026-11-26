@@ -10,6 +10,7 @@ use App\Support\BusinessHours;
 use App\Support\FeatureFlags;
 use App\Traits\RecordsCrmEvents;
 use Carbon\CarbonImmutable;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 /**
@@ -57,7 +58,16 @@ class LeadContactSlaService
 
         $existing = LeadContactSla::withoutGlobalScopes()->where('lead_entry_id', $entry->id)->first();
         if ($existing) {
-            return $existing;
+            // A replay finishes what a failed first attempt left: a clock still waiting on a lead that
+            // has an owner starts now. Running and ended clocks are left alone.
+            if ($existing->status === LeadContactSla::STATUS_AWAITING_OWNER) {
+                $lead = Lead::withoutGlobalScopes()->find($entry->lead_id);
+                if ($lead && $lead->lead_owner) {
+                    $this->start($existing, (int) $lead->lead_owner, $lead);
+                }
+            }
+
+            return $existing->fresh();
         }
 
         $row = LeadContactSla::withoutGlobalScopes()->create([
@@ -84,7 +94,8 @@ class LeadContactSlaService
      */
     public function ownerAssigned(Lead $lead): void
     {
-        if (! $lead->lead_owner) {
+        // Off means off: no clock starts or moves while the feature is disabled.
+        if (! self::enabled() || ! $lead->lead_owner) {
             return;
         }
 
@@ -97,22 +108,37 @@ class LeadContactSlaService
             if ($row->status === LeadContactSla::STATUS_AWAITING_OWNER) {
                 $this->start($row, (int) $lead->lead_owner, $lead);
             } elseif ((int) $row->owner_user_id !== (int) $lead->lead_owner) {
-                $row->update(['owner_user_id' => $lead->lead_owner]);
+                // Only while still running: a contact that ended the clock in the meantime wins.
+                LeadContactSla::withoutGlobalScopes()
+                    ->whereKey($row->id)
+                    ->where('status', LeadContactSla::STATUS_RUNNING)
+                    ->update(['owner_user_id' => $lead->lead_owner]);
             }
         }
     }
 
     public function start(LeadContactSla $row, int $ownerId, ?Lead $lead = null, ?CarbonImmutable $at = null): void
     {
-        $at ??= CarbonImmutable::now();
-        $due = BusinessHours::addWorkingSeconds($at, (int) $row->first_contact_seconds, $row->window);
+        $at = $this->storageTime($at ?? CarbonImmutable::now());
+        $due = $this->storageTime(CarbonImmutable::instance(
+            BusinessHours::addWorkingSeconds($at, (int) $row->first_contact_seconds, $row->window)
+        ));
 
-        $row->update([
-            'status' => LeadContactSla::STATUS_RUNNING,
-            'owner_user_id' => $ownerId,
-            'started_at' => $at,
-            'due_at' => CarbonImmutable::instance($due),
-        ]);
+        // Atomic: only a clock that is still waiting starts. A contact that ended it a moment ago, or
+        // another worker that already started it, leaves this a no-op, with no second timeline event.
+        $started = LeadContactSla::withoutGlobalScopes()
+            ->whereKey($row->id)
+            ->where('status', LeadContactSla::STATUS_AWAITING_OWNER)
+            ->update([
+                'status' => LeadContactSla::STATUS_RUNNING,
+                'owner_user_id' => $ownerId,
+                'started_at' => $at,
+                'due_at' => $due,
+            ]);
+        if (! $started) {
+            return;
+        }
+        $row->refresh();
 
         $lead ??= Lead::withoutGlobalScopes()->find($row->lead_id);
         if ($lead) {
@@ -131,12 +157,23 @@ class LeadContactSlaService
     }
 
     /**
+     * Timestamps are stored without an offset, in the application's timezone. A moment that carries
+     * another zone (a deadline worked out in the channel's, a contact time with an offset) is
+     * converted first, or it would read back as a different instant.
+     */
+    private function storageTime(CarbonImmutable $moment): CarbonImmutable
+    {
+        return $moment->setTimezone((string) config('app.timezone', 'UTC'));
+    }
+
+    /**
      * A contact was made. Ends every clock still open on the lead (one contact answers them all),
      * recording who, how, how long it took in working time, and whether it was inside the limit.
      * Contact from before the entry arrived does not count.
      */
     public function registerContact(int $leadId, string $method, ?int $userId, CarbonImmutable $at): int
     {
+        $at = $this->storageTime($at);
         $open = LeadContactSla::withoutGlobalScopes()
             ->where('lead_id', $leadId)
             ->whereIn('status', [LeadContactSla::STATUS_AWAITING_OWNER, LeadContactSla::STATUS_RUNNING])
@@ -156,7 +193,12 @@ class LeadContactSlaService
                 ? BusinessHours::workingSecondsBetween($started, $at->lt($started) ? $started : $at, $row->window)
                 : 0;
 
-            $row->update([
+            // Atomic: closes the clock only if it is still open, so a breach flagged or a contact
+            // registered a moment ago by another worker is not overwritten or logged twice.
+            $closed = LeadContactSla::withoutGlobalScopes()
+                ->whereKey($row->id)
+                ->whereIn('status', [LeadContactSla::STATUS_AWAITING_OWNER, LeadContactSla::STATUS_RUNNING])
+                ->update([
                 'status' => LeadContactSla::STATUS_MET,
                 'contacted_at' => $at,
                 'contact_method' => $method,
@@ -167,6 +209,9 @@ class LeadContactSlaService
                 // A late contact is also a breach, even if the scan had not flagged it yet.
                 'breached_at' => $row->breached_at ?? ($inTime ? null : $due),
             ]);
+            if (! $closed) {
+                continue;
+            }
 
             $lead = Lead::withoutGlobalScopes()->find($leadId);
             if ($lead) {
@@ -196,7 +241,7 @@ class LeadContactSlaService
      */
     public function flagBreaches(?CarbonImmutable $now = null): int
     {
-        $now ??= CarbonImmutable::now();
+        $now = $this->storageTime($now ?? CarbonImmutable::now());
 
         $late = LeadContactSla::withoutGlobalScopes()
             ->where('status', LeadContactSla::STATUS_RUNNING)
@@ -204,26 +249,47 @@ class LeadContactSlaService
             ->where('due_at', '<=', $now)
             ->get();
 
+        $flagged = 0;
         foreach ($late as $row) {
-            $row->update(['breached_at' => $row->due_at]);
+            try {
+                // The claim and its timeline event commit together: if the event cannot be written the
+                // claim rolls back, and the next run picks the clock up again.
+                $flagged += DB::transaction(function () use ($row) {
+                    $claimed = LeadContactSla::withoutGlobalScopes()
+                        ->whereKey($row->id)
+                        ->where('status', LeadContactSla::STATUS_RUNNING)
+                        ->whereNull('breached_at')
+                        ->update(['breached_at' => $row->due_at]);
+                    if (! $claimed) {
+                        // Contacted in time, or flagged elsewhere, since it was read.
+                        return 0;
+                    }
 
-            $lead = Lead::withoutGlobalScopes()->find($row->lead_id);
-            if (! $lead) {
-                continue;
+                    $lead = Lead::withoutGlobalScopes()->find($row->lead_id);
+                    if ($lead) {
+                        $this->recordCrmEvent('lead_contact_sla_breached', $lead, [
+                            'generation_type' => 'system_generated',
+                            'occurred_at' => $row->due_at,
+                            'metadata' => [
+                                'comment' => 'Time limit to contact the lead passed',
+                                'owner_id' => $row->owner_user_id,
+                                'limit_seconds' => (int) $row->first_contact_seconds,
+                                'recommended_method' => $row->recommended_method,
+                            ],
+                        ]);
+                    }
+
+                    return 1;
+                });
+            } catch (\Throwable $e) {
+                Log::error('LeadContactSlaService: could not flag a breach; it is retried on the next run', [
+                    'sla_id' => $row->id,
+                    'message' => $e->getMessage(),
+                ]);
             }
-            $this->recordCrmEvent('lead_contact_sla_breached', $lead, [
-                'generation_type' => 'system_generated',
-                'occurred_at' => $row->due_at,
-                'metadata' => [
-                    'comment' => 'Time limit to contact the lead passed',
-                    'owner_id' => $row->owner_user_id,
-                    'limit_seconds' => (int) $row->first_contact_seconds,
-                    'recommended_method' => $row->recommended_method,
-                ],
-            ]);
         }
 
-        return $late->count();
+        return $flagged;
     }
 
     /**
@@ -305,6 +371,11 @@ class LeadContactSlaService
             'used_recommended_method' => $row->used_recommended_method,
             'elapsed_working_seconds' => $row->elapsed_working_seconds,
             'met_in_time' => $row->met_in_time,
+            // Working time left, which the countdown shows: with a window, the wall-clock distance to the
+            // deadline would count the hours the channel is closed.
+            'remaining_working_seconds' => $running && $row->due_at !== null && $window !== null
+                ? BusinessHours::workingSecondsBetween($now, CarbonImmutable::instance($row->due_at), $window)
+                : null,
             // Lets the browser tick against the server's clock rather than its own.
             'server_now' => $now->toIso8601String(),
         ];

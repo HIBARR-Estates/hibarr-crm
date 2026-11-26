@@ -8,6 +8,7 @@ use App\Models\User;
 use App\Support\AutomationV2Feature;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 
 /**
  * CRUD for lead assignment pools (Settings > Automation > Assignment pools): the groups of users the
@@ -122,7 +123,7 @@ class LeadAssignmentPoolController extends AccountBaseController
             'name' => 'required|string|max:191',
             'active' => 'nullable|boolean',
             'members' => 'nullable|array',
-            'members.*.user_id' => ['required', 'integer', 'exists:users,id'],
+            'members.*.user_id' => ['required', 'integer', Rule::exists('users', 'id')->where('company_id', company()->id)],
             'members.*.active' => 'nullable|boolean',
         ];
     }
@@ -130,7 +131,7 @@ class LeadAssignmentPoolController extends AccountBaseController
     private function presentFresh(LeadAssignmentPool $pool): array
     {
         $pool = $pool->fresh('members');
-        $names = User::withoutGlobalScopes()->whereIn('id', $pool->members->pluck('user_id'))->pluck('name', 'id');
+        $names = User::withoutGlobalScopes()->where('company_id', company()->id)->whereIn('id', $pool->members->pluck('user_id'))->pluck('name', 'id');
 
         return $this->present($pool, $names);
     }

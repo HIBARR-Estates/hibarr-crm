@@ -53,9 +53,21 @@ class LeadAssignmentService
         $strategy = $config['strategy'] ?? self::STRATEGY_SPECIFIC_USER;
 
         return DB::transaction(function () use ($lead, $config, $strategy, $poolId, $result) {
+            // The check above is a fast path on a copy that may be stale. Decide on the locked row, so
+            // two entries reaching one lead together cannot both pass "skip if owned" and overwrite
+            // each other.
+            $current = Lead::withoutGlobalScopes()->whereKey($lead->id)->lockForUpdate()->first();
+            $currentOwner = $current?->lead_owner ? (int) $current->lead_owner : null;
+            if ($current === null) {
+                return $result(self::OUTCOME_FAILED, 'The lead no longer exists');
+            }
+            if ($currentOwner !== null && ! $this->mayReplaceOwner($currentOwner, $config['when_owned'] ?? self::WHEN_OWNED_SKIP)) {
+                return ['previous_owner_id' => $currentOwner] + $result(self::OUTCOME_SKIPPED, 'The lead already has an owner');
+            }
+
             $userId = match ($strategy) {
                 self::STRATEGY_ROUND_ROBIN => $poolId ? $this->nextFromPool($lead, $poolId) : null,
-                default => $this->activeUserId($config['user_id'] ?? null),
+                default => $this->activeUserId($config['user_id'] ?? null, (int) $lead->company_id),
             };
 
             if ($userId === null) {
@@ -71,7 +83,7 @@ class LeadAssignmentService
             $lead->assigned_at = now();
             $lead->saveQuietly();
 
-            return $result(
+            return ['previous_owner_id' => $currentOwner] + $result(
                 self::OUTCOME_ASSIGNED,
                 $strategy === self::STRATEGY_ROUND_ROBIN ? 'Next in the pool' : 'Named user',
                 $userId
@@ -88,14 +100,18 @@ class LeadAssignmentService
         };
     }
 
-    /** The id when it names an active user (the User model's ActiveScope hides inactive ones). */
-    private function activeUserId(mixed $userId): ?int
+    /**
+     * The id when it names an active user of the lead's company (the User model's ActiveScope hides
+     * inactive ones). The company is explicit: an intake request is token-authenticated, so no
+     * request user narrows the query for us.
+     */
+    private function activeUserId(mixed $userId, int $companyId): ?int
     {
         if (empty($userId)) {
             return null;
         }
 
-        return User::query()->whereKey((int) $userId)->value('id');
+        return User::query()->where('company_id', $companyId)->whereKey((int) $userId)->value('id');
     }
 
     /**
@@ -120,7 +136,11 @@ class LeadAssignmentService
             return null;
         }
 
-        $activeUserIds = User::query()->whereIn('id', $members->pluck('user_id'))->pluck('id')->all();
+        $activeUserIds = User::query()
+            ->where('company_id', $lead->company_id)
+            ->whereIn('id', $members->pluck('user_id'))
+            ->pluck('id')
+            ->all();
         $eligible = $members->filter(fn ($member) => in_array((int) $member->user_id, $activeUserIds, true))->values();
         if ($eligible->isEmpty()) {
             return null;

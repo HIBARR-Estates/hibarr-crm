@@ -114,4 +114,44 @@ class BusinessHoursTest extends TestCase
             $this->show(BusinessHours::addWorkingSeconds($this->berlin('2026-03-28 17:30'), 3600, $everyDay))
         );
     }
+
+    public function test_elapsed_time_spanning_a_clock_change_inside_the_window_is_counted_in_full(): void
+    {
+        // The window opens at 01:30 on the night Berlin skips 02:00-03:00 (Sunday 29 March 2026). Two hours
+        // of working time from 01:30 CET end at 04:30 CEST, not 03:30: the skipped hour passed.
+        $overnight = ['timezone' => 'Europe/Berlin', 'days' => [7], 'start' => '01:30', 'end' => '23:00'];
+
+        $this->assertSame(
+            'Sun 2026-03-29 04:30:00',
+            $this->show(BusinessHours::addWorkingSeconds($this->berlin('2026-03-29 01:30'), 2 * 3600, $overnight))
+        );
+        $this->assertSame(
+            2 * 3600,
+            BusinessHours::workingSecondsBetween($this->berlin('2026-03-29 01:30'), $this->berlin('2026-03-29 04:30'), $overnight)
+        );
+    }
+
+    public function test_the_tightest_valid_window_still_reaches_a_seven_day_deadline(): void
+    {
+        // One minute a week: seven days of SLA is 10,080 weeks away. It is reached, and not by falling
+        // back to a round-the-clock deadline.
+        $tiny = ['timezone' => 'UTC', 'days' => [1], 'start' => '09:00', 'end' => '09:01'];
+        $from = new DateTimeImmutable('2026-11-23 09:00:00', new DateTimeZone('UTC'));
+
+        $due = BusinessHours::addWorkingSeconds($from, 7 * 24 * 3600, $tiny);
+
+        $this->assertSame('Mon', $due->format('D'));
+        $this->assertGreaterThan(9999 * 7 * 86400, $due->getTimestamp() - $from->getTimestamp());
+    }
+
+    public function test_a_window_with_no_time_to_count_fails_loudly(): void
+    {
+        $this->expectException(\LogicException::class);
+
+        BusinessHours::addWorkingSeconds(
+            $this->berlin('2026-11-25 10:00'),
+            60,
+            ['timezone' => 'Europe/Berlin', 'days' => [1], 'start' => '09:00', 'end' => '09:00']
+        );
+    }
 }

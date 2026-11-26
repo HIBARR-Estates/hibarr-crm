@@ -59,6 +59,10 @@ return new class extends Migration
             $table->string('form_key', 100)->nullable();
             $table->string('language', 8)->nullable();
 
+            // When routing (the lead_entry_received automations) finished for this entry. Null while it
+            // has not, so a redelivery after a failure runs it again, and only then.
+            $table->timestamp('routed_at')->nullable();
+
             // The block as received, for audit and for fields added later.
             $table->json('payload')->nullable();
 

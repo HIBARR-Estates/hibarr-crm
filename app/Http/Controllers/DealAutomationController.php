@@ -801,7 +801,7 @@ class DealAutomationController extends AccountBaseController
             'actions.*.wait_duration_value' => 'nullable|integer|min:1|max:3650',
             'actions.*.wait_duration_unit' => ['nullable', Rule::in(array_keys(AutomationFieldCatalog::WAIT_DURATION_UNITS))],
             'actions.*.assign_strategy' => ['required_if:actions.*.action_type,assign_lead_owner', 'nullable', Rule::in(array_keys(AutomationFieldCatalog::OWNER_STRATEGIES))],
-            'actions.*.assign_user_id' => ['required_if:actions.*.assign_strategy,specific_user', 'nullable', 'exists:users,id'],
+            'actions.*.assign_user_id' => ['required_if:actions.*.assign_strategy,specific_user', 'nullable', Rule::exists('users', 'id')->where('company_id', company()->id)],
             'actions.*.assign_pool_id' => ['required_if:actions.*.assign_strategy,round_robin', 'nullable', Rule::exists('lead_assignment_pools', 'id')->where('company_id', company()->id)],
             'actions.*.assign_when_owned' => ['nullable', Rule::in(array_keys(AutomationFieldCatalog::WHEN_OWNED_OPTIONS))],
             'actions.*.assign_notify' => ['nullable', 'boolean'],

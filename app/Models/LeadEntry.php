@@ -25,6 +25,7 @@ class LeadEntry extends BaseModel
         'payload' => 'array',
         'is_new_lead' => 'boolean',
         'occurred_at' => 'datetime',
+        'routed_at' => 'datetime',
     ];
 
     public function contactSla(): HasOne

@@ -20,7 +20,7 @@ class EntryChannelScopeTest extends TestCase
 
     private const OTHER = '0193a1c2-0000-7000-8000-0000000000d4';
 
-    private function matches(?array $scope, bool $includeDescendants, ?LeadEntry $entry): bool
+    private function matchesEntryScope(?array $scope, bool $includeDescendants, ?LeadEntry $entry): bool
     {
         $automation = new DealAutomation([
             'name' => 'Route webinars',
@@ -44,31 +44,31 @@ class EntryChannelScopeTest extends TestCase
 
     public function test_no_selection_means_every_channel(): void
     {
-        $this->assertTrue($this->matches(null, true, $this->entry()));
-        $this->assertTrue($this->matches([], true, $this->entry()));
+        $this->assertTrue($this->matchesEntryScope(null, true, $this->entry()));
+        $this->assertTrue($this->matchesEntryScope([], true, $this->entry()));
     }
 
     public function test_the_entry_channel_itself_matches(): void
     {
-        $this->assertTrue($this->matches([self::KICKOFF], false, $this->entry()));
+        $this->assertTrue($this->matchesEntryScope([self::KICKOFF], false, $this->entry()));
     }
 
     public function test_an_ancestor_matches_only_with_descendants_on(): void
     {
-        $this->assertTrue($this->matches([self::GERMAN], true, $this->entry()));
-        $this->assertTrue($this->matches([self::ROOT], true, $this->entry()));
-        $this->assertFalse($this->matches([self::GERMAN], false, $this->entry()));
+        $this->assertTrue($this->matchesEntryScope([self::GERMAN], true, $this->entry()));
+        $this->assertTrue($this->matchesEntryScope([self::ROOT], true, $this->entry()));
+        $this->assertFalse($this->matchesEntryScope([self::GERMAN], false, $this->entry()));
     }
 
     public function test_an_unrelated_channel_never_matches(): void
     {
-        $this->assertFalse($this->matches([self::OTHER], true, $this->entry()));
-        $this->assertTrue($this->matches([self::OTHER, self::GERMAN], true, $this->entry()));
+        $this->assertFalse($this->matchesEntryScope([self::OTHER], true, $this->entry()));
+        $this->assertTrue($this->matchesEntryScope([self::OTHER, self::GERMAN], true, $this->entry()));
     }
 
     public function test_a_scoped_automation_does_not_run_without_an_entry(): void
     {
-        $this->assertFalse($this->matches([self::GERMAN], true, null));
+        $this->assertFalse($this->matchesEntryScope([self::GERMAN], true, null));
     }
 
     public function test_the_trigger_is_known_to_automation_v2_only(): void

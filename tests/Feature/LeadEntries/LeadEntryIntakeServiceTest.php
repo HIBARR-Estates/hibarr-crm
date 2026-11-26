@@ -8,6 +8,7 @@ use App\Models\LeadEntry;
 use App\Services\DealAutomationService;
 use App\Services\LeadEntryContext;
 use App\Services\LeadEntryIntakeService;
+use Illuminate\Support\Facades\DB;
 use Mockery;
 
 class LeadEntryIntakeServiceTest extends LeadEntryTestCase
@@ -136,8 +137,114 @@ class LeadEntryIntakeServiceTest extends LeadEntryTestCase
         $engine->shouldReceive('processLead')->andThrow(new \RuntimeException('boom'));
         $this->instance(DealAutomationService::class, $engine);
 
-        $this->assertNull($this->intake()->receive($this->leadId, $this->companyId, $this->entryPayload()));
-        // The entry itself was stored before routing ran.
+        $entry = $this->intake()->receive($this->leadId, $this->companyId, $this->entryPayload());
+
+        // The entry was stored before routing ran, and is not marked routed.
+        $this->assertNotNull($entry);
+        $this->assertNull($entry->fresh()->routed_at);
         $this->assertSame(1, LeadEntry::withoutGlobalScopes()->count());
+    }
+
+    public function test_routing_that_failed_runs_again_when_the_entry_is_redelivered_and_then_never_again(): void
+    {
+        $this->enableRouting();
+        $calls = 0;
+        $engine = Mockery::mock(DealAutomationService::class);
+        $engine->shouldReceive('processLead')->andReturnUsing(function () use (&$calls) {
+            $calls++;
+            if ($calls === 1) {
+                throw new \RuntimeException('boom');
+            }
+        });
+        $this->instance(DealAutomationService::class, $engine);
+
+        $this->intake()->receive($this->leadId, $this->companyId, $this->entryPayload());
+        $this->intake()->receive($this->leadId, $this->companyId, $this->entryPayload());
+        $this->intake()->receive($this->leadId, $this->companyId, $this->entryPayload());
+
+        $this->assertSame(2, $calls);
+        $this->assertNotNull(LeadEntry::withoutGlobalScopes()->first()->routed_at);
+    }
+
+    public function test_an_entry_for_a_lead_of_another_company_is_ignored(): void
+    {
+        $engine = Mockery::mock(DealAutomationService::class);
+        $engine->shouldReceive('processLead')->never();
+        $this->instance(DealAutomationService::class, $engine);
+
+        $this->assertNull($this->intake()->receive($this->leadId, $this->companyId + 1, $this->entryPayload()));
+        $this->assertSame(0, LeadEntry::withoutGlobalScopes()->count());
+    }
+
+    public function test_another_companys_entry_uuid_is_not_handed_back(): void
+    {
+        $this->intake()->receive($this->leadId, $this->companyId, $this->entryPayload());
+        DB::table('companies')->insert(['id' => 2, 'company_name' => 'Other', 'created_at' => now(), 'updated_at' => now()]);
+        DB::table('leads')->insert([
+            'id' => 2, 'company_id' => 2, 'client_name' => 'Other lead', 'hash' => md5('o'),
+            'next_follow_up' => 'yes', 'created_at' => now(), 'updated_at' => now(),
+        ]);
+
+        $this->assertNull($this->intake()->receive(2, 2, $this->entryPayload()));
+    }
+
+    public function test_uuids_are_stored_lower_case_so_scope_checks_and_dedupe_agree(): void
+    {
+        $upper = $this->entryPayload([
+            'uuid' => strtoupper('0193a1c2-0000-7000-8000-00000000000a'),
+            'channel' => ['uuid' => strtoupper('0193a1c2-0000-7000-8000-0000000000c3')],
+        ]);
+
+        $entry = $this->intake()->receive($this->leadId, $this->companyId, $upper);
+
+        $this->assertSame('0193a1c2-0000-7000-8000-00000000000a', $entry->ol_entry_uuid);
+        $this->assertSame('0193a1c2-0000-7000-8000-0000000000c3', $entry->channel_uuid);
+        $this->assertSame($entry->id, $this->intake()->receive($this->leadId, $this->companyId, $this->entryPayload(['uuid' => '0193A1C2-0000-7000-8000-00000000000A']))->id);
+    }
+
+    public function test_over_long_free_text_is_clipped_instead_of_costing_the_entry(): void
+    {
+        $entry = $this->intake()->receive($this->leadId, $this->companyId, $this->entryPayload([
+            'form_key' => str_repeat('f', 150),
+            'language' => 'de-DE-1996-extra',
+            'source' => ['label' => str_repeat('l', 400)],
+            'context' => ['utm' => ['source' => str_repeat('u', 300)]],
+        ]));
+
+        $this->assertNotNull($entry);
+        $this->assertSame(100, mb_strlen($entry->form_key));
+        $this->assertSame(8, mb_strlen($entry->language));
+        $this->assertSame(255, mb_strlen($entry->source_label));
+        $this->assertSame(191, mb_strlen($entry->utm_source));
+    }
+
+    public function test_an_sla_window_that_does_not_end_after_it_starts_costs_only_the_clock(): void
+    {
+        foreach ([['18:00', '09:00'], ['09:00', '09:00']] as [$start, $end]) {
+            $entry = $this->intake()->store($this->leadId, $this->companyId, $this->entryPayload([
+                'uuid' => '0193a1c2-0000-7000-8000-0000000000'.($start === '18:00' ? '0b' : '0c'),
+                'sla' => [
+                    'first_contact_seconds' => 300,
+                    'window' => ['timezone' => 'Europe/Berlin', 'days' => [1, 2, 3], 'start' => $start, 'end' => $end],
+                ],
+            ]));
+
+            $this->assertNotNull($entry);
+            $this->assertNull($entry->sla);
+        }
+    }
+
+    public function test_an_sla_whose_working_hours_put_the_deadline_years_away_costs_only_the_clock(): void
+    {
+        $entry = $this->intake()->store($this->leadId, $this->companyId, $this->entryPayload([
+            'uuid' => '0193a1c2-0000-7000-8000-0000000000d1',
+            'sla' => [
+                'first_contact_seconds' => 604800,
+                'window' => ['timezone' => 'UTC', 'days' => [1], 'start' => '09:00', 'end' => '09:01'],
+            ],
+        ]));
+
+        $this->assertNotNull($entry);
+        $this->assertNull($entry->sla);
     }
 }

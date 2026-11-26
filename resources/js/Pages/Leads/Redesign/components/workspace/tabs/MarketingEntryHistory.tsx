@@ -73,7 +73,7 @@ function EntryList() {
                         {entry.campaign_label && (
                             <div>
                                 <dt>{t("pages.leads.marketing.entry_campaign")}</dt>
-                                <dd>{entry.campaign_label}</dd>
+                                <dd>{td(entry.campaign_label, { source: "en" })}</dd>
                             </div>
                         )}
                         {entry.contact_sla && (

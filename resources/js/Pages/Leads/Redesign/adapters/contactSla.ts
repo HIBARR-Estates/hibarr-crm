@@ -27,6 +27,8 @@ export interface ContactSla {
     used_recommended_method: boolean | null;
     elapsed_working_seconds: number | null;
     met_in_time: boolean | null;
+    /** Working time left at `server_now` for a running clock with working hours, else null. */
+    remaining_working_seconds?: number | null;
     server_now: string;
 }
 
@@ -69,10 +71,11 @@ export function slaView(sla: ContactSla, nowMs: number): SlaView {
     if (!Number.isFinite(due)) {
         return { phase: "running", seconds: sla.first_contact_seconds };
     }
-    const remaining = Math.ceil((due - nowMs) / 1000);
-    if (remaining <= 0) {
+    const wallRemaining = Math.ceil((due - nowMs) / 1000);
+    const remaining = workingRemaining(sla, nowMs, wallRemaining);
+    if (wallRemaining <= 0) {
         // Past the deadline. A window that is closed does not pause an overdue clock: it is late.
-        return { phase: "overdue", seconds: Math.abs(remaining) };
+        return { phase: "overdue", seconds: Math.abs(wallRemaining) };
     }
     if (sla.paused) {
         return { phase: "paused", seconds: remaining };
@@ -81,6 +84,22 @@ export function slaView(sla: ContactSla, nowMs: number): SlaView {
         phase: remaining <= sla.first_contact_seconds * DUE_SOON_FRACTION ? "due_soon" : "running",
         seconds: remaining,
     };
+}
+
+/**
+ * What the countdown shows. With working hours the wall-clock distance to the deadline would count the
+ * hours the channel is closed ("16h left" when nine working minutes are), so the server sends the
+ * working time left at its clock and the browser counts that down. It never reaches zero before the
+ * deadline does: the window closing is the server's call (the next refresh shows the pause).
+ */
+function workingRemaining(sla: ContactSla, nowMs: number, wallRemaining: number): number {
+    const atServer = sla.remaining_working_seconds;
+    const serverNow = Date.parse(sla.server_now);
+    if (sla.paused || atServer === null || atServer === undefined || !Number.isFinite(serverNow)) {
+        return wallRemaining;
+    }
+    const elapsed = Math.max(0, Math.floor((nowMs - serverNow) / 1000));
+    return Math.min(wallRemaining, Math.max(1, atServer - elapsed));
 }
 
 /** "04:32" under an hour, "2h 05m" from an hour up. Never negative. */

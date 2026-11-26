@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\DealAutomation;
 use App\Models\Lead;
 use App\Models\LeadEntry;
+use App\Support\BusinessHours;
 use App\Support\LeadEntryRouting;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\Log;
@@ -20,8 +21,10 @@ use Illuminate\Support\Facades\Validator;
 class LeadEntryIntakeService
 {
     /**
-     * Stores the entry (idempotent on its uuid) and runs the lead automations it triggers. A repeat
-     * of an entry already stored returns it without running anything a second time.
+     * Stores the entry (idempotent on its uuid), runs the lead automations it triggers, and opens its
+     * contact clock. A redelivery of an entry already stored never runs routing twice, but it does
+     * finish what an earlier delivery could not: routing that failed (the entry is not marked routed
+     * until it succeeds) and a clock that never opened.
      *
      * @param  array<string, mixed>|null  $payload  The request's `entry` block.
      */
@@ -33,15 +36,8 @@ class LeadEntryIntakeService
 
         try {
             $entry = $this->store($leadId, $companyId, $payload);
-            if ($entry?->wasRecentlyCreated) {
-                $this->route($entry);
-                // After routing, so an owner assigned by an automation starts the clock straight away.
-                app(LeadContactSlaService::class)->openForEntry($entry);
-            }
-
-            return $entry;
         } catch (\Throwable $e) {
-            Log::error('LeadEntryIntakeService: failed to process entry', [
+            Log::error('LeadEntryIntakeService: failed to store entry', [
                 'lead_id' => $leadId,
                 'entry_uuid' => $payload['uuid'] ?? null,
                 'message' => $e->getMessage(),
@@ -49,6 +45,28 @@ class LeadEntryIntakeService
 
             return null;
         }
+        if (! $entry) {
+            return null;
+        }
+
+        try {
+            if ($entry->routed_at === null && $this->route($entry)) {
+                $entry->forceFill(['routed_at' => now()])->saveQuietly();
+            }
+        } catch (\Throwable $e) {
+            Log::error('LeadEntryIntakeService: routing failed; it is retried if the entry is delivered again', [
+                'lead_id' => $leadId,
+                'entry_uuid' => $entry->ol_entry_uuid,
+                'message' => $e->getMessage(),
+            ]);
+        }
+
+        // Independent of routing: a failing automation must not cost the lead its clock. After routing,
+        // so an owner assigned by an automation starts the clock straight away. Idempotent.
+        $slaService = app(LeadContactSlaService::class);
+        $slaService->safely(fn () => $slaService->openForEntry($entry));
+
+        return $entry;
     }
 
     /**
@@ -85,9 +103,25 @@ class LeadEntryIntakeService
             return null;
         }
 
+        // An entry can only be filed against a lead of the company the request came in for.
+        $leadInCompany = Lead::withoutGlobalScopes()->where('company_id', $companyId)->whereKey($leadId)->exists();
+        if (! $leadInCompany) {
+            Log::warning('LeadEntryIntakeService: ignoring an entry for a lead outside the company', [
+                'lead_id' => $leadId,
+                'company_id' => $companyId,
+            ]);
+
+            return null;
+        }
+
+        // UUIDs are case-insensitive; one spelling is stored so scope checks and dedupe agree.
+        $payload['uuid'] = strtolower($payload['uuid']);
+        $payload['channel']['uuid'] = strtolower($payload['channel']['uuid']);
+        $payload['channel']['ancestor_uuids'] = array_map('strtolower', array_values($payload['channel']['ancestor_uuids'] ?? []));
+
         $existing = LeadEntry::withoutGlobalScopes()->where('ol_entry_uuid', $payload['uuid'])->first();
         if ($existing) {
-            return $existing;
+            return (int) $existing->company_id === $companyId ? $existing : null;
         }
 
         $channel = $payload['channel'];
@@ -107,30 +141,30 @@ class LeadEntryIntakeService
                 'channel_type' => $channel['type'],
                 'channel_family' => $channel['family'] ?? null,
                 'channel_path' => $channel['path'],
-                'channel_ancestor_uuids' => array_values($channel['ancestor_uuids'] ?? []),
+                'channel_ancestor_uuids' => $channel['ancestor_uuids'],
                 'channel_tags' => array_values($channel['tags'] ?? []),
                 'sla' => $this->validSla($payload['sla'] ?? null, $leadId),
                 'source_entity_type' => $source['entity_type'] ?? null,
                 'source_entity_id' => $source['entity_id'] ?? null,
-                'source_entity_key' => $source['entity_key'] ?? null,
-                'source_label' => $source['label'] ?? null,
+                'source_entity_key' => $this->clip($source['entity_key'] ?? null, 191),
+                'source_label' => $this->clip($source['label'] ?? null, 255),
                 'is_new_lead' => (bool) ($payload['is_new_lead'] ?? false),
-                'resolved_by' => $payload['resolved_by'] ?? 'type_default',
+                'resolved_by' => $this->clip($payload['resolved_by'] ?? 'type_default', 16),
                 'occurred_at' => $payload['occurred_at'],
                 'referral_ol_agent_id' => $context['referral_agent']['ol_agent_id'] ?? null,
                 'referral_user_id' => $context['referral_agent']['crm_user_id'] ?? null,
                 'partner_ol_agent_id' => $context['partner']['ol_agent_id'] ?? null,
                 'partner_user_id' => $context['partner']['crm_user_id'] ?? null,
-                'campaign_key' => $campaign['key'] ?? null,
-                'campaign_matched_by' => $campaign['matched_by'] ?? null,
-                'campaign_value' => $campaign['value'] ?? null,
-                'campaign_label' => $campaign['label'] ?? null,
-                'attribution_link_uuid' => $campaign['attribution_link_uuid'] ?? null,
-                'utm_source' => $utm['source'] ?? $utm['utmSource'] ?? null,
-                'utm_medium' => $utm['medium'] ?? $utm['utmMedium'] ?? null,
-                'utm_campaign' => $utm['campaign'] ?? $utm['utmCampaign'] ?? null,
-                'form_key' => $payload['form_key'] ?? null,
-                'language' => $payload['language'] ?? null,
+                'campaign_key' => $this->clip($campaign['key'] ?? null, 255),
+                'campaign_matched_by' => $this->clip($campaign['matched_by'] ?? null, 24),
+                'campaign_value' => $this->clip($campaign['value'] ?? null, 255),
+                'campaign_label' => $this->clip($campaign['label'] ?? null, 255),
+                'attribution_link_uuid' => ($campaign['attribution_link_uuid'] ?? null) ? strtolower((string) $campaign['attribution_link_uuid']) : null,
+                'utm_source' => $this->clip($utm['source'] ?? $utm['utmSource'] ?? null, 191),
+                'utm_medium' => $this->clip($utm['medium'] ?? $utm['utmMedium'] ?? null, 191),
+                'utm_campaign' => $this->clip($utm['campaign'] ?? $utm['utmCampaign'] ?? null, 191),
+                'form_key' => $this->clip($payload['form_key'] ?? null, 100),
+                'language' => $this->clip($payload['language'] ?? null, 8),
                 'payload' => $payload,
             ]);
         } catch (QueryException $e) {
@@ -176,6 +210,30 @@ class LeadEntryIntakeService
             return null;
         }
 
+        // A working window is one day's hours: it has to start before it ends (no overnight, no empty).
+        if (is_array($sla['window'] ?? null) && ($sla['window']['start'] ?? '') >= ($sla['window']['end'] ?? '')) {
+            Log::warning('LeadEntryIntakeService: ignoring an SLA whose window does not end after it starts', [
+                'lead_id' => $leadId,
+                'window' => $sla['window'],
+            ]);
+
+            return null;
+        }
+
+        // The deadline has to be reachable and storable: a window of a few minutes a week would put it
+        // decades out, past what a timestamp column holds.
+        if (is_array($sla['window'] ?? null)) {
+            $reach = BusinessHours::addWorkingSeconds(new \DateTimeImmutable('now'), (int) $sla['first_contact_seconds'], $sla['window']);
+            if ($reach > new \DateTimeImmutable('+1 year')) {
+                Log::warning('LeadEntryIntakeService: ignoring an SLA whose working hours put its deadline over a year away', [
+                    'lead_id' => $leadId,
+                    'window' => $sla['window'],
+                ]);
+
+                return null;
+            }
+        }
+
         return [
             'first_contact_seconds' => (int) $sla['first_contact_seconds'],
             'recommended_method' => $sla['recommended_method'] ?? null,
@@ -183,19 +241,32 @@ class LeadEntryIntakeService
         ];
     }
 
+    /** Free text from OL is trimmed to its column rather than costing the whole entry. */
+    private function clip(mixed $value, int $max): ?string
+    {
+        if ($value === null || (! is_scalar($value))) {
+            return null;
+        }
+
+        return mb_substr((string) $value, 0, $max);
+    }
+
     /**
      * Runs the lead automations an entry triggers. After lead_created_api / lead_updated_api, so an
      * automation listening to those sees the same state it did before entries existed.
+     *
+     * @return bool Whether routing is done with this entry: it ran, or there is nothing to run (the
+     *              feature is off, or the lead is gone). Throws if an automation failed.
      */
-    private function route(LeadEntry $entry): void
+    private function route(LeadEntry $entry): bool
     {
         if (! LeadEntryRouting::enabled()) {
-            return;
+            return false;
         }
 
         $lead = Lead::withoutGlobalScopes()->find($entry->lead_id);
         if (! $lead) {
-            return;
+            return false;
         }
 
         LeadEntryContext::run($entry, function () use ($lead, $entry) {
@@ -205,5 +276,7 @@ class LeadEntryIntakeService
                 ['entry' => $entry]
             );
         });
+
+        return true;
     }
 }

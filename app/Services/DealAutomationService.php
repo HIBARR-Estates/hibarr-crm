@@ -253,7 +253,10 @@ class DealAutomationService
     {
         $subjectType = $subject instanceof Lead ? DealAutomation::SUBJECT_LEAD : DealAutomation::SUBJECT_DEAL;
         $triggerKey = $trigger ?? 'any';
-        $key = "deal_automation_run_lock:{$automation->id}:{$subjectType}:{$subject->id}:{$triggerKey}";
+        // An entry trigger fires once per entry: two different entries reaching one lead within the
+        // window are two runs. A repeat of the same entry is still suppressed.
+        $entryKey = $subject instanceof Lead ? (LeadEntryContext::triggeringEntryFor($subject)?->ol_entry_uuid ?? '') : '';
+        $key = "deal_automation_run_lock:{$automation->id}:{$subjectType}:{$subject->id}:{$triggerKey}:{$entryKey}";
 
         return Cache::add($key, true, now()->addSeconds(2));
     }

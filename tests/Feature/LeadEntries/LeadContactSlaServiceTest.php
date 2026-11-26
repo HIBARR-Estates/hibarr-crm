@@ -353,4 +353,99 @@ class LeadContactSlaServiceTest extends LeadEntryTestCase
         $this->assertNotEmpty($atMondayLate['server_now']);
         $this->assertSame('User 2', $this->service->present($row)['owner']['name'] ?? null);
     }
+
+    public function test_a_replay_starts_a_clock_that_was_left_waiting_on_a_lead_that_has_an_owner(): void
+    {
+        $this->setOwner(null);
+        $entry = $this->entry();
+        $this->service->openForEntry($entry);
+        // Left waiting although the lead now has an owner (a start that failed the first time).
+        $this->setOwner(2);
+        $this->assertSame('awaiting_owner', $this->sla($entry)->status);
+
+        $row = $this->service->openForEntry($entry);
+
+        $this->assertSame('running', $row->status);
+        $this->assertSame(2, $row->owner_user_id);
+        $this->assertSame(1, LeadContactSla::withoutGlobalScopes()->count());
+    }
+
+    public function test_a_replay_leaves_running_and_ended_clocks_alone(): void
+    {
+        $this->setOwner(2);
+        $entry = $this->entry();
+        $this->service->openForEntry($entry);
+        $due = $this->sla($entry)->due_at;
+        $this->freeze('2026-11-25 10:03:00');
+        $this->service->registerContact($this->leadId, 'call', 2, CarbonImmutable::parse('2026-11-25 10:03:00'));
+        $this->service->events = [];
+
+        $row = $this->service->openForEntry($entry);
+
+        $this->assertSame('met', $row->status);
+        $this->assertTrue($row->due_at->equalTo($due));
+        $this->assertSame([], $this->service->events);
+    }
+
+    public function test_nothing_starts_while_the_feature_is_off(): void
+    {
+        $this->setOwner(null);
+        $entry = $this->entry();
+        $this->service->openForEntry($entry);
+
+        $this->setFeatureFlag(LeadContactSlaService::FLAG, false);
+        $this->setOwner(3);
+        $this->service->ownerAssigned($this->lead());
+
+        $this->assertSame('awaiting_owner', $this->sla($entry)->status);
+        $this->assertSame([], $this->service->slugs());
+    }
+
+    public function test_a_start_does_not_reopen_a_clock_a_contact_just_ended(): void
+    {
+        $this->setOwner(null);
+        $entry = $this->entry();
+        $row = $this->service->openForEntry($entry);
+        $stale = LeadContactSla::withoutGlobalScopes()->find($row->id);
+
+        $this->service->registerContact($this->leadId, 'call', 3, CarbonImmutable::parse('2026-11-25 10:01:00'));
+        $this->service->events = [];
+        // A worker that read the clock before the contact still holds it as waiting.
+        $this->service->start($stale, 3, $this->lead());
+
+        $this->assertSame('met', $this->sla($entry)->status);
+        $this->assertNull($this->sla($entry)->due_at);
+        $this->assertSame([], $this->service->events);
+    }
+
+    public function test_the_deadline_is_stored_as_the_same_instant_whatever_zone_it_was_worked_out_in(): void
+    {
+        $this->setOwner(2);
+        // 08:00 UTC is 09:00 in Berlin: the window has just opened, so five minutes end at 09:05 Berlin.
+        $this->freeze('2026-11-25 08:00:00', 'UTC');
+        $entry = $this->entry(['first_contact_seconds' => 300, 'window' => [
+            'timezone' => 'Europe/Berlin', 'days' => [1, 2, 3, 4, 5], 'start' => '09:00', 'end' => '18:00',
+        ]]);
+
+        $this->service->openForEntry($entry);
+
+        $stored = LeadContactSla::withoutGlobalScopes()->where('lead_entry_id', $entry->id)->value('due_at');
+        $this->assertSame('2026-11-25 08:05:00', CarbonImmutable::parse($stored, 'UTC')->format('Y-m-d H:i:s'));
+    }
+
+    public function test_the_countdown_counts_working_time_not_the_hours_the_channel_is_closed(): void
+    {
+        $this->setOwner(2);
+        // Monday 16:55 in Berlin with a 10-minute limit: due Tuesday 09:05, five working minutes from now.
+        $this->freeze('2026-11-23 16:55:00', 'Europe/Berlin');
+        $entry = $this->entry(['first_contact_seconds' => 600, 'window' => [
+            'timezone' => 'Europe/Berlin', 'days' => [1, 2, 3, 4, 5], 'start' => '09:00', 'end' => '17:00',
+        ]]);
+        $row = $this->service->openForEntry($entry);
+
+        $present = $this->service->present($row, CarbonImmutable::parse('2026-11-23 16:56:00', 'Europe/Berlin'));
+
+        $this->assertSame(540, $present['remaining_working_seconds']);
+        $this->assertNull($this->service->present($this->service->openForEntry($this->entry(['window' => null], '07')))['remaining_working_seconds']);
+    }
 }

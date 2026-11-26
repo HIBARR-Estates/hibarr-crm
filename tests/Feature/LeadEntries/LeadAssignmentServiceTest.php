@@ -178,4 +178,60 @@ class LeadAssignmentServiceTest extends LeadEntryTestCase
         }
         $this->assertNull($this->lead()->lead_owner);
     }
+
+    private function foreignUser(int $id): int
+    {
+        \Illuminate\Support\Facades\DB::table('users')->insert([
+            'id' => $id,
+            'company_id' => $this->companyId + 1,
+            'name' => "Outsider {$id}",
+            'email' => "outsider{$id}@example.com",
+            'status' => 'active',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        return $id;
+    }
+
+    public function test_a_named_user_from_another_company_is_never_assigned(): void
+    {
+        $outsider = $this->foreignUser(40);
+
+        $result = $this->service->assign($this->lead(), ['strategy' => 'specific_user', 'user_id' => $outsider]);
+
+        $this->assertSame('failed', $result['outcome']);
+        $this->assertNull($this->lead()->lead_owner);
+    }
+
+    public function test_pool_members_from_another_company_are_skipped(): void
+    {
+        $this->makeUser(2);
+        $outsider = $this->foreignUser(41);
+        $pool = $this->pool([$outsider, 2]);
+
+        $owners = [];
+        foreach (range(1, 3) as $_) {
+            $this->lead()->forceFill(['lead_owner' => null])->saveQuietly();
+            $owners[] = $this->roundRobin($pool)['user_id'];
+        }
+
+        $this->assertSame([2, 2, 2], $owners);
+    }
+
+    public function test_the_owner_is_rechecked_on_the_locked_row_not_the_copy_the_caller_holds(): void
+    {
+        $this->makeUser(2);
+        $this->makeUser(3);
+        // The caller loaded the lead while it was unowned...
+        $stale = $this->lead();
+        // ...and another run owned it before this one got to write.
+        $this->lead()->forceFill(['lead_owner' => 3])->saveQuietly();
+
+        $result = $this->service->assign($stale, ['strategy' => 'specific_user', 'user_id' => 2, 'when_owned' => 'skip']);
+
+        $this->assertSame('skipped', $result['outcome']);
+        $this->assertSame(3, $result['previous_owner_id']);
+        $this->assertSame(3, (int) $this->lead()->lead_owner);
+    }
 }

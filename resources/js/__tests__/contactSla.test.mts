@@ -61,6 +61,24 @@ describe("slaView", () => {
         assert.deepEqual(slaView(sla(), Date.parse("2026-11-25T10:07:30Z")), { phase: "overdue", seconds: 150 });
     });
 
+    test("with working hours the countdown is the working time left, not the wall-clock distance", () => {
+        // 16h away on the wall clock, but only 540 working seconds left at the server's clock.
+        const windowed = sla({
+            window: { timezone: "UTC", days: [1, 2, 3, 4, 5], start: "09:00", end: "17:00" },
+            due_at: "2026-11-26T09:05:00Z",
+            remaining_working_seconds: 540,
+        });
+        assert.deepEqual(slaView(windowed, NOW), { phase: "running", seconds: 540 });
+        // It ticks down from the server's moment.
+        assert.equal(slaView(windowed, NOW + 60_000).seconds, 480);
+        // It is never shown as zero before the deadline passes: the next refresh says what happened.
+        assert.equal(slaView(windowed, NOW + 600_000).seconds, 1);
+    });
+
+    test("without working hours the countdown is the plain distance to the deadline", () => {
+        assert.deepEqual(slaView(sla({ remaining_working_seconds: null }), NOW), { phase: "running", seconds: 300 });
+    });
+
     test("shows paused outside working hours, but an overdue clock is late whatever the hour", () => {
         assert.equal(slaView(sla({ paused: true }), NOW).phase, "paused");
         assert.equal(slaView(sla({ paused: true }), Date.parse("2026-11-25T10:06:00Z")).phase, "overdue");

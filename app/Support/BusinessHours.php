@@ -16,8 +16,11 @@ use DateTimeZone;
  */
 class BusinessHours
 {
-    /** Guards the day-by-day walk. A one-minute window needs ~10,000 days for seven days of SLA. */
-    private const MAX_DAYS = 20000;
+    /**
+     * Guards the day-by-day walk. The most a valid window can ask for is seven days of SLA in a
+     * one-minute weekly window, which is 10,080 weeks (about 70,600 days) away; this leaves room.
+     */
+    private const MAX_DAYS = 75000;
 
     /**
      * The moment $seconds of working time have passed since $from. Time outside the window does not
@@ -28,7 +31,7 @@ class BusinessHours
     public static function addWorkingSeconds(DateTimeImmutable $from, int $seconds, ?array $window): DateTimeImmutable
     {
         if ($window === null) {
-            return $from->modify("+{$seconds} seconds");
+            return self::plusSeconds($from, $seconds);
         }
 
         $remaining = max(0, $seconds);
@@ -41,13 +44,20 @@ class BusinessHours
                 continue;
             }
             if ($remaining <= $available) {
-                return $from->modify("+{$remaining} seconds");
+                return self::plusSeconds($from, $remaining);
             }
             $remaining -= $available;
         }
 
-        // Unreachable for a valid window (the walk is bounded and every window has working time).
-        return $cursor->modify("+{$seconds} seconds");
+        // Unreachable for a valid window (start before end, at least one day). Better to fail loudly than
+        // to quietly hand back a round-the-clock deadline that ignores the hours.
+        throw new \LogicException('The working window has no time to count in.');
+    }
+
+    /** Adds elapsed seconds on the timeline, so a clock change inside the span is counted, not skipped. */
+    private static function plusSeconds(DateTimeImmutable $moment, int $seconds): DateTimeImmutable
+    {
+        return $moment->setTimestamp($moment->getTimestamp() + $seconds);
     }
 
     /**
