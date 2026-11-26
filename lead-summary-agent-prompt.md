@@ -21,7 +21,7 @@ v1 summarised the lead's *record health*: contactability, profile completeness, 
 
 The live prompt was revised in the backoffice and this block now matches it. Each change came from reading real output:
 
-- **Reads what is there, assumes nothing.** A new "READ WHAT IS THERE" section: the lead type, source, campaign, temperature and status are labels, not things the lead said, so a "buyer" from a property campaign is not described as wanting to buy. `categories` are the team's taxonomy of the lead's intent/purpose — use them to orient purpose, prefer the lead's own words when both exist. No "ready", "keen" or "serious"; no "so"/"because" between facts the input does not link; "nothing logged since" rather than "we haven't sent it". Gaps are judged against what this lead asked for (a lead with a question needs an answer, not a budget).
+- **Reads what is there, assumes nothing.** A new "READ WHAT IS THERE" section: the lead type, source, campaign, temperature and status are labels, not things the lead said, so a "buyer" from a property campaign is not described as wanting to buy. `categories` are different — they record what the lead wants (intent/purpose). No "ready", "keen" or "serious"; no "so"/"because" between facts the input does not link; "nothing logged since" rather than "we haven't sent it". Gaps are judged against what this lead asked for (a lead with a question needs an answer, not a budget).
 - **Knows what HIBARR offers.** A "WHAT HIBARR OFFERS" section, taken from hibarr.de: North Cyprus base, the property process, the five packages (VIP Discovery & Implementation, International Banking Setup, Property Purchase & Legal Coordination, Relocation & Residency Service, Asset Protection & Structure Strategy, which covers company formation), the CRM's older package names, consultations, the webinar, the masterclass. It is for recognising what a lead asks about, never evidence of what they want, and no prices or promises from it go into a summary. **When the packages on hibarr.de change, update this section.** The lead-summary input does not carry a deal's package, so the model only sees one when it is named in notes, answers, stage labels or the deal agent's line.
 - **Names the lead in the header only.** `{{lead_first_name}}` appears once, in `status_line`. Pronouns follow `sections.profile.gender` when present (he/him/his, she/her/hers); otherwise they/them/their.
 - **Two worked examples the model sees**: a thin lead who wants a service rather than a property (written in German), and the rich example, rewritten without the optimism ("ready to buy") and the invented cause it used to teach. Both are set in North Cyprus.
@@ -59,14 +59,14 @@ READ WHAT IS THERE, ASSUME NOTHING
   type, source, campaign, temperature and qualification status are labels that a
   form or the team applied. They are not statements from the lead. A "buyer" type
   or an off-plan campaign does not mean they told us they want to buy.
-- categories are different: they are the team's taxonomy for this lead's intent /
-  purpose (why the lead is here — e.g. investor, partner, banking, residency).
-  Use them to orient what the lead is for. They are still team labels, not quotes
-  from the lead — prefer the lead's own words when both exist; when the lead has
-  not said what they want, categories are the best signal of purpose you have.
-- If neither the lead's words nor categories say what they want, write exactly that
-  ("They have not said what they are looking for"). Never fill the gap from type,
-  source, campaign, temperature or what leads usually want.
+- categories are different: they record what the lead wants — their intent /
+  purpose (e.g. investor, partner, banking, residency). Treat them as known
+  purpose, not as optional team labels. When the lead's own words add detail,
+  combine both; when categories and words conflict, name both. Do not write
+  "they have not said what they are looking for" if categories are present.
+- If there are no categories and the lead's words do not say what they want,
+  write exactly that ("They have not said what they are looking for"). Never
+  fill the gap from type, source, campaign, temperature or what leads usually want.
 - Never call a lead ready, keen, eager, serious, committed, hot or likely to buy.
   Report what they said or did instead: "paid a deposit", "booked an inspection
   trip", "wants to hear more before committing".
@@ -173,8 +173,8 @@ INPUT YOU WILL RECEIVE
   "lead": {
     "type": "buyer|seller|partner|agent",
     "source": "<string|null, e.g. 'Google Ads'>",
-    "categories": ["<string>", "... — team taxonomy of the lead's intent/purpose
-        (why they are here); may be absent"],
+    "categories": ["<string>", "... — what the lead wants (intent/purpose);
+        may be absent"],
     "temperature": "hot|warm|cold — set by the team, may be absent",
     "created_at": "<ISO datetime>", "updated_at": "<ISO datetime>",
     "days_since_created": <int>, "days_since_updated": <int>,
@@ -411,10 +411,11 @@ can scan them without re-reading. Each is { "kind": "...", "value": "..." }.
     based_in         where they live: "Munich, Germany"
   value: at most 5 words, and it must make sense on its own, because no label is
   shown.
-Only facts the lead actually gave. A lead who has said little may have one fact, or
-none ([]). Never use property, location or budget to describe a campaign,
-categories or anything else the lead did not say. At most one fact per kind. Never
-contact details or anything PRIVACY rules out.
+Only facts grounded in the input. Categories may support a purpose fact (they are
+what the lead wants). Never use property, location or budget to describe a
+campaign, type or anything else that is not stated. A lead with little on file may
+have one fact, or none ([]). At most one fact per kind. Never contact details or
+anything PRIVACY rules out.
 
 chips and bullets: return both as empty arrays []. They exist for older summaries.
 
@@ -464,8 +465,8 @@ GUARDRAILS
 - Never fabricate a fact, date, figure, preference or quote that is not in the input.
 - Never write about a section that is absent as if it held data.
 - Never present type, source, campaign, temperature or status as something the lead
-  said or wants. categories may inform purpose (they are the team's intent labels)
-  but never invent quotes or details the lead did not give.
+  said or wants. categories ARE what the lead wants (intent/purpose) — use them as
+  such. Still never invent quotes, figures or details that are not in the input.
 - Never quote HIBARR's prices, package contents or promises; use only what the input
   says.
 - Never describe how ready or keen the lead is, and never state a cause the input

@@ -878,8 +878,8 @@ class LeadSummaryInputBuilder
     }
 
     /**
-     * Team taxonomy of the lead's intent/purpose (multi-select). Falls back to
-     * the legacy scalar category when the pivot has not been populated yet.
+     * What the lead wants — intent/purpose categories (multi-select). Falls back
+     * to the legacy scalar category when the pivot has not been populated yet.
      *
      * @return list<string>
      */
