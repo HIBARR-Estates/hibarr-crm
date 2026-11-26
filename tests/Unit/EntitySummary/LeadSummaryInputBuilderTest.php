@@ -6,6 +6,7 @@ use App\Enums\Gender;
 use App\Enums\Salutation;
 use App\Models\Lead;
 use App\Models\LeadMarketing;
+use App\Models\LeadUtmTouch;
 use App\Services\EntitySummary\DealSummarySnapshotService;
 use App\Services\EntitySummary\EntitySummaryPromptLoader;
 use App\Services\EntitySummary\LeadSummaryInputBuilder;
@@ -28,6 +29,7 @@ class LeadSummaryInputBuilderTest extends TestCase
         'crm_events',
         'crm_event_types',
         'lead_marketing',
+        'lead_utm_touches',
         'lead_notes',
         'deals',
         'hibarr_deal_custom_fields',
@@ -123,6 +125,20 @@ class LeadSummaryInputBuilderTest extends TestCase
             $table->boolean('registered_for_zoom_meeting')->default(false);
             $table->date('last_webinar_date')->nullable();
             $table->integer('contact_score')->nullable();
+            $table->timestamps();
+        });
+
+        Schema::create('lead_utm_touches', function (Blueprint $table) {
+            $table->id();
+            $table->unsignedInteger('lead_id');
+            $table->string('utm_source')->nullable();
+            $table->string('utm_medium')->nullable();
+            $table->string('utm_campaign')->nullable();
+            $table->string('utm_content')->nullable();
+            $table->string('utm_term')->nullable();
+            $table->string('utm_audience')->nullable();
+            $table->string('origin', 50)->nullable();
+            $table->boolean('is_first_touch')->default(false);
             $table->timestamps();
         });
 
@@ -672,6 +688,64 @@ class LeadSummaryInputBuilderTest extends TestCase
      * added to the payload but not to the prompt, the model is being handed data it
      * was never told how to read (or vice versa) — fail loudly instead.
      */
+    public function test_marketing_carries_the_touch_history_after_the_first_touch(): void
+    {
+        $lead = $this->makeLeadForBuilder(['id' => 19, 'client_name' => 'Sam Lead'], [
+            'marketing' => new LeadMarketing([
+                'utm_source' => 'google',
+                'utm_campaign' => 'Relocation DE',
+                'utm_term' => 'umzug nordzypern',
+            ]),
+        ]);
+
+        $first = LeadUtmTouch::create([
+            'lead_id' => 19, 'utm_source' => 'google', 'utm_campaign' => 'Relocation DE',
+            'utm_term' => 'umzug nordzypern', 'origin' => 'api', 'is_first_touch' => true,
+        ]);
+        $first->forceFill(['created_at' => now()->subDays(14)])->save();
+
+        $later = LeadUtmTouch::create([
+            'lead_id' => 19, 'utm_source' => 'google', 'utm_campaign' => 'Agent Partner DE',
+            'utm_term' => 'immobilienmakler partner nordzypern', 'origin' => 'api',
+        ]);
+        $later->forceFill(['created_at' => now()->subDays(3)])->save();
+
+        $marketing = app(LeadSummaryInputBuilder::class)->build($lead)['sections']['marketing'];
+
+        $this->assertSame(2, $marketing['touch_count']);
+        $this->assertSame(14, $marketing['first_touch_days_ago']);
+        $this->assertCount(1, $marketing['later_touches'], 'the first touch is the top-level utm keys, not repeated');
+        $this->assertSame(3, $marketing['later_touches'][0]['days_ago']);
+        $this->assertSame('Agent Partner DE', $marketing['later_touches'][0]['campaign']);
+        $this->assertStringNotContainsString('api', json_encode($marketing), 'origin is internal');
+    }
+
+    public function test_a_single_touch_adds_no_touch_count_or_history(): void
+    {
+        $lead = $this->makeLeadForBuilder(['id' => 21, 'client_name' => 'Sam Lead'], [
+            'marketing' => new LeadMarketing(['utm_source' => 'google']),
+        ]);
+        LeadUtmTouch::create(['lead_id' => 21, 'utm_source' => 'google', 'is_first_touch' => true]);
+
+        $marketing = app(LeadSummaryInputBuilder::class)->build($lead)['sections']['marketing'];
+
+        $this->assertArrayNotHasKey('touch_count', $marketing);
+        $this->assertArrayNotHasKey('later_touches', $marketing);
+        $this->assertArrayHasKey('first_touch_days_ago', $marketing);
+    }
+
+    public function test_marketing_section_exists_from_touches_alone(): void
+    {
+        $lead = $this->makeLeadForBuilder(['id' => 22, 'client_name' => 'Sam Lead']);
+        LeadUtmTouch::create(['lead_id' => 22, 'utm_source' => 'facebook', 'is_first_touch' => true]);
+        LeadUtmTouch::create(['lead_id' => 22, 'utm_source' => 'google']);
+
+        $marketing = app(LeadSummaryInputBuilder::class)->build($lead)['sections']['marketing'];
+
+        $this->assertSame(2, $marketing['touch_count']);
+        $this->assertSame('google', $marketing['later_touches'][0]['channel']);
+    }
+
     public function test_every_payload_key_is_documented_in_the_prompt(): void
     {
         $lead = $this->makeLeadForBuilder([
@@ -707,6 +781,13 @@ class LeadSummaryInputBuilderTest extends TestCase
                 'boardColumn' => (object) ['column_name' => 'To do'],
                 'due_date' => Carbon::now()->addDays(2),
             ],
+        ]);
+
+        $firstTouch = LeadUtmTouch::create(['lead_id' => 20, 'utm_source' => 'google', 'is_first_touch' => true]);
+        $firstTouch->forceFill(['created_at' => now()->subDays(9)])->save();
+        LeadUtmTouch::create([
+            'lead_id' => 20, 'utm_source' => 'google', 'utm_medium' => 'cpc', 'utm_campaign' => 'Q4',
+            'utm_content' => 'banner', 'utm_term' => 'villa girne',
         ]);
 
         DB::table('lead_notes')->insert(['lead_id' => 20, 'details' => 'A note', 'created_at' => now(), 'updated_at' => now()]);
@@ -783,6 +864,8 @@ class LeadSummaryInputBuilderTest extends TestCase
         $this->assertArrayHasKey('summary', $payload['sections']['meetings'][0]);
         $this->assertArrayHasKey('registered_for_webinar', $payload['sections']['marketing']);
         $this->assertArrayHasKey('attended_webinar', $payload['sections']['marketing']);
+        $this->assertArrayHasKey('later_touches', $payload['sections']['marketing']);
+        $this->assertArrayHasKey('touch_count', $payload['sections']['marketing']);
     }
 
     /**
