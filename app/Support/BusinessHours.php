@@ -75,7 +75,9 @@ class BusinessHours
         }
 
         // The walk covers MAX_DAYS; past that a total would silently be partial. Better to say so.
-        if ($to->getTimestamp() - $from->getTimestamp() > self::MAX_DAYS * 86400) {
+        // Two days short of the walk: it counts local dates, so an interval ending in the last of them could
+        // otherwise lose part of a day at the edge.
+        if ($to->getTimestamp() - $from->getTimestamp() > (self::MAX_DAYS - 2) * 86400) {
             throw new \LogicException('The interval is longer than the working hours can be counted over.');
         }
 

@@ -178,4 +178,15 @@ class BusinessHoursTest extends TestCase
             self::WEEKDAYS
         );
     }
+
+    public function test_an_interval_ending_at_the_edge_of_the_walk_is_refused_rather_than_cut_short(): void
+    {
+        $utc = ['timezone' => 'UTC', 'days' => [1, 2, 3, 4, 5, 6, 7], 'start' => '09:00', 'end' => '18:00'];
+        $from = new DateTimeImmutable('2026-11-25 18:00:00', new DateTimeZone('UTC'));
+
+        $this->expectException(\LogicException::class);
+
+        // 75,000 days later at 10:00: the last working hour would fall on a date the walk never reaches.
+        BusinessHours::workingSecondsBetween($from, $from->modify('+75000 days')->setTime(10, 0), $utc);
+    }
 }
