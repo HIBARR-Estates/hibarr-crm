@@ -380,6 +380,95 @@ class CommissionProfileInternalApiTest extends PerAgentCommissionOverrideTestCas
         $this->assertNull(\App\Models\AgentCommissionRateAuditLog::first());
     }
 
+    public function test_referral_only_access_serves_no_override_rate_or_history(): void
+    {
+        $this->setFeatureFlag('sales.per-agent-commission-override', false);
+        $this->setFeatureFlag('crm.partner-referral-commission', true);
+
+        $companyId = $this->seedCompany();
+        $this->seedMlmSettings($companyId, 10);
+        $this->seedApiToken($companyId);
+
+        $agentId = $this->seedAgent($companyId, $this->seedUser($companyId), null, [
+            'is_partner' => true,
+            'referral_commission_type' => 'percentage',
+            'referral_commission_value' => 2,
+            'custom_direct_rate' => 7,
+            'custom_override_rate' => 7,
+        ]);
+
+        \Illuminate\Support\Facades\DB::table('agent_commission_rate_audit_logs')->insert([
+            'company_id' => $companyId,
+            'agent_id' => $agentId,
+            'previous_direct_rate' => 5,
+            'new_direct_rate' => 7,
+            'previous_override_rate' => 5,
+            'new_override_rate' => 7,
+            'previous_referral_commission_type' => 'fixed',
+            'previous_referral_commission_value' => 10,
+            'new_referral_commission_type' => 'percentage',
+            'new_referral_commission_value' => 2,
+            'changed_at' => now(),
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $response = $this->getJson("/api/v1/internal/agents/{$agentId}/commission-profile", [
+            'X-API-TOKEN' => 'test-token',
+            'X-COMPANY-ID' => (string) $companyId,
+        ]);
+
+        $response->assertOk()
+            ->assertJsonPath('data.custom_commission_rate', null)
+            ->assertJsonPath('data.referral_commission_type', 'percentage')
+            // JSON carries 2.0 as 2.
+            ->assertJsonPath('data.referral_commission_value', 2)
+            ->assertJsonPath('data.audit.data.0.new_direct_rate', null)
+            ->assertJsonPath('data.audit.data.0.new_override_rate', null)
+            ->assertJsonPath('data.audit.data.0.new_referral_commission_type', 'percentage')
+            ->assertJsonPath('data.audit.data.0.new_referral_commission_value', '2.00');
+    }
+
+    /**
+     * The controller only type-checks the referral value; the service is what
+     * refuses a percentage/fixed term that carries no amount. Pinned here so a
+     * valueless term can never be stored through this API.
+     *
+     * @dataProvider valuelessReferralTypes
+     */
+    public function test_a_referral_type_without_a_value_is_rejected_and_nothing_is_stored(string $type): void
+    {
+        $this->setFeatureFlag('sales.per-agent-commission-override', false);
+        $this->setFeatureFlag('crm.partner-referral-commission', true);
+
+        $companyId = $this->seedCompany();
+        $this->seedMlmSettings($companyId, 10);
+        $this->seedApiToken($companyId);
+
+        $agentId = $this->seedAgent($companyId, $this->seedUser($companyId), null, [
+            'is_partner' => true,
+        ]);
+
+        $this->patchJson("/api/v1/internal/agents/{$agentId}/commission-profile", [
+            'referral_commission_type' => $type,
+        ], [
+            'X-API-TOKEN' => 'test-token',
+            'X-COMPANY-ID' => (string) $companyId,
+        ])
+            ->assertStatus(422)
+            ->assertJsonPath('status', 'fail')
+            ->assertJsonStructure(['errors' => ['referral_commission_value']]);
+
+        $this->assertNull(\App\Models\AgentCommissionRateAuditLog::first());
+        $this->assertNull(\App\Models\LeadAgent::find($agentId)->referral_commission_type);
+    }
+
+    public static function valuelessReferralTypes(): array
+    {
+        return [
+            'percentage' => ['percentage'],
+            'fixed' => ['fixed'],
+        ];
+    }
+
 }
-
-

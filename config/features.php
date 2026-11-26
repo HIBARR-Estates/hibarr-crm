@@ -58,7 +58,16 @@ return [
         'packages.online-payment',
         'crm.deal-files-grouping',
         'crm.meetings-page-redesign',
+        // The Meetings page improvements, on top of the redesign: one definition of Upcoming/Past, calendar as
+        // the default view with the list built only when shown, bulk actions and refresh that patch in place,
+        // one empty state per screen, a lead-first schedule dialog, summaries that can be written by hand and
+        // asked for again, and Call on phone meetings. Off: the page behaves as it did before them.
+        'crm.meetings-page-improvements',
         'crm.deal-value-commission',
+        // Partner referral share of the commission pool: a per-partner default %, a per-deal % or agreed amount
+        // (capped at what the deal can carry), the referral leg in the engine, and the controls that edit them.
+        // Off: deals, ledgers and partner pages behave as before the feature.
+        'crm.partner-referral-commission',
         'shared.3cx-calling',
         'crm.softphone',
         'callbridge.integrations',
@@ -100,5 +109,7 @@ return [
         'crm.agent-workspace' => true,
         'softphone.voicemail' => true,
         'crm.softphone' => true,
+        'crm.automation-v2' => true,
+        'crm.deal-view-redesign' => true,
     ],
 ];

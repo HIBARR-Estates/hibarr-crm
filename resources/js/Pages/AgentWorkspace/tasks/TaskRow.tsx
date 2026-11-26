@@ -7,6 +7,7 @@ import { useTd } from "@/Hooks/useDynamicTranslation";
 import useTranslation from "@/Hooks/useTranslation";
 import type { QueueTask, RelatedRecord } from "@/Types/personal-work";
 import { recordHref } from "../today/TaskQueue";
+import { isTaskDone } from "../today/useTodayWork";
 import { dueText, type TaskView } from "./format";
 
 export interface TaskRowHandlers {
@@ -14,7 +15,8 @@ export interface TaskRowHandlers {
     timeZone: string;
     userId: number;
     onOpen: (task: QueueTask) => void;
-    onComplete: (task: QueueTask) => void;
+    /** `row` is the ticked row, for Do next to open under. */
+    onComplete: (task: QueueTask, row: HTMLElement | null) => void;
     onReschedule: (task: QueueTask) => void;
     isCompleting: (taskId: number) => boolean;
     isRescheduling: (taskId: number) => boolean;
@@ -91,17 +93,20 @@ function TaskRow({ view, handlers }: { view: TaskView; handlers: TaskRowHandlers
     const assignees = task.users ?? [];
     const first = assignees[0];
     const mine = assignees.some((user) => user.id === handlers.userId);
-    const busy = handlers.isCompleting(task.id) || handlers.isRescheduling(task.id);
+    // Ticked, and kept on screen while Do next is open under it.
+    const done = isTaskDone(task);
+    const busy = done || handlers.isCompleting(task.id) || handlers.isRescheduling(task.id);
     const priority = PRIORITY_CLASS[task.priority] ?? "medium";
 
     return (
-        <div role="row" className="agent-tk__row">
+        <div role="row" className={`agent-tk__row${done ? " agent-tk__row--done" : ""}`}>
             <div role="cell" className="agent-tk__c--task">
                 <button
                     type="button"
                     className="agent-tk__tick"
                     disabled={busy}
-                    onClick={() => handlers.onComplete(task)}
+                    aria-pressed={done}
+                    onClick={(event) => handlers.onComplete(task, event.currentTarget.closest<HTMLElement>(".agent-tk__row"))}
                     aria-label={t("pages.agent_workspace.tasks.row.complete_aria", { name: task.heading })}
                 >
                     <Icon name="check" size={12} />

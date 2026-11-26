@@ -10,6 +10,7 @@ import HtmlEditor from "@/Components/HtmlEditor";
 import { LeadNote } from "@/Types/api/lead-note";
 import { Lead } from "@/Types/api/leads";
 import "@/Components/Common/note-modal.css";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 interface SaveNoteFormData {
     title: string;
@@ -30,6 +31,7 @@ export const AddNoteForm: React.FC<AddNoteFormProps> = ({
     onCancel,
     onCreated,
 }) => {
+    const { td } = useTd();
     const { t } = useTranslation();
     const { message } = App.useApp();
     const [form] = Form.useForm();
@@ -53,7 +55,7 @@ export const AddNoteForm: React.FC<AddNoteFormProps> = ({
         ApiResponse<LeadNote>
     >(route("lead-notes.store"), "POST", (response) => {
         if (response?.status === "success") {
-            message.success("Note created successfully!");
+            message.success(td("Note created successfully!", { source: "en" }));
             setErrors([]);
             form.resetFields();
             // Merge into parent list — do not router.reload deferred notes

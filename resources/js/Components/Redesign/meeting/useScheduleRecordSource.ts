@@ -1,7 +1,16 @@
 import { useEffect, useState } from "react";
 import type { MeetingParticipantSource } from "@/Components/Redesign/meeting/meetingFormUtils";
+import type { MeetingContact } from "@/Components/Redesign/meeting/meetingContact";
 
 export type ScheduleRecordType = "deal" | "lead";
+
+/** One of a lead's deals, as offered under the lead in the schedule dialog. */
+export interface ScheduleDealOption {
+    id: number;
+    name: string;
+    /** Stage, so two deals of one client can be told apart. */
+    lead_stage?: { name?: string | null } | null;
+}
 
 /** `deal-12` / `lead-7` — the value the related-record select carries. */
 export type ScheduleRecordKey = `${ScheduleRecordType}-${number}`;
@@ -33,6 +42,17 @@ export function parseRecordKey(
  */
 export default function useScheduleRecordSource(key: ScheduleRecordKey | null) {
     const [source, setSource] = useState<MeetingParticipantSource | null>(null);
+    // Only a lead's answer carries these; empty for a deal.
+    const [dealsForLead, setDealsForLead] = useState<ScheduleDealOption[]>([]);
+    /** How the lead (or the deal's lead) can be reached; null until fetched. */
+    const [contact, setContact] = useState<MeetingContact | null>(null);
+    /**
+     * The key `source` / `error` belong to, once that fetch has finished.
+     * `loading` alone cannot say: on the first render after the key changes it
+     * is still false and `source` is still the previous record's, so a caller
+     * seeding a form from them would seed from the wrong person.
+     */
+    const [loadedKey, setLoadedKey] = useState<ScheduleRecordKey | null>(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
@@ -40,6 +60,9 @@ export default function useScheduleRecordSource(key: ScheduleRecordKey | null) {
         const parsed = parseRecordKey(key);
         if (!parsed) {
             setSource(null);
+            setDealsForLead([]);
+            setContact(null);
+            setLoadedKey(null);
             setError(null);
             setLoading(false);
             return undefined;
@@ -61,8 +84,21 @@ export default function useScheduleRecordSource(key: ScheduleRecordKey | null) {
                 if (cancelled) return;
                 if (json?.success) {
                     setSource(json.data as MeetingParticipantSource);
+                    setDealsForLead(
+                        (json.deals_for_lead as ScheduleDealOption[]) ?? [],
+                    );
+                    setContact(
+                        json.contact
+                            ? {
+                                  emails: json.contact.emails ?? [],
+                                  phones: json.contact.phones ?? [],
+                              }
+                            : null,
+                    );
                 } else {
                     setSource(null);
+                    setDealsForLead([]);
+                    setContact(null);
                     setError(
                         parsed.type === "deal"
                             ? "pages.meetings.schedule.failed_to_load"
@@ -73,6 +109,8 @@ export default function useScheduleRecordSource(key: ScheduleRecordKey | null) {
             .catch(() => {
                 if (cancelled) return;
                 setSource(null);
+                setDealsForLead([]);
+                setContact(null);
                 setError(
                     parsed.type === "deal"
                         ? "pages.meetings.schedule.failed_to_load"
@@ -80,7 +118,9 @@ export default function useScheduleRecordSource(key: ScheduleRecordKey | null) {
                 );
             })
             .finally(() => {
-                if (!cancelled) setLoading(false);
+                if (cancelled) return;
+                setLoading(false);
+                setLoadedKey(key);
             });
 
         return () => {
@@ -88,5 +128,5 @@ export default function useScheduleRecordSource(key: ScheduleRecordKey | null) {
         };
     }, [key]);
 
-    return { source, loading, error };
+    return { source, dealsForLead, contact, loading, error, loadedKey };
 }

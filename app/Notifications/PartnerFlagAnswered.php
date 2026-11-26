@@ -9,8 +9,8 @@ use Illuminate\Notifications\Messages\MailMessage;
  * The partner team answered a flag. Goes to the partner who raised it.
  *
  * The client name stays off the mail and the in-app copy: the partner already
- * has the abbreviated name on their dashboard, and the notification travels
- * further than that screen does.
+ * has the full name on their dashboard, and the notification travels further
+ * than that screen does.
  */
 class PartnerFlagAnswered extends PartnerFlagRaised
 {

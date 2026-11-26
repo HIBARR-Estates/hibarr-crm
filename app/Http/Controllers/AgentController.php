@@ -2,11 +2,12 @@
 
 namespace App\Http\Controllers;
 
+use App\Actions\Agents\SyncAgentCategories;
 use App\Helper\Reply;
-use App\Http\Requests\Agent\StoreAgentRequest;
-use App\Http\Requests\Agent\UpdateAgentRequest;
 use App\Http\Requests\Admin\Employee\ImportProcessRequest;
 use App\Http\Requests\Admin\Employee\ImportRequest;
+use App\Http\Requests\Agent\StoreAgentRequest;
+use App\Http\Requests\Agent\UpdateAgentRequest;
 use App\Imports\AgentImport;
 use App\Jobs\ImportAgentJob;
 use App\Models\Deal;
@@ -22,14 +23,13 @@ use Inertia\Inertia;
 
 class AgentController extends AccountBaseController
 {
-
     use ImportExcel;
 
     public function __construct()
     {
         parent::__construct();
         $this->middleware(function ($request, $next) {
-            if (!in_array('leads', user_modules())) {
+            if (! in_array('leads', user_modules())) {
                 if ($request->ajax() || $request->header('X-Inertia')) {
                     return redirect()->back()->with('error', __('messages.permissionDenied'));
                 }
@@ -47,7 +47,7 @@ class AgentController extends AccountBaseController
     {
         $viewPermission = user()->permission('view_lead_agents');
 
-        if (!in_array($viewPermission, ['all', 'added', 'owned', 'both'])) {
+        if (! in_array($viewPermission, ['all', 'added', 'owned', 'both'])) {
             if ($request->ajax() || $request->header('X-Inertia')) {
                 return redirect()->back()->with('error', __('messages.permissionDenied'));
             }
@@ -65,7 +65,7 @@ class AgentController extends AccountBaseController
         } elseif ($viewPermission === 'both') {
             $query->where(function ($q) {
                 $q->where('added_by', user()->id)
-                  ->orWhere('user_id', user()->id);
+                    ->orWhere('user_id', user()->id);
             });
         }
 
@@ -73,7 +73,7 @@ class AgentController extends AccountBaseController
         if ($search = $request->input('search')) {
             $query->whereHas('user', function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
-                  ->orWhere('email', 'like', "%{$search}%");
+                    ->orWhere('email', 'like', "%{$search}%");
             });
         }
 
@@ -113,6 +113,7 @@ class AgentController extends AccountBaseController
         // Add deals count to each agent
         $agents->getCollection()->transform(function ($agent) {
             $agent->deals_count = $agent->leads()->count();
+
             return $agent;
         });
 
@@ -152,7 +153,7 @@ class AgentController extends AccountBaseController
     {
         $addPermission = user()->permission('add_lead_agent');
 
-        if (!in_array($addPermission, ['all', 'added'])) {
+        if (! in_array($addPermission, ['all', 'added'])) {
             if ($request->ajax() || $request->header('X-Inertia')) {
                 return redirect()->back()->with('error', __('messages.permissionDenied'));
             }
@@ -181,7 +182,7 @@ class AgentController extends AccountBaseController
     public function store(StoreAgentRequest $request)
     {
         $addPermission = user()->permission('add_lead_agent');
-        abort_403(!in_array($addPermission, ['all', 'added']));
+        abort_403(! in_array($addPermission, ['all', 'added']));
 
         $agentType = $request->input('agent_type', 'existing');
         $categoryIds = $this->normalizeCategoryIds($request->input('category_id', []));
@@ -189,7 +190,7 @@ class AgentController extends AccountBaseController
         $userId = DB::transaction(function () use ($request, $agentType, $categoryIds) {
             if ($agentType === 'new') {
                 // Create new user for external agent
-                $user = new User();
+                $user = new User;
                 $user->company_id = company()->id;
                 $user->name = $request->input('name');
                 $user->email = $request->input('email');
@@ -219,7 +220,7 @@ class AgentController extends AccountBaseController
                     ->whereNull('lead_category_id')
                     ->exists();
 
-                if (!$exists) {
+                if (! $exists) {
                     LeadAgent::create([
                         'company_id' => company()->id,
                         'user_id' => $userId,
@@ -235,7 +236,7 @@ class AgentController extends AccountBaseController
                         ->where('lead_category_id', $categoryId)
                         ->exists();
 
-                    if (!$exists) {
+                    if (! $exists) {
                         LeadAgent::create([
                             'company_id' => company()->id,
                             'user_id' => $userId,
@@ -272,7 +273,7 @@ class AgentController extends AccountBaseController
 
         $access = PermissionService::checkAccess(user(), 'view_lead_agents', $agent, $agentRules);
 
-        if (!$access['canAccess']) {
+        if (! $access['canAccess']) {
             if ($request->ajax() || $request->header('X-Inertia')) {
                 return redirect()->back()->with('error', __('messages.permissionDenied'));
             }
@@ -303,6 +304,7 @@ class AgentController extends AccountBaseController
                 'edit_lead_agent' => user()->permission('edit_lead_agent'),
                 'delete_lead_agent' => user()->permission('delete_lead_agent'),
                 'view_deals' => user()->permission('view_deals'),
+                'manage_partner_network' => \App\Support\PermissionGates::canManagePartnerNetwork(user()),
             ],
         ]);
     }
@@ -323,7 +325,7 @@ class AgentController extends AccountBaseController
 
         $access = PermissionService::checkAccess(user(), 'edit_lead_agent', $agent, $agentRules);
 
-        if (!$access['canAccess']) {
+        if (! $access['canAccess']) {
             if ($request->ajax() || $request->header('X-Inertia')) {
                 return redirect()->back()->with('error', __('messages.permissionDenied'));
             }
@@ -360,7 +362,7 @@ class AgentController extends AccountBaseController
         ];
 
         $access = PermissionService::checkAccess(user(), 'edit_lead_agent', $agent, $agentRules);
-        abort_403(!$access['canAccess']);
+        abort_403(! $access['canAccess']);
 
         DB::transaction(function () use ($request, $agent) {
             // Update status if provided
@@ -375,38 +377,13 @@ class AgentController extends AccountBaseController
 
             // Update categories if provided
             if ($request->has('category_id')) {
-                $categoryIds = $this->normalizeCategoryIds($request->input('category_id', []));
-                $addedBy = $agent->added_by ?? user()->id;
-
-                LeadAgent::where('user_id', $agent->user_id)
-                    ->where('company_id', company()->id)
-                    ->delete();
-
-                if (empty($categoryIds)) {
-                    LeadAgent::create([
-                        'user_id' => $agent->user_id,
-                        'lead_category_id' => null,
-                        'company_id' => company()->id,
-                        'added_by' => $addedBy,
-                        'last_updated_by' => user()->id,
-                        'status' => $request->input('status', 'enabled'),
-                    ]);
-                } else {
-                    foreach ($categoryIds as $categoryId) {
-                        LeadAgent::firstOrCreate(
-                            [
-                                'user_id' => $agent->user_id,
-                                'lead_category_id' => $categoryId,
-                                'company_id' => company()->id,
-                            ],
-                            [
-                                'added_by' => $addedBy,
-                                'last_updated_by' => user()->id,
-                                'status' => $request->input('status', 'enabled'),
-                            ]
-                        );
-                    }
-                }
+                app(SyncAgentCategories::class)->handle(
+                    $agent,
+                    $this->normalizeCategoryIds($request->input('category_id', [])),
+                    company()->id,
+                    user()->id,
+                    (string) $request->input('status', 'enabled'),
+                );
             }
 
             // Update user details if provided
@@ -442,7 +419,7 @@ class AgentController extends AccountBaseController
         $agent = LeadAgent::where('company_id', company()->id)->findOrFail($id);
 
         $deletePermission = user()->permission('delete_lead_agent');
-        abort_403(!($deletePermission === 'all'
+        abort_403(! ($deletePermission === 'all'
             || ($deletePermission === 'added' && $agent->added_by == user()->id)
             || ($deletePermission === 'owned' && $agent->user_id == user()->id)
             || ($deletePermission === 'both' && ($agent->added_by == user()->id || $agent->user_id == user()->id))
@@ -469,18 +446,20 @@ class AgentController extends AccountBaseController
                 LeadAgent::whereIn('id', $rowIds)
                     ->where('company_id', company()->id)
                     ->update(['status' => 'enabled', 'last_updated_by' => user()->id]);
+
                 return Reply::success(__('messages.updateSuccess'));
 
             case 'disable':
                 LeadAgent::whereIn('id', $rowIds)
                     ->where('company_id', company()->id)
                     ->update(['status' => 'disabled', 'last_updated_by' => user()->id]);
+
                 return Reply::success(__('messages.updateSuccess'));
 
             case 'change_role':
                 $roleId = $request->role_id;
 
-                if (!$roleId) {
+                if (! $roleId) {
                     return Reply::error(__('messages.selectRole'));
                 }
 
@@ -488,7 +467,7 @@ class AgentController extends AccountBaseController
                     ->where('company_id', company()->id)
                     ->first();
 
-                if (!$role) {
+                if (! $role) {
                     return Reply::error(__('messages.roleNotFound'));
                 }
 
@@ -542,7 +521,7 @@ class AgentController extends AccountBaseController
     {
         $addPermission = user()->permission('add_lead_agent');
 
-        if (!in_array($addPermission, ['all', 'added'])) {
+        if (! in_array($addPermission, ['all', 'added'])) {
             if (request()->ajax() || request()->header('X-Inertia')) {
                 return redirect()->back()->with('error', __('messages.permissionDenied'));
             }
@@ -606,7 +585,7 @@ class AgentController extends AccountBaseController
     {
         $sampleFilePath = public_path('sample-import/agent-sample.xlsx');
 
-        if (!file_exists($sampleFilePath)) {
+        if (! file_exists($sampleFilePath)) {
             return response()->json(['error' => 'Sample file not found'], 404);
         }
 
@@ -618,11 +597,10 @@ class AgentController extends AccountBaseController
      */
     private function normalizeCategoryIds($input): array
     {
-        if (!is_array($input)) {
+        if (! is_array($input)) {
             $input = $input !== null && $input !== '' ? [$input] : [];
         }
 
         return array_values(array_filter($input));
     }
-
 }

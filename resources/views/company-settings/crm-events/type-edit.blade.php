@@ -27,7 +27,7 @@
                 @if(isset($eventType->id) && $eventType->is_system)
                     <div class="alert alert-warning mb-4">
                         <i class="fa fa-lock mr-1"></i>
-                        <strong>System-managed event type.</strong> Name and slug cannot be modified.
+                        <strong>{{ td('System-managed event type.') }}</strong> Name and slug cannot be modified.
                         You can change the category, processing mode, status, and other settings.
                     </div>
                 @endif
@@ -36,23 +36,23 @@
                     <div class="col-md-6">
                         <x-forms.text fieldId="name" :fieldLabel="__('app.name')" fieldName="name"
                                       fieldRequired="true" :fieldValue="$eventType->name ?? ''"
-                                      fieldPlaceholder="e.g. Deal Stage Changed"
+                                      :fieldPlaceholder="td('e.g. Deal Stage Changed')"
                                       :fieldReadOnly="isset($eventType->id) && $eventType->is_system" />
                     </div>
                     <div class="col-md-6">
-                        <x-forms.text fieldId="slug" fieldLabel="Slug" fieldName="slug"
+                        <x-forms.text fieldId="slug" :fieldLabel="td('Slug')" fieldName="slug"
                                       fieldRequired="true" :fieldValue="$eventType->slug ?? ''"
-                                      fieldPlaceholder="e.g. deal_stage_changed"
+                                      :fieldPlaceholder="td('e.g. deal_stage_changed')"
                                       :fieldReadOnly="isset($eventType->id) && $eventType->is_system" />
-                        <small class="text-muted f-11">Auto-generated from name. Use lowercase letters, numbers, and underscores.</small>
+                        <small class="text-muted f-11">{{ td('Auto-generated from name. Use lowercase letters, numbers, and underscores.') }}</small>
                     </div>
                 </div>
 
                 <div class="row">
                     <div class="col-md-6">
-                        <x-forms.select fieldId="category_id" fieldLabel="Category" fieldName="category_id"
+                        <x-forms.select fieldId="category_id" :fieldLabel="td('Category')" fieldName="category_id"
                                         fieldRequired="true">
-                            <option value="">-- Select Category --</option>
+                            <option value="">{{ td('-- Select Category --') }}</option>
                             @foreach($categories as $cat)
                                 <option value="{{ $cat->id }}"
                                     {{ ($eventType->category_id ?? '') == $cat->id ? 'selected' : '' }}>
@@ -64,7 +64,7 @@
                     <div class="col-md-6">
                         <x-forms.select fieldId="business_rule_id" fieldLabel="Business Rule (Optional)"
                                         fieldName="business_rule_id">
-                            <option value="">-- None --</option>
+                            <option value="">{{ td('-- None --') }}</option>
                             @foreach($businessRules as $rule)
                                 <option value="{{ $rule->id }}"
                                     {{ ($eventType->business_rule_id ?? '') == $rule->id ? 'selected' : '' }}>
@@ -79,12 +79,12 @@
                     <div class="col-md-6">
                         <x-forms.text fieldId="model_type" fieldLabel="Model Type (Optional)" fieldName="model_type"
                                       :fieldValue="$eventType->model_type ?? ''"
-                                      fieldPlaceholder="e.g. App\Models\Deal" />
-                        <small class="text-muted f-11">The fully-qualified model class this event type applies to.</small>
+                                      :fieldPlaceholder="td('e.g. App\\Models\\Deal')" />
+                        <small class="text-muted f-11">{{ td('The fully-qualified model class this event type applies to.') }}</small>
                     </div>
                     <div class="col-md-6">
                         <div class="form-group my-3 pt-3">
-                            <x-forms.checkbox fieldId="sync_processing" fieldLabel="Process Synchronously"
+                            <x-forms.checkbox fieldId="sync_processing" :fieldLabel="td('Process Synchronously')"
                                               fieldName="sync_processing"
                                               :checked="$eventType->sync_processing ?? false" />
                             <small class="text-muted f-11 d-block mt-1">When checked, events are recorded inline (not queued). Use for critical events only.</small>
@@ -94,9 +94,9 @@
 
                 <div class="row">
                     <div class="col-md-12">
-                        <x-forms.textarea fieldId="description" fieldLabel="Description" fieldName="description"
+                        <x-forms.textarea fieldId="description" :fieldLabel="td('Description')" fieldName="description"
                                           :fieldValue="$eventType->description ?? ''"
-                                          fieldPlaceholder="Brief description of this event type" />
+                                          :fieldPlaceholder="td('Brief description of this event type')" />
                     </div>
                 </div>
 
@@ -110,7 +110,7 @@
                                       class="form-control f-14"
                                       style="font-family: monospace; font-size: 12px;"
                                       placeholder='{"field_name": "string", "amount": "number"}'>{{ isset($eventType->id) && $eventType->metadata_schema ? json_encode($eventType->metadata_schema, JSON_PRETTY_PRINT) : '' }}</textarea>
-                            <small class="text-muted f-11">Define the expected JSON structure for event metadata. Must be valid JSON.</small>
+                            <small class="text-muted f-11">{{ td('Define the expected JSON structure for event metadata. Must be valid JSON.') }}</small>
                         </div>
                     </div>
                 </div>

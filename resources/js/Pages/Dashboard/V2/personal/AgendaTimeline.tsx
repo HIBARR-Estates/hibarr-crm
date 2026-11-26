@@ -302,7 +302,7 @@ export default function AgendaTimeline({
                                             color: T.NAVY,
                                         }}
                                     >
-                                        {listItem.title}
+                                        {td(listItem.title, { source: "en" })}
                                     </span>
                                     {live && (
                                         <Badge

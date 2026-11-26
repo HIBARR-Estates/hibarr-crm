@@ -2,6 +2,7 @@ import { DragEvent, useMemo, useState } from "react";
 import Icon from "@/Components/Redesign/primitives/Icon";
 import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
 import { useTd } from "@/Hooks/useDynamicTranslation";
+import useTranslation from "@/Hooks/useTranslation";
 import { FIELD_TYPE_LABELS, ModuleGroup, SettingsField, fieldHasRule } from "../types";
 
 interface Props {
@@ -9,13 +10,15 @@ interface Props {
     moduleGroups: ModuleGroup[];
     onEdit: (field: SettingsField) => void;
     onDelete: (field: SettingsField) => void;
+    onMap: (field: SettingsField) => void;
     onReorder: (moduleName: string, orderedIds: number[]) => void;
 }
 
-const ROW_COLUMNS = "36px 1.6fr 1fr 1.8fr .8fr .8fr 1fr 96px";
+const ROW_COLUMNS = "36px 1.6fr 1fr 1.8fr .8fr .8fr 1fr 130px";
 
-export default function FieldsTab({ fields, moduleGroups, onEdit, onDelete, onReorder }: Props) {
+export default function FieldsTab({ fields, moduleGroups, onEdit, onDelete, onMap, onReorder }: Props) {
     const { td } = useTd();
+    const { t } = useTranslation();
     const [search, setSearch] = useState("");
     const [expanded, setExpanded] = useState<Record<string, boolean>>({});
     const [dragId, setDragId] = useState<number | null>(null);
@@ -130,7 +133,7 @@ export default function FieldsTab({ fields, moduleGroups, onEdit, onDelete, onRe
                                     <span style={{ display: "inline-flex", transition: "transform 0.16s ease", transform: `rotate(${open ? 90 : 0}deg)` }}>
                                         <Icon name="chevron-right" size={18} color={T.TEXT_MUTED} />
                                     </span>
-                                    <span style={{ fontSize: 15, fontWeight: 600, color: T.NAVY }}>{group.name}</span>
+                                    <span style={{ fontSize: 15, fontWeight: 600, color: T.NAVY }}>{td(group.name, { source: "en" })}</span>
                                     <span className="dr-pill dr-pill-gray">
                                         {filtered.length} {filtered.length === 1 ? td("field", { source: "en" }) : td("fields", { source: "en" })}
                                     </span>
@@ -195,7 +198,7 @@ export default function FieldsTab({ fields, moduleGroups, onEdit, onDelete, onRe
                                                 </span>
                                                 <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
                                                     <span style={{ fontSize: 14, fontWeight: 600, color: T.TEXT, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                                                        {field.label}
+                                                        {td(field.label, { source: "en" })}
                                                     </span>
                                                     {fieldHasRule(field) && (
                                                         <span
@@ -227,7 +230,7 @@ export default function FieldsTab({ fields, moduleGroups, onEdit, onDelete, onRe
                                                     </span>
                                                 </span>
                                                 <span style={{ display: "flex", alignItems: "center", fontSize: 13, color: T.TEXT_MUTED, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                                                    {field.category_name ?? "—"}
+                                                    {td(field.category_name ?? "—", { source: "en" })}
                                                 </span>
                                                 <span style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 4 }}>
                                                     <button
@@ -238,6 +241,15 @@ export default function FieldsTab({ fields, moduleGroups, onEdit, onDelete, onRe
                                                         style={{ width: 30, height: 30, minHeight: 30, padding: 0, borderRadius: 7, border: "1px solid transparent" }}
                                                     >
                                                         <Icon name="edit" size={16} />
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        title={t("pages.settings.custom_fields_mapping.action")}
+                                                        onClick={() => onMap(field)}
+                                                        className="dr-btn dr-btn-ghost"
+                                                        style={{ width: 30, height: 30, minHeight: 30, padding: 0, borderRadius: 7, border: "1px solid transparent" }}
+                                                    >
+                                                        <Icon name="swap" size={16} />
                                                     </button>
                                                     <button
                                                         type="button"

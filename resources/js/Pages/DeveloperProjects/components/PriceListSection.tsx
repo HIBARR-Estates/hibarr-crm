@@ -4,6 +4,7 @@ import { DataTable } from "@/Components/DataTable";
 import UnitSoldOutBadge from "@/Components/UnitSoldOutBadge";
 import type { UnitTypePriceListItem } from "../Show";
 import { snakeToReadable } from "../../../lib/utils";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 const { Text } = Typography;
 
@@ -17,6 +18,7 @@ const CURRENCY_LOCALE: Record<string, string> = {
 const PriceListSection: React.FC<{ priceList: UnitTypePriceListItem[] }> = ({
     priceList,
 }) => {
+    const { td } = useTd();
     const formatPrice = (price: number | null, currency = "GBP") => {
         if (!price) return "-";
         return new Intl.NumberFormat(CURRENCY_LOCALE[currency] ?? "en-GB", {
@@ -28,14 +30,14 @@ const PriceListSection: React.FC<{ priceList: UnitTypePriceListItem[] }> = ({
 
     if (priceList.length === 0) {
         return (
-            <Card title="Price List">
-                <Empty description="No unit types with pricing found" />
+            <Card title={td("Price List", { source: "en" })}>
+                <Empty description={td("No unit types with pricing found", { source: "en" })} />
             </Card>
         );
     }
 
     return (
-        <Card title="Price List by Property Type">
+        <Card title={td("Price List by Property Type", { source: "en" })}>
             <Tabs
                 items={priceList.map((item) => ({
                     key: item.type,
@@ -48,7 +50,7 @@ const PriceListSection: React.FC<{ priceList: UnitTypePriceListItem[] }> = ({
                         <div>
                             <div className="mb-4 p-4 bg-gray-50 rounded-lg flex items-center gap-4">
                                 <div>
-                                    <Text strong>Price Range: </Text>
+                                    <Text strong>{td("Price Range:", { source: "en" })} </Text>
                                     {item.min_price === item.max_price ? (
                                         formatPrice(
                                             item.min_price,
@@ -76,7 +78,7 @@ const PriceListSection: React.FC<{ priceList: UnitTypePriceListItem[] }> = ({
                                 scroll={{ x: "max-content" }}
                                 columns={[
                                     {
-                                        title: "Reference",
+                                        title: td("Reference", { source: "en" }),
                                         dataIndex: "reference_code",
                                         key: "reference_code",
                                         render: (code: string | null, record) => (
@@ -90,7 +92,7 @@ const PriceListSection: React.FC<{ priceList: UnitTypePriceListItem[] }> = ({
                                         ),
                                     },
                                     {
-                                        title: "Beds",
+                                        title: td("Beds", { source: "en" }),
                                         dataIndex: "bedrooms",
                                         key: "bedrooms",
                                         align: "center",
@@ -98,21 +100,21 @@ const PriceListSection: React.FC<{ priceList: UnitTypePriceListItem[] }> = ({
                                             v === 0 ? "Studio" : (v ?? "-"),
                                     },
                                     {
-                                        title: "Baths",
+                                        title: td("Baths", { source: "en" }),
                                         dataIndex: "bathrooms",
                                         key: "bathrooms",
                                         align: "center",
                                         render: (v: number | null) => v ?? "-",
                                     },
                                     {
-                                        title: "Floor",
+                                        title: td("Floor", { source: "en" }),
                                         dataIndex: "floor",
                                         key: "floor",
                                         align: "center",
                                         render: (v: string | null) => v ?? "-",
                                     },
                                     {
-                                        title: "Area (m²)",
+                                        title: td("Area (m²)", { source: "en" }),
                                         dataIndex: "total_area_sqm",
                                         key: "total_area_sqm",
                                         align: "right",
@@ -122,14 +124,14 @@ const PriceListSection: React.FC<{ priceList: UnitTypePriceListItem[] }> = ({
                                                 : "-",
                                     },
                                     {
-                                        title: "Qty",
+                                        title: td("Qty", { source: "en" }),
                                         dataIndex: "quantity",
                                         key: "quantity",
                                         align: "center",
                                         render: (v: number | null) => v ?? "-",
                                     },
                                     {
-                                        title: "Price",
+                                        title: td("Price", { source: "en" }),
                                         dataIndex: "formatted_price",
                                         key: "formatted_price",
                                         align: "right",

@@ -13,6 +13,8 @@ import Icon from "@/Components/Redesign/primitives/Icon";
 import Button from "@/Components/Redesign/primitives/Button";
 import CopyValueButton from "@/Components/Redesign/primitives/CopyValueButton";
 import DealValueEditorModal from "./DealValueEditorModal";
+import DealReferralCard from "./DealReferralCard";
+import useDealReferralCommission from "../../hooks/useDealReferralCommission";
 import useFloatingMenuPosition from "../../hooks/useFloatingMenuPosition";
 import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
 
@@ -25,13 +27,16 @@ interface DealValueBlockProps {
 export default function DealValueBlock({ deal, canEdit }: DealValueBlockProps) {
     const { t } = useTranslation();
     const showCommission = useDealValueCommissionFlag();
+    const { save: saveReferral, saving: savingReferral } = useDealReferralCommission(deal.id);
     const [open, setOpen] = useState(false);
     const [editorOpen, setEditorOpen] = useState(false);
     const triggerRef = useRef<HTMLButtonElement>(null);
     const menuRef = useRef<HTMLDivElement>(null);
+    // No height cap of its own: the popup grows with its content (the referral
+    // card can be long) and the hook only stops it at the edge of the screen.
     const floatStyle = useFloatingMenuPosition(open, triggerRef, {
         align: "right",
-        maxHeight: 420,
+        maxHeight: Number.POSITIVE_INFINITY,
     });
 
     useEffect(() => {
@@ -168,6 +173,7 @@ export default function DealValueBlock({ deal, canEdit }: DealValueBlockProps) {
     /** Readable role for a leg, in place of the raw engine leg type. */
     const roleLabel = (leg: { type: string; is_you: boolean }) => {
         if (leg.is_you) return t("pages.deals.info.value_insight.role_you");
+        if (leg.type === "referral") return t("pages.deals.info.value_insight.role_referral");
         if (leg.type === "upline") return t("pages.deals.info.value_insight.role_upline");
         return t("pages.deals.info.value_insight.role_agent");
     };
@@ -275,8 +281,9 @@ export default function DealValueBlock({ deal, canEdit }: DealValueBlockProps) {
                         aria-label={t("pages.deals.info.value_insight.title")}
                         style={{
                             ...floatStyle,
-                            minWidth: 340,
-                            padding: 14,
+                            minWidth: 360,
+                            maxWidth: 440,
+                            padding: 16,
                             textAlign: "left",
                         }}
                     >
@@ -368,6 +375,16 @@ export default function DealValueBlock({ deal, canEdit }: DealValueBlockProps) {
                             section(
                                 t("pages.deals.info.value_insight.section_commission"),
                                 <>
+                                    {breakdown.commission.referral && (
+                                        <DealReferralCard
+                                            referral={breakdown.commission.referral}
+                                            dealValue={breakdown.final_value_company}
+                                            currencySymbol={companyCurrency.symbol || companyCurrency.code}
+                                            editable={canEdit && !deal.commission_locked}
+                                            saving={savingReferral}
+                                            onSave={saveReferral}
+                                        />
+                                    )}
                                     {/* Privileged view: the legs are the makeup of
                                         the total below them, so they sit above a
                                         dashed rule rather than reading as three

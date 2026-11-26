@@ -20,11 +20,15 @@ import {
 } from "@/Pages/Deals/Redesign/adapters/meetingListAdapter";
 import { resolveMeetingDisplayTimezone } from "@/Pages/Meetings/Redesign/adapters/meetingTimeLabel";
 import { meetingRecordLink } from "@/Components/Redesign/meeting/meetingRecordLink";
+import MeetingLeadBlock from "@/Components/Redesign/meeting/MeetingLeadBlock";
+import { meetingAttendees } from "@/Components/Redesign/meeting/meetingAttendees";
+import { meetingLeadInfo } from "@/Components/Redesign/meeting/meetingPeople";
 import useMeetingAttendanceConfirmationFlag from "@/Hooks/useMeetingAttendanceConfirmationFlag";
 import MeetingConfirmationPanel from "@/Components/Redesign/meeting/MeetingConfirmationPanel";
 import MeetingCalendarSyncRow from "@/Components/Redesign/meeting/MeetingCalendarSyncRow";
 import MeetingLocationPanel from "@/Components/Redesign/meeting/MeetingLocationPanel";
 import type { DealFollowup } from "@/Types/api/deal-followup";
+import useMeetingUiLabel from "@/Components/Redesign/meeting/useMeetingUiLabel";
 
 type Panel = "info" | "summary" | "confirmation";
 
@@ -58,6 +62,9 @@ interface MeetingDetailCompactProps {
     initialPanel?: Panel;
     onOpenSourceEmail?: () => void;
     openSourceEmailLabel?: string;
+    /** Retries a failed automatic meeting link; shown only when the caller passes it. */
+    onGenerateLink?: () => void;
+    generatingLink?: boolean;
 }
 
 /** One icon + label + value line of the details list. */
@@ -140,8 +147,11 @@ export default function MeetingDetailCompact({
     initialPanel = "info",
     onOpenSourceEmail,
     openSourceEmailLabel,
+    onGenerateLink,
+    generatingLink = false,
 }: MeetingDetailCompactProps) {
     const { td } = useTd();
+    const ui = useMeetingUiLabel();
     const { t } = useTranslation();
     const { formatDate, formatDateTime } = useUserDateTime();
     const [panel, setPanel] = useState<Panel>(
@@ -160,15 +170,14 @@ export default function MeetingDetailCompact({
     const showConfirmationTab = useMeetingAttendanceConfirmationFlag();
 
     const item = toWorkspaceMeetingListItem(meeting);
-    const attendees = meeting.participant_users ?? [];
+    // Host and participants, not the participants alone.
+    const attendees = meetingAttendees(meeting);
     const ATTENDEES_COLLAPSED_LIMIT = 4;
     const visibleAttendees = showAllAttendees
         ? attendees
         : attendees.slice(0, ATTENDEES_COLLAPSED_LIMIT);
     const hiddenAttendeeCount = attendees.length - visibleAttendees.length;
-    const hostId = meeting.host_id ?? meeting.added_by?.id;
     const record = meetingRecordLink(meeting);
-    const canConfirmAttendance = Boolean(userId && hostId === userId);
     const isActionable =
         (item.isUpcoming || item.isLive) && item.statusLabel === "scheduled";
     const showReschedule = (canReschedule ?? canEdit) && isActionable && !!onReschedule;
@@ -200,7 +209,7 @@ export default function MeetingDetailCompact({
                                             background: status.dotColor,
                                         }}
                                     />
-                                    {td(status.label, { source: "en" })}
+                                    {ui(status.label)}
                                 </span>
                             );
                         })()}
@@ -231,6 +240,16 @@ export default function MeetingDetailCompact({
                             </Button>
                         )}
                         <span style={{ flex: 1 }} />
+                        {onGenerateLink ? (
+                            <Button
+                                variant="ghost"
+                                onClick={onGenerateLink}
+                                disabled={isUpdating || generatingLink}
+                                loading={generatingLink}
+                            >
+                                {t("pages.deals.workspace.meetings.generate_link")}
+                            </Button>
+                        ) : null}
                         {onOpenSourceEmail && openSourceEmailLabel ? (
                             <Button
                                 variant="ghost"
@@ -248,7 +267,7 @@ export default function MeetingDetailCompact({
                                     onClick={onMarkHeld}
                                     disabled={isUpdating}
                                 >
-                                    {td("Mark held")}
+                                    {t("pages.meetings.ui.mark_held")}
                                 </Button>
                             )}
                         {showReschedule && (
@@ -280,14 +299,14 @@ export default function MeetingDetailCompact({
                         onChange={setPanel}
                         fullWidth
                         variant="raised"
-                        ariaLabel={td("Meeting views")}
+                        ariaLabel={t("pages.meetings.ui.meeting_views")}
                         options={[
-                            { value: "info", label: td("Meeting info") },
+                            { value: "info", label: t("pages.meetings.ui.meeting_info") },
                             ...(summaryPanel
                                 ? [
                                       {
                                           value: "summary" as const,
-                                          label: td("Summary"),
+                                          label: t("pages.meetings.ui.summary"),
                                       },
                                   ]
                                 : []),
@@ -295,7 +314,7 @@ export default function MeetingDetailCompact({
                                 ? [
                                       {
                                           value: "confirmation" as const,
-                                          label: td("Meeting outcome"),
+                                          label: t("pages.meetings.ui.meeting_outcome"),
                                       },
                                   ]
                                 : []),
@@ -306,8 +325,6 @@ export default function MeetingDetailCompact({
                 {panel === "confirmation" ? (
                     <MeetingConfirmationPanel
                         meeting={meeting}
-                        canConfirm={canConfirmAttendance}
-                        allowEditLogged
                         onSaved={(patch) =>
                             setConfirmationPatch((prev) => ({
                                 ...prev,
@@ -323,7 +340,20 @@ export default function MeetingDetailCompact({
                             className="mb-4"
                             style={{ borderTop: `1px solid ${T.BORDER_SOFT}` }}
                         >
-                            {record && (
+                            {/* The lead is who the meeting is with: first, with
+                                how to reach them and the deal under it. */}
+                            {meetingLeadInfo(meeting) && (
+                                <div
+                                    className="pt-2.5"
+                                    style={{
+                                        borderBottom: `1px solid ${T.BORDER_SOFT}`,
+                                    }}
+                                >
+                                    <MeetingLeadBlock meeting={meeting} />
+                                </div>
+                            )}
+
+                            {!meetingLeadInfo(meeting) && record && (
                                 <InfoRow
                                     icon={
                                         record.type === "deal"
@@ -348,8 +378,8 @@ export default function MeetingDetailCompact({
                                     }
                                     secondary={
                                         record.type === "deal"
-                                            ? td("Deal")
-                                            : td("Lead")
+                                            ? t("pages.meetings.ui.deal")
+                                            : t("pages.meetings.ui.lead")
                                     }
                                 />
                             )}
@@ -359,7 +389,7 @@ export default function MeetingDetailCompact({
                                 primary={formatDate(item.startsAt, "-")}
                                 secondary={
                                     meeting.created_at
-                                        ? `${td("Created")} ${formatDateTime(meeting.created_at)}`
+                                        ? `${t("pages.meetings.ui.created")} ${formatDateTime(meeting.created_at)}`
                                         : undefined
                                 }
                             />
@@ -436,9 +466,9 @@ export default function MeetingDetailCompact({
                                                 >
                                                     {person.name}
                                                 </span>
-                                                {person.id === hostId && (
+                                                {person.isHost && (
                                                     <span className="dr-pill dr-pill-blue">
-                                                        {td("Organizer")}
+                                                        {t("pages.meetings.ui.organizer")}
                                                     </span>
                                                 )}
                                             </div>
@@ -465,8 +495,8 @@ export default function MeetingDetailCompact({
                                             }}
                                         >
                                             {showAllAttendees
-                                                ? td("Show fewer")
-                                                : `${td("Show")} ${hiddenAttendeeCount} ${td("more")}`}
+                                                ? t("pages.meetings.ui.show_fewer")
+                                                : `${t("pages.meetings.ui.show")} ${hiddenAttendeeCount} ${t("pages.meetings.ui.more")}`}
                                         </button>
                                     )}
                                 </>
@@ -507,8 +537,8 @@ export default function MeetingDetailCompact({
 
             <ConfirmDialog
                 open={confirmDelete}
-                title={td("Delete this meeting?")}
-                message={td("The meeting and its reminders are removed.")}
+                title={t("pages.meetings.ui.delete_this_meeting")}
+                message={t("pages.meetings.ui.the_meeting_and_its_reminders_are_removed")}
                 confirmLabel={t("pages.deals.common.delete")}
                 danger
                 onConfirm={() => {
@@ -520,10 +550,8 @@ export default function MeetingDetailCompact({
 
             <ConfirmDialog
                 open={confirmCancel}
-                title={td("Cancel this meeting?")}
-                message={td(
-                    "The meeting is marked cancelled. Attendees are notified.",
-                )}
+                title={t("pages.meetings.ui.cancel_this_meeting")}
+                message={t("pages.meetings.ui.the_meeting_is_marked_cancelled_attendees_are")}
                 confirmLabel={t(
                     "pages.deals.workspace.meetings.cancel_meeting",
                 )}

@@ -156,7 +156,7 @@ export interface Deal {
              */
             legs: Array<{
                 agent_name: string;
-                type: "agent" | "upline";
+                type: "agent" | "upline" | "referral";
                 percentage: number | null;
                 amount: number;
                 is_you: boolean;
@@ -189,8 +189,44 @@ export interface Deal {
             // distributed for any other reason) — figures are a live
             // projection from current settings, not a persisted ledger.
             is_projected: boolean;
+            /** The referrer's commission on this deal. Null when the lead has no referrer. */
+            referral: DealReferralBreakdown | null;
         } | null;
     };
+}
+
+/** Same rule shape as a package's commission: a percentage, a fixed amount, or none. */
+export type ReferralCommissionType = "percentage" | "fixed" | "none";
+
+/**
+ * One rule paying the referrer. `package` terms come from the referrer's row on
+ * that package, `partner` terms from their own terms on a deal with no package,
+ * `deal` is the deal's own override, and `recorded` is a leg already on the ledger
+ * (a settled deal shows what was paid, not today's rule, so it carries no type).
+ */
+export interface DealReferralTerm {
+    source: "deal" | "package" | "partner" | "recorded";
+    package_id: number | null;
+    package_name: string | null;
+    type: ReferralCommissionType | null;
+    value: number | null;
+    /** What this rule pays, or paid. */
+    amount: number;
+    /** Held below what the rule states: by the deal's limit or what the company still holds. */
+    capped: boolean;
+}
+
+export interface DealReferralBreakdown {
+    referrer_name: string;
+    /** The deal's own override. A null type means the deal has none. */
+    override: { type: ReferralCommissionType | null; value: number | null };
+    terms: DealReferralTerm[];
+    paid_total: number;
+    capped: boolean;
+    /** True once commission is on the ledger; the rules may have changed since. */
+    settled: boolean;
+    /** Most commission this deal can carry; the referral can't exceed it. */
+    max_amount: number;
 }
 
 export interface HibarrDealFields {

@@ -24,12 +24,14 @@ import useSoftphoneLineTest, { type LineTestState } from "@/Hooks/useSoftphoneLi
 import useTranslation from "@/Hooks/useTranslation";
 import { ApiSuccessResponse } from "@/lib/api/types";
 import type {
+    SipProviderProfile,
     SoftphoneConfig,
     SoftphoneDeviceDetails,
     SoftphoneDeviceSummary,
 } from "@/Types/api/softphone";
 
 import "@/Components/Redesign/redesign.css";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 const NESTED_MODAL_Z_INDEX = 1400;
 
@@ -50,6 +52,7 @@ interface DevicePayload {
     authorization_password: string;
     display_name?: string | null;
     is_default?: boolean;
+    max_concurrent_calls?: number;
 }
 
 interface ProviderOption {
@@ -69,6 +72,8 @@ interface ProvidersResponse {
 interface PlatformDefaults {
     wss: string;
     sipUriFormat: string;
+    /** How the softphone behaves for this platform (wording, Digest, ICE). */
+    profile?: SipProviderProfile;
 }
 
 interface PlatformResponse {
@@ -94,6 +99,7 @@ const fieldLabel: React.CSSProperties = {
  * Writes are admin-only (enforced server-side).
  */
 export default function SoftphoneDeviceManager() {
+    const { td } = useTd();
     const { message } = App.useApp();
     const { t } = useTranslation();
     const [modalOpen, setModalOpen] = useState(false);
@@ -117,6 +123,7 @@ export default function SoftphoneDeviceManager() {
     const [displayName, setDisplayName] = useState("");
     const [isDefault, setIsDefault] = useState(false);
     const [hasPassword, setHasPassword] = useState(false);
+    const [maxConcurrentCalls, setMaxConcurrentCalls] = useState(2);
     // True while the edit form is waiting for the line's stored settings.
     const [detailsLoading, setDetailsLoading] = useState(false);
     // Only a test run since the modal opened is shown in it; older results stay
@@ -241,6 +248,7 @@ export default function SoftphoneDeviceManager() {
         setDisplayName("");
         setIsDefault(false);
         setHasPassword(false);
+        setMaxConcurrentCalls(2);
         setDetailsLoading(false);
         detailsRequest.current += 1;
         lineTest.clear("draft");
@@ -264,7 +272,7 @@ export default function SoftphoneDeviceManager() {
             if (newId) {
                 void lineTest.testSaved(newId).then((result) => {
                     if (result.ok) {
-                        message.success("Line connected — it registered successfully.");
+                        message.success(td("Line connected — it registered successfully.", { source: "en" }));
                     } else {
                         message.warning(`Line saved, but the connection test failed: ${result.message}`);
                     }
@@ -321,7 +329,7 @@ export default function SoftphoneDeviceManager() {
             void refreshSoftphoneDevices();
             setDeleteTarget(null);
         } catch {
-            message.error("Could not remove the device.");
+            message.error(td("Could not remove the device.", { source: "en" }));
         } finally {
             setDeletingId(null);
         }
@@ -345,8 +353,10 @@ export default function SoftphoneDeviceManager() {
             authorization_username: trimmedUsername || null,
             authorization_password: password,
             display_name: displayName.trim() || null,
+            provider: provider ?? null,
+            provider_profile: platformDefaults.profile ?? null,
         };
-    }, [platformDefaults, username, password, displayName]);
+    }, [platformDefaults, provider, username, password, displayName]);
 
     const draftTestKey = editing ? String(editing.id) : "draft";
     const draftTest = lineTest.states[draftTestKey];
@@ -386,11 +396,12 @@ export default function SoftphoneDeviceManager() {
                 setDisplayName(details.display_name ?? "");
                 setIsDefault(details.is_default);
                 setHasPassword(details.has_password);
+                setMaxConcurrentCalls(details.max_concurrent_calls ?? 2);
                 setDetailsLoading(false);
             })
             .catch(() => {
                 if (detailsRequest.current !== requestId) return;
-                message.error("Could not load this phone line.");
+                message.error(td("Could not load this phone line.", { source: "en" }));
                 closeModal();
             });
     };
@@ -410,6 +421,7 @@ export default function SoftphoneDeviceManager() {
             provider,
             authorization_password: password,
             is_default: isDefault,
+            max_concurrent_calls: maxConcurrentCalls,
         };
 
         if (editing) {
@@ -451,7 +463,7 @@ export default function SoftphoneDeviceManager() {
                     icon={<PlusOutlined />}
                     onClick={openCreate}
                 >
-                    Add phone line
+                    {td("Add phone line", { source: "en" })}
                 </Button>
             </div>
 
@@ -470,35 +482,40 @@ export default function SoftphoneDeviceManager() {
                         color: T.TEXT_MUTED,
                     }}
                 >
-                    <span>Label</span>
-                    <span>Default</span>
+                    <span>{td("Label", { source: "en" })}</span>
+                    <span>{td("Default", { source: "en" })}</span>
                     <span>{t("pages.calls.line_active")}</span>
-                    <span>Connection</span>
+                    <span>{td("Connection", { source: "en" })}</span>
                     <span className="text-right" aria-hidden="true" />
                 </div>
 
                 {isLoading ? (
                     <div className="px-3.5 py-6 text-center text-sm" style={{ color: T.TEXT_MUTED }}>
-                        Loading…
+                        {td("Loading…", { source: "en" })}
                     </div>
                 ) : devices.length === 0 ? (
                     <div className="p-4">
                         <EmptyState
-                            title="No phone lines yet"
-                            description="Add a sipgate Neo channel to use as an outbound caller ID."
+                            title={td("No phone lines yet", { source: "en" })}
+                            description={td("Add a phone line to use as an outbound caller ID.", { source: "en" })}
                         />
                     </div>
                 ) : (
                     <div className="flex flex-col">
                         {devices.map((device) => (
                             <div key={device.id} className={ROW_GRID}>
-                                <span
-                                    className="min-w-0 truncate text-sm font-medium"
-                                    style={{ color: T.TEXT }}
-                                    title={device.label}
-                                >
-                                    {device.label}
-                                </span>
+                                <div className="flex flex-col min-w-0">
+                                    <span
+                                        className="min-w-0 truncate text-sm font-medium"
+                                        style={{ color: T.TEXT }}
+                                        title={device.label}
+                                    >
+                                        {device.label}
+                                    </span>
+                                    <span className="text-xs" style={{ color: T.TEXT_MUTED }}>
+                                        {t("pages.calls.max_concurrent_calls")}: {device.max_concurrent_calls ?? 2}
+                                    </span>
+                                </div>
                                 <span className="text-sm" style={{ color: T.TEXT_MUTED }}>
                                     {device.is_default ? (
                                         <StarFilled style={{ color: T.AMBER_TEXT ?? T.ORANGE }} />
@@ -532,8 +549,8 @@ export default function SoftphoneDeviceManager() {
                                         variant="ghost"
                                         size="sm"
                                         icon={<ThunderboltOutlined />}
-                                        aria-label="Test connection"
-                                        title="Test connection"
+                                        aria-label={td("Test connection", { source: "en" })}
+                                        title={td("Test connection", { source: "en" })}
                                         loading={lineTest.states[String(device.id)]?.status === "testing"}
                                         // A disabled line hands out no credentials, so there is nothing to test.
                                         disabled={device.is_active === false}
@@ -543,14 +560,14 @@ export default function SoftphoneDeviceManager() {
                                         variant="ghost"
                                         size="sm"
                                         icon={<EditOutlined />}
-                                        aria-label="Edit"
+                                        aria-label={td("Edit", { source: "en" })}
                                         onClick={() => openEdit(device)}
                                     />
                                     <Button
                                         variant="ghost"
                                         size="sm"
                                         icon={<DeleteOutlined />}
-                                        aria-label="Delete"
+                                        aria-label={td("Delete", { source: "en" })}
                                         loading={deletingId === device.id}
                                         onClick={() => setDeleteTarget(device)}
                                         style={{ color: T.RED }}
@@ -582,7 +599,7 @@ export default function SoftphoneDeviceManager() {
                             }}
                             style={{ marginRight: "auto" }}
                         >
-                            Test connection
+                            {td("Test connection", { source: "en" })}
                         </Button>
                         <Button
                             variant="ghost"
@@ -590,7 +607,7 @@ export default function SoftphoneDeviceManager() {
                             onClick={closeModal}
                             disabled={saving}
                         >
-                            Cancel
+                            {td("Cancel", { source: "en" })}
                         </Button>
                         <Button
                             variant="primary"
@@ -599,7 +616,7 @@ export default function SoftphoneDeviceManager() {
                             loading={saving}
                             disabled={!canSubmit || platformLoading}
                         >
-                            Save
+                            {td("Save", { source: "en" })}
                         </Button>
                     </>
                 }
@@ -625,7 +642,7 @@ export default function SoftphoneDeviceManager() {
                     </option>
                     {providerOptions.map((option) => (
                         <option key={option.value} value={option.value}>
-                            {option.label}
+                            {td(option.label, { source: "en" })}
                         </option>
                     ))}
                 </select>
@@ -703,6 +720,22 @@ export default function SoftphoneDeviceManager() {
                     onChange={(e) => setDisplayName(e.target.value)}
                 />
 
+                <FieldLabel
+                    htmlFor="sp-concurrent"
+                    text={t("pages.calls.max_concurrent_calls")}
+                    tooltip={t("pages.calls.max_concurrent_calls_tooltip")}
+                />
+                <input
+                    id="sp-concurrent"
+                    type="number"
+                    min={1}
+                    max={100}
+                    disabled={detailsLoading}
+                    className="dr-input"
+                    value={maxConcurrentCalls}
+                    onChange={(e) => setMaxConcurrentCalls(Math.max(1, parseInt(e.target.value, 10) || 1))}
+                />
+
                 {draftTest?.status === "done" && draftTest.testedAt >= openedAt && (
                     <div
                         role="status"
@@ -746,10 +779,10 @@ export default function SoftphoneDeviceManager() {
             <ConfirmDialog
                 open={deleteTarget !== null}
                 zIndex={NESTED_MODAL_Z_INDEX}
-                title="Remove phone line"
+                title={td("Remove phone line", { source: "en" })}
                 message={`Remove "${deleteTarget?.label ?? ""}"? Calls will no longer use this line.`}
-                confirmLabel="Remove"
-                cancelLabel="Cancel"
+                confirmLabel={td("Remove", { source: "en" })}
+                cancelLabel={td("Cancel", { source: "en" })}
                 danger
                 confirmLoading={deletingId !== null}
                 onConfirm={() => void handleDelete()}
@@ -799,17 +832,18 @@ function FieldLabel({
 
 /** Last health-check outcome for a line, or "Not tested" before the first run. */
 function ConnectionBadge({ state }: { state?: LineTestState }) {
+    const { td } = useTd();
     if (!state) {
         return (
             <span className="text-xs" style={{ color: T.TEXT_HINT }}>
-                Not tested
+                {td("Not tested", { source: "en" })}
             </span>
         );
     }
     if (state.status === "testing") {
         return (
             <span className="text-xs" style={{ color: T.TEXT_MUTED }}>
-                Testing…
+                {td("Testing…", { source: "en" })}
             </span>
         );
     }

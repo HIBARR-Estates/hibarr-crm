@@ -36,3 +36,17 @@ const KINDS: Record<NotificationIcon, NotificationKind> = {
 export function notificationKind(icon: NotificationIcon | string): NotificationKind {
     return KINDS[icon as NotificationIcon] ?? KINDS.bell;
 }
+
+/**
+ * How loud a notification is (canvas L7-36): "alert" for something late or
+ * refused (red tint), "warn" for something that failed or needs a hand (amber),
+ * "info" for the rest. Read from the notification's type, e.g. task_overdue.
+ */
+export type NotificationTone = "alert" | "warn" | "info";
+
+export function notificationTone(typeSlug: string | null | undefined): NotificationTone {
+    const slug = typeSlug ?? "";
+    if (/overdue|rejected/.test(slug)) return "alert";
+    if (/failed|escalation/.test(slug)) return "warn";
+    return "info";
+}

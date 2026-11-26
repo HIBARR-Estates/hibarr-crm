@@ -14,6 +14,7 @@ import { dayOrEmpty, groupByDay } from "./model";
 import OutcomePanel, { type useAgendaOutcomes } from "./OutcomePanel";
 import { addDays, type AgendaRange, type AgendaView } from "./range";
 import type { AgendaData } from "./useAgendaData";
+import type { DoNextRequest } from "../donext/doNext";
 
 interface AgendaProps {
     view: AgendaView;
@@ -32,6 +33,9 @@ interface AgendaProps {
     handlers: TaskHandlers;
     meetingHandlers: MeetingHandlers;
     outcomes: ReturnType<typeof useAgendaOutcomes>;
+    /** Do next after a meeting is marked Attended. */
+    offerNext?: (request: DoNextRequest) => boolean;
+    attending?: number | null;
 }
 
 /**
@@ -57,6 +61,8 @@ export default function Agenda({
     handlers,
     meetingHandlers,
     outcomes,
+    offerNext,
+    attending,
 }: AgendaProps) {
     const { t } = useTranslation();
     const isPhone = useMediaQuery("(max-width: 639px)");
@@ -101,7 +107,8 @@ export default function Agenda({
                 today={today}
                 handlers={handlers}
                 meetingHandlers={meetingHandlers}
-                aside={outcomes.items.length > 0 ? <OutcomePanel outcomes={outcomes} timeZone={handlers.timeZone} /> : undefined}
+                analysis={data?.analysis}
+                aside={outcomes.items.length > 0 ? <OutcomePanel outcomes={outcomes} timeZone={handlers.timeZone} offerNext={offerNext} attending={attending} /> : undefined}
             />
         );
     } else if (view === "week" && isPhone) {

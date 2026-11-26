@@ -11,6 +11,7 @@ use App\Models\PipelineStage;
 use App\Models\Task;
 use App\Models\TaskboardColumn;
 use App\Models\User;
+use App\Support\ExclusionFilter;
 use App\Support\LeadSearchQuery;
 use App\Support\TaskWallClock;
 use Illuminate\Database\Eloquent\Builder;
@@ -63,8 +64,72 @@ class LeadService
         'contact_status',
     ];
 
-    /** Urgency buckets the Next Action column can be filtered by. */
-    public const NEXT_ACTION_BUCKETS = ['overdue', 'today', 'week', 'none'];
+    /**
+     * Urgency buckets the Next Action column can be filtered by. `not_overdue`
+     * is everything except Overdue: due later, or nothing planned at all.
+     */
+    public const NEXT_ACTION_BUCKETS = ['overdue', 'today', 'week', 'none', 'not_overdue'];
+
+    /**
+     * How a multi-value filter reads its values, sent as the companion param
+     * `<key>_mode`. No mode means "is one of" (the original behaviour).
+     *  - not_in: everything except the values — leads with no value still match
+     *  - empty:  the lead has no value at all (values are ignored)
+     *  - any:    the lead has some value (values are ignored)
+     */
+    public const FILTER_MODES = ['not_in', 'empty', 'any'];
+
+    /**
+     * Modes a filter offers where that is fewer than "not in" and "empty" (the
+     * default) or more. The filter modal's field config is the contract: a mode
+     * it does not offer would filter with no chip, badge or switch to show it,
+     * so it is ignored here and dropped from saved views.
+     */
+    private const MODE_FILTER_MODES = [
+        'lead_owner_id' => ['not_in', 'empty', 'any'],
+        'referred_by_agent_id' => ['not_in', 'empty', 'any'],
+        'added_by_id' => ['not_in'],
+        'contact_score' => ['empty'],
+    ];
+
+    /**
+     * The modes a `<key>_mode` may carry. Custom fields (`cf_12`) and every
+     * other multi-value filter take "not in" and "empty".
+     *
+     * @return list<string>
+     */
+    public static function modesFor(string $key): array
+    {
+        return self::MODE_FILTER_MODES[$key] ?? ['not_in', 'empty'];
+    }
+
+    /** Filters that accept the `<key>_mode` companion param. */
+    public const MODE_FILTER_KEYS = [
+        'lead_source',
+        'lead_origin',
+        'category_id',
+        'lead_owner_id',
+        'added_by_id',
+        'referred_by_agent_id',
+        'lifecycle_status_id',
+        'language',
+        'temperature',
+        'preferred_contact_time',
+        'gender',
+        'age_range',
+        'nationality',
+        'country',
+        'utm_source',
+        'utm_medium',
+        'utm_campaign',
+        'utm_content',
+        'utm_term',
+        'utm_audience',
+        // Contact score only takes `empty` ("no score"); the qualification
+        // answers take `not_in` (answer is not X) and `empty` (no answer yet).
+        'contact_score',
+        'qualification_answer_values',
+    ];
 
     /** Option-valued custom field types that can appear in the Leads filter modal. */
     public const OPTION_CUSTOM_FIELD_TYPES = [
@@ -260,6 +325,12 @@ class LeadService
                 [...$bindings, $now, now()->utc()->addDays(7)->format('Y-m-d H:i:s')]
             ),
             'none' => $query->whereRaw("{$sql} is null", $bindings),
+            // Everything except Overdue: nothing planned, or due from now on.
+            // The expression appears twice, so its bindings do too.
+            'not_overdue' => $query->whereRaw(
+                "({$sql} is null or {$sql} >= ?)",
+                [...$bindings, ...$bindings, $now]
+            ),
             default => null,
         };
     }
@@ -605,38 +676,12 @@ class LeadService
             };
         }
 
-        if ($request->filled('lead_source')) {
-            $query->whereIn('leads.source_id', $this->toValueArray($request->get('lead_source')));
-        }
-
-        if ($request->filled('lead_origin')) {
-            $query->whereIn('leads.lead_origin_id', $this->toValueArray($request->get('lead_origin')));
-        }
-
-        if ($request->filled('category_id')) {
-            $categoryIds = $this->toValueArray($request->get('category_id'));
-            $query->where(function ($q) use ($categoryIds) {
-                $q->whereIn('leads.category_id', $categoryIds)
-                    ->orWhereHas('categories', function ($cq) use ($categoryIds) {
-                        $cq->whereIn('lead_category.id', $categoryIds);
-                    });
-            });
-        }
-
-        if ($request->filled('lead_owner_id')) {
-            $query->whereIn('leads.lead_owner', $this->toValueArray($request->get('lead_owner_id')));
-        }
-
-        if ($request->filled('added_by_id')) {
-            $query->whereIn('leads.added_by', $this->toValueArray($request->get('added_by_id')));
-        }
-
-        if ($request->filled('referred_by_agent_id')) {
-            $query->whereIn(
-                'leads.referred_by_agent_id',
-                $this->toValueArray($request->get('referred_by_agent_id'))
-            );
-        }
+        $this->applyColumnFilter($query, $this->listFilter($request, 'lead_source'), 'leads.source_id');
+        $this->applyColumnFilter($query, $this->listFilter($request, 'lead_origin'), 'leads.lead_origin_id');
+        $this->applyCategoryFilter($query, $this->listFilter($request, 'category_id'));
+        $this->applyColumnFilter($query, $this->listFilter($request, 'lead_owner_id'), 'leads.lead_owner');
+        $this->applyColumnFilter($query, $this->listFilter($request, 'added_by_id'), 'leads.added_by');
+        $this->applyColumnFilter($query, $this->listFilter($request, 'referred_by_agent_id'), 'leads.referred_by_agent_id');
 
         // Each bound applies on its own: an open-ended range ("created since")
         // used to be dropped entirely, returning every lead.
@@ -648,33 +693,14 @@ class LeadService
             $query->where('leads.created_at', '<=', $this->dateBound($request->get('end_date'), '23:59:59'));
         }
 
-        if ($request->filled('lifecycle_status_id')) {
-            $query->whereIn('leads.lead_lifecycle_status_id', $this->toValueArray($request->get('lifecycle_status_id')));
-        }
-
-        if ($request->filled('temperature')) {
-            $query->whereIn('leads.temperature', $this->toValueArray($request->get('temperature')));
-        }
-
-        if ($request->filled('preferred_contact_time')) {
-            $query->whereIn('leads.preferred_contact_time', $this->toValueArray($request->get('preferred_contact_time')));
-        }
-
-        if ($request->filled('gender')) {
-            $query->whereIn('leads.gender', $this->toValueArray($request->get('gender')));
-        }
-
-        if ($request->filled('age_range')) {
-            $query->whereIn('leads.age_range', $this->toValueArray($request->get('age_range')));
-        }
-
-        if ($request->filled('nationality')) {
-            $query->whereIn('leads.nationality', $this->toValueArray($request->get('nationality')));
-        }
-
-        if ($request->filled('country')) {
-            $query->whereIn('leads.country', $this->toValueArray($request->get('country')));
-        }
+        $this->applyColumnFilter($query, $this->listFilter($request, 'lifecycle_status_id'), 'leads.lead_lifecycle_status_id');
+        // Text columns: "empty" also covers a blank string, not just NULL.
+        $this->applyColumnFilter($query, $this->listFilter($request, 'temperature'), 'leads.temperature', true);
+        $this->applyColumnFilter($query, $this->listFilter($request, 'preferred_contact_time'), 'leads.preferred_contact_time', true);
+        $this->applyColumnFilter($query, $this->listFilter($request, 'gender'), 'leads.gender', true);
+        $this->applyColumnFilter($query, $this->listFilter($request, 'age_range'), 'leads.age_range', true);
+        $this->applyColumnFilter($query, $this->listFilter($request, 'nationality'), 'leads.nationality', true);
+        $this->applyColumnFilter($query, $this->listFilter($request, 'country'), 'leads.country', true);
 
         if ($request->filled('next_action')) {
             $this->applyNextActionFilter($query, $request->get('next_action'));
@@ -684,43 +710,184 @@ class LeadService
             $this->applyContactStatusFilter($query, $request->get('contact_status'));
         }
 
-        if ($request->filled('language')) {
-            $languageCodes = $this->toValueArray($request->get('language'));
-            $query->where(function ($q) use ($languageCodes) {
-                foreach ($languageCodes as $code) {
-                    $q->orWhereJsonContains('leads.languages', $code);
-                }
-            });
-        }
+        $this->applyLanguageFilter($query, $this->listFilter($request, 'language'));
 
         $this->applyMarketingFilters($query, $request);
+        $this->applyQualificationFilter($query, $request);
+        $this->applyCustomFieldFilters($query, $request);
+    }
 
-        if ($request->filled('qualification_segment_key')) {
-            $segmentKey = $request->get('qualification_segment_key');
-            // The filter UI sends a comma-separated string; casting it with
-            // (array) kept "a,b" as one value that no answer could contain.
-            $answerValues = $this->toValueArray($request->get('qualification_answer_values'));
+    /**
+     * Read a multi-value filter and how to read it. Null when the filter is
+     * idle (no mode that needs no values, and no values picked).
+     *
+     * @return array{0: string, 1: array<int, string>}|null [mode, values]
+     */
+    private function listFilter(Request $request, string $key): ?array
+    {
+        return ExclusionFilter::resolve(
+            $this->exclusionMode($request, $key),
+            $this->toValueArray($request->get($key))
+        );
+    }
 
-            $query->whereExists(function ($sub) use ($segmentKey, $answerValues) {
-                $sub->select(DB::raw(1))
-                    ->from('lead_qualification_answers as lqa')
-                    ->join('lead_qualifications as lq', 'lq.id', '=', 'lqa.lead_qualification_id')
-                    ->whereColumn('lq.lead_id', 'leads.id')
-                    ->where('lqa.segment_key', $segmentKey)
-                    ->whereRaw('lq.id = (
-                        SELECT lq2.id FROM lead_qualifications lq2
-                        WHERE lq2.lead_id = leads.id
-                        ORDER BY lq2.started_at DESC, lq2.id DESC
-                        LIMIT 1
-                    )');
+    /** `in` (the default), or one of the modes this filter offers from `<key>_mode`. */
+    private function exclusionMode(Request $request, string $key): string
+    {
+        return ExclusionFilter::modeOf($request, $key, self::modesFor($key));
+    }
 
-                foreach ($answerValues as $value) {
-                    $sub->whereJsonContains('lqa.answer_values', $value);
-                }
-            });
+    /**
+     * One scalar column. A lead with no value is "not in" any list of values:
+     * SQL's NOT IN drops NULLs, so they are added back explicitly.
+     *
+     * @param  array{0: string, 1: array<int, string>}|null  $filter
+     */
+    private function applyColumnFilter(Builder $query, ?array $filter, string $column, bool $isText = false): void
+    {
+        ExclusionFilter::column($query, $filter, $column, $isText);
+    }
+
+    /**
+     * Categories live in two places: the legacy `leads.category_id` and the
+     * `categories` pivot. A lead has a category if either says so.
+     *
+     * @param  array{0: string, 1: array<int, string>}|null  $filter
+     */
+    private function applyCategoryFilter(Builder $query, ?array $filter): void
+    {
+        if ($filter === null) {
+            return;
         }
 
-        $this->applyCustomFieldFilters($query, $request);
+        [$mode, $ids] = $filter;
+
+        match ($mode) {
+            'not_in' => $query
+                ->where(function ($q) use ($ids) {
+                    $q->whereNull('leads.category_id')->orWhereNotIn('leads.category_id', $ids);
+                })
+                ->whereDoesntHave('categories', fn ($cq) => $cq->whereIn('lead_category.id', $ids)),
+            'empty' => $query->whereNull('leads.category_id')->whereDoesntHave('categories'),
+            'any' => $query->where(function ($q) {
+                $q->whereNotNull('leads.category_id')->orWhereHas('categories');
+            }),
+            default => $query->where(function ($q) use ($ids) {
+                $q->whereIn('leads.category_id', $ids)
+                    ->orWhereHas('categories', function ($cq) use ($ids) {
+                        $cq->whereIn('lead_category.id', $ids);
+                    });
+            }),
+        };
+    }
+
+    /**
+     * Languages are a JSON list on the lead. Empty is NULL or `[]`; "not in"
+     * keeps leads with no languages (JSON "does not contain" is NULL on a NULL
+     * column, which would silently drop them).
+     *
+     * @param  array{0: string, 1: array<int, string>}|null  $filter
+     */
+    private function applyLanguageFilter(Builder $query, ?array $filter): void
+    {
+        if ($filter === null) {
+            return;
+        }
+
+        [$mode, $codes] = $filter;
+
+        match ($mode) {
+            'not_in' => $query->where(function ($q) use ($codes) {
+                $q->whereNull('leads.languages')->orWhere(function ($none) use ($codes) {
+                    foreach ($codes as $code) {
+                        $none->whereJsonDoesntContain('leads.languages', $code);
+                    }
+                });
+            }),
+            'empty' => $query->where(function ($q) {
+                $q->whereNull('leads.languages')->orWhereJsonLength('leads.languages', '=', 0);
+            }),
+            'any' => $query->whereNotNull('leads.languages')->whereJsonLength('leads.languages', '>', 0),
+            default => $query->where(function ($q) use ($codes) {
+                foreach ($codes as $code) {
+                    $q->orWhereJsonContains('leads.languages', $code);
+                }
+            }),
+        };
+    }
+
+    /**
+     * Qualification answers, always read from the lead's latest qualification.
+     *  - values given, no mode: the answer contains every value (original)
+     *  - not_in:  the answer to the segment contains none of the values
+     *  - empty:   no answer recorded for the segment (no segment: no
+     *             qualification at all)
+     */
+    private function applyQualificationFilter(Builder $query, Request $request): void
+    {
+        $mode = $this->exclusionMode($request, 'qualification_answer_values');
+        $segmentKey = $request->get('qualification_segment_key');
+        $hasSegment = is_scalar($segmentKey) && (string) $segmentKey !== '';
+        // The filter UI sends a comma-separated string; casting it with
+        // (array) kept "a,b" as one value that no answer could contain.
+        $answerValues = $this->toValueArray($request->get('qualification_answer_values'));
+
+        $latestAnswers = function ($sub) use ($segmentKey) {
+            $sub->select(DB::raw(1))
+                ->from('lead_qualification_answers as lqa')
+                ->join('lead_qualifications as lq', 'lq.id', '=', 'lqa.lead_qualification_id')
+                ->whereColumn('lq.lead_id', 'leads.id')
+                ->where('lqa.segment_key', $segmentKey)
+                ->whereRaw('lq.id = (
+                    SELECT lq2.id FROM lead_qualifications lq2
+                    WHERE lq2.lead_id = leads.id
+                    ORDER BY lq2.started_at DESC, lq2.id DESC
+                    LIMIT 1
+                )');
+        };
+
+        if ($mode === 'empty') {
+            if ($hasSegment) {
+                $query->whereNotExists($latestAnswers);
+            } else {
+                $query->whereNotExists(function ($sub) {
+                    $sub->select(DB::raw(1))
+                        ->from('lead_qualifications as lq')
+                        ->whereColumn('lq.lead_id', 'leads.id');
+                });
+            }
+
+            return;
+        }
+
+        if (! $hasSegment) {
+            return;
+        }
+
+        if ($mode === 'not_in') {
+            if ($answerValues === []) {
+                return;
+            }
+
+            $query->whereNotExists(function ($sub) use ($latestAnswers, $answerValues) {
+                $latestAnswers($sub);
+                $sub->where(function ($any) use ($answerValues) {
+                    foreach ($answerValues as $value) {
+                        $any->orWhereJsonContains('lqa.answer_values', $value);
+                    }
+                });
+            });
+
+            return;
+        }
+
+        $query->whereExists(function ($sub) use ($latestAnswers, $answerValues) {
+            $latestAnswers($sub);
+
+            foreach ($answerValues as $value) {
+                $sub->whereJsonContains('lqa.answer_values', $value);
+            }
+        });
     }
 
     /** Trimmed search text with inner whitespace collapsed; '' when absent. */
@@ -765,7 +932,7 @@ class LeadService
      */
     public static function filtersFromRequest(Request $request): array
     {
-        $filters = $request->only(self::FILTER_KEYS);
+        $filters = $request->only(self::allowedFilterKeys());
 
         foreach ($request->all() as $key => $value) {
             if (! is_string($key) || ! self::isCustomFieldFilterKey($key)) {
@@ -780,9 +947,24 @@ class LeadService
         return $filters;
     }
 
+    /**
+     * Every core param applyFilters() reads: the plain filters plus each
+     * `<key>_mode` companion that goes with a multi-value filter.
+     *
+     * @return list<string>
+     */
+    public static function allowedFilterKeys(): array
+    {
+        return [
+            ...self::FILTER_KEYS,
+            ...array_map(fn (string $key) => $key.'_mode', self::MODE_FILTER_KEYS),
+        ];
+    }
+
+    /** `cf_12` (the values) or `cf_12_mode` (how to read them). */
     public static function isCustomFieldFilterKey(string $key): bool
     {
-        return (bool) preg_match('/^'.preg_quote(self::CUSTOM_FIELD_FILTER_PREFIX, '/').'\d+$/', $key);
+        return (bool) preg_match('/^'.preg_quote(self::CUSTOM_FIELD_FILTER_PREFIX, '/').'\d+(?:_mode)?$/', $key);
     }
 
     /**
@@ -791,16 +973,26 @@ class LeadService
      */
     public static function sanitizeFilterPayload(array $filters): array
     {
-        $allowed = array_flip(self::FILTER_KEYS);
+        $allowed = array_flip(self::allowedFilterKeys());
         $cleaned = [];
 
         foreach ($filters as $key => $value) {
             if ($value === null || $value === '' || $value === []) {
                 continue;
             }
-            if (isset($allowed[$key]) || (is_string($key) && self::isCustomFieldFilterKey($key))) {
-                $cleaned[$key] = $value;
+            if (! isset($allowed[$key]) && ! (is_string($key) && self::isCustomFieldFilterKey($key))) {
+                continue;
             }
+            // A mode is one of the few words its filter offers; anything else is not a mode.
+            if (
+                is_string($key)
+                && str_ends_with($key, '_mode')
+                && ! in_array($value, self::modesFor(substr($key, 0, -strlen('_mode'))), true)
+            ) {
+                continue;
+            }
+
+            $cleaned[$key] = $value;
         }
 
         return $cleaned;
@@ -811,21 +1003,27 @@ class LeadService
      */
     private function applyCustomFieldFilters(Builder $query, Request $request): void
     {
-        /** @var array<int, list<string>> $byFieldId */
+        /** @var array<int, array{0: string, 1: list<string>}> $byFieldId  [mode, values] */
         $byFieldId = [];
 
-        foreach ($request->all() as $key => $raw) {
-            if (! is_string($key) || ! self::isCustomFieldFilterKey($key)) {
+        // A field can be filtered by `cf_12` alone, by `cf_12_mode` alone
+        // (empty / any carry no values), or both.
+        foreach (array_keys($request->all()) as $key) {
+            if (! is_string($key) || ! preg_match('/^'.preg_quote(self::CUSTOM_FIELD_FILTER_PREFIX, '/').'(\d+)(?:_mode)?$/', $key, $m)) {
                 continue;
             }
 
-            $fieldId = (int) substr($key, strlen(self::CUSTOM_FIELD_FILTER_PREFIX));
-            $values = $this->toValueArray($raw);
-            if ($fieldId < 1 || $values === []) {
+            $fieldId = (int) $m[1];
+            if ($fieldId < 1 || isset($byFieldId[$fieldId])) {
                 continue;
             }
 
-            $byFieldId[$fieldId] = $values;
+            $filter = $this->listFilter($request, self::CUSTOM_FIELD_FILTER_PREFIX.$fieldId);
+            if ($filter === null) {
+                continue;
+            }
+
+            $byFieldId[$fieldId] = $filter;
         }
 
         if ($byFieldId === []) {
@@ -841,7 +1039,7 @@ class LeadService
             ->get(['id', 'type', 'values'])
             ->keyBy('id');
 
-        foreach ($byFieldId as $fieldId => $values) {
+        foreach ($byFieldId as $fieldId => [$mode, $values]) {
             $field = $fields->get($fieldId);
             if (! $field) {
                 continue;
@@ -850,23 +1048,41 @@ class LeadService
             $matchValues = $this->expandCustomFieldMatchValues($field, $values);
             $isMultiStored = in_array($field->type, ['checkbox', 'multiselect'], true);
 
-            $query->whereExists(function ($sub) use ($fieldId, $matchValues, $isMultiStored) {
+            $answers = function ($sub) use ($fieldId) {
                 $sub->select(DB::raw(1))
                     ->from('custom_fields_data')
                     ->whereColumn('custom_fields_data.model_id', 'leads.id')
                     ->where('custom_fields_data.model', Lead::CUSTOM_FIELD_MODEL)
-                    ->where('custom_fields_data.custom_field_id', $fieldId)
-                    ->where(function ($valueQuery) use ($matchValues, $isMultiStored) {
-                        foreach ($matchValues as $value) {
-                            $valueQuery->orWhere(function ($or) use ($value, $isMultiStored) {
-                                $or->where('custom_fields_data.value', $value);
-                                if ($isMultiStored) {
-                                    $or->orWhereJsonContains('custom_fields_data.value', $value);
-                                }
-                            });
-                        }
-                    });
-            });
+                    ->where('custom_fields_data.custom_field_id', $fieldId);
+            };
+            $matching = function ($sub) use ($answers, $matchValues, $isMultiStored) {
+                $answers($sub);
+                $sub->where(function ($valueQuery) use ($matchValues, $isMultiStored) {
+                    foreach ($matchValues as $value) {
+                        $valueQuery->orWhere(function ($or) use ($value, $isMultiStored) {
+                            $or->where('custom_fields_data.value', $value);
+                            if ($isMultiStored) {
+                                $or->orWhereJsonContains('custom_fields_data.value', $value);
+                            }
+                        });
+                    }
+                });
+            };
+            // A stored value only counts when something was actually chosen;
+            // cleared multi-selects are saved as an empty list.
+            $filled = function ($sub) use ($answers) {
+                $answers($sub);
+                $sub->whereNotNull('custom_fields_data.value')
+                    ->where('custom_fields_data.value', '<>', '')
+                    ->where('custom_fields_data.value', '<>', '[]');
+            };
+
+            match ($mode) {
+                'not_in' => $query->whereNotExists($matching),
+                'empty' => $query->whereNotExists($filled),
+                'any' => $query->whereExists($filled),
+                default => $query->whereExists($matching),
+            };
         }
     }
 
@@ -943,10 +1159,28 @@ class LeadService
                 continue;
             }
 
+            // A third state beside Yes and No: the lead was never recorded in
+            // the marketing funnel at all (or the flag itself is unset).
+            if ($request->get($field) === 'unknown') {
+                $query->where(function ($q) use ($field) {
+                    $q->whereDoesntHave('marketing')
+                        ->orWhereHas('marketing', fn ($m) => $m->whereNull($field));
+                });
+
+                continue;
+            }
+
             $this->applyMarketingBooleanFilter($query, $field, $request->boolean($field));
         }
 
-        if ($request->filled('min_contact_score') || $request->filled('max_contact_score')) {
+        if ($this->exclusionMode($request, 'contact_score') === 'empty') {
+            // "No score" replaces the range: a lead with no marketing record,
+            // or one whose score was never set. A score of 0 is a real score.
+            $query->where(function ($q) {
+                $q->whereDoesntHave('marketing')
+                    ->orWhereHas('marketing', fn ($m) => $m->whereNull('contact_score'));
+            });
+        } elseif ($request->filled('min_contact_score') || $request->filled('max_contact_score')) {
             $query->whereHas('marketing', function ($q) use ($request) {
                 if ($request->filled('min_contact_score')) {
                     $q->where('contact_score', '>=', (int) $request->get('min_contact_score'));
@@ -960,15 +1194,46 @@ class LeadService
         $utmFields = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term', 'utm_audience'];
 
         foreach ($utmFields as $field) {
-            if (! $request->filled($field)) {
-                continue;
-            }
-
-            $values = $this->toValueArray($request->get($field));
-            $query->whereHas('marketing', function ($q) use ($field, $values) {
-                $q->whereIn($field, $values);
-            });
+            $this->applyUtmFilter($query, $this->listFilter($request, $field), $field);
         }
+    }
+
+    /**
+     * A lead has a UTM value on its first touch (lead_marketing) or on any
+     * later touch (lead_utm_touches). Both are checked because a first touch
+     * written outside LeadUtmService has no history row.
+     *
+     * Exclusions look at every touch, the same way a positive match does:
+     * "not facebook" removes anyone who ever came through facebook, and "no
+     * value" means the lead has no recorded touch with that field at all.
+     *
+     * @param  array{0: string, 1: array<int, string>}|null  $filter
+     */
+    private function applyUtmFilter(Builder $query, ?array $filter, string $field): void
+    {
+        if ($filter === null) {
+            return;
+        }
+
+        [$mode, $values] = $filter;
+
+        $matches = fn ($q) => $q->whereIn($field, $values);
+        $hasValue = fn ($q) => $q->whereNotNull($field)->where($field, '<>', '');
+
+        match ($mode) {
+            'not_in' => $query
+                ->whereDoesntHave('marketing', $matches)
+                ->whereDoesntHave('utmTouches', $matches),
+            'empty' => $query
+                ->whereDoesntHave('marketing', $hasValue)
+                ->whereDoesntHave('utmTouches', $hasValue),
+            'any' => $query->where(function ($q) use ($hasValue) {
+                $q->whereHas('marketing', $hasValue)->orWhereHas('utmTouches', $hasValue);
+            }),
+            default => $query->where(function ($q) use ($matches) {
+                $q->whereHas('marketing', $matches)->orWhereHas('utmTouches', $matches);
+            }),
+        };
     }
 
     /**

@@ -8,6 +8,7 @@ import {
     addMinutesToTime,
     diffMinutesBetweenTimes,
 } from "@/Components/Redesign/meeting/meetingFormUtils";
+import useMeetingUiLabel from "@/Components/Redesign/meeting/useMeetingUiLabel";
 
 export interface RescheduleFormState {
     date: string;
@@ -54,6 +55,7 @@ export default function RescheduleMeetingModal({
     labels,
 }: RescheduleMeetingModalProps) {
     const { td } = useTd();
+    const ui = useMeetingUiLabel();
     const [form, setForm] = useState<RescheduleFormState | null>(null);
     const [showDuration, setShowDuration] = useState(false);
     const seededForOpenRef = useRef(false);
@@ -204,7 +206,7 @@ export default function RescheduleMeetingModal({
                                             : T.TEXT_MUTED,
                                     }}
                                 >
-                                    {option.label}
+                                    {ui(option.label)}
                                 </button>
                             );
                         })}

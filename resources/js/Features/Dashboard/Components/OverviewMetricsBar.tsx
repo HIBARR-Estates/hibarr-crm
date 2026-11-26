@@ -11,6 +11,7 @@ import {
     LucideTrophy as TrophyOutlined,
     PercentCircle as PercentageOutlined,
 } from "lucide-react";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 interface MetricCardProps {
     title: string;
@@ -62,6 +63,7 @@ const MetricCard: React.FC<MetricCardProps> = ({
     onClick,
     delay = 0,
 }) => {
+    const { td } = useTd();
     return (
         <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -126,7 +128,7 @@ const MetricCard: React.FC<MetricCardProps> = ({
                                 </span>
                                 {Math.abs(trend.value)}%
                                 <span className="text-white/60 ml-1">
-                                    vs last month
+                                    {td("vs last month", { source: "en" })}
                                 </span>
                             </div>
                         )}

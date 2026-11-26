@@ -19,6 +19,10 @@ class AgentCommissionRateAuditLog extends BaseModel
         'new_direct_rate',
         'previous_override_rate',
         'new_override_rate',
+        'previous_referral_commission_type',
+        'previous_referral_commission_value',
+        'new_referral_commission_type',
+        'new_referral_commission_value',
         'changed_at',
         'reason',
     ];
@@ -28,6 +32,8 @@ class AgentCommissionRateAuditLog extends BaseModel
         'new_direct_rate' => 'decimal:2',
         'previous_override_rate' => 'decimal:2',
         'new_override_rate' => 'decimal:2',
+        'previous_referral_commission_value' => 'decimal:2',
+        'new_referral_commission_value' => 'decimal:2',
         'changed_at' => 'datetime',
     ];
 

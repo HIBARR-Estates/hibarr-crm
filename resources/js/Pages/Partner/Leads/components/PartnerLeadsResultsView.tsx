@@ -17,6 +17,8 @@ interface Props {
     /** True when a search or filter is narrowing the list. */
     filtered: boolean;
     onClearFilters: () => void;
+    sort: "added_asc" | "added_desc";
+    onToggleAddedSort: () => void;
 }
 
 /**
@@ -24,7 +26,7 @@ interface Props {
  * the same arrangement as the Meetings list.
  */
 const PartnerLeadsResultsView = forwardRef<HTMLDivElement, Props>(function PartnerLeadsResultsView(
-    { leads, onOpen, onPageChange, onPageSizeChange, isPaging, filtered, onClearFilters },
+    { leads, onOpen, onPageChange, onPageSizeChange, isPaging, filtered, onClearFilters, sort, onToggleAddedSort },
     ref,
 ) {
     const { td } = useTd();
@@ -60,7 +62,7 @@ const PartnerLeadsResultsView = forwardRef<HTMLDivElement, Props>(function Partn
                         overflow: "hidden",
                     }}
                 >
-                    <PartnerLeadsListHeader />
+                    <PartnerLeadsListHeader sort={sort} onToggleAddedSort={onToggleAddedSort} />
                     {leads.data.map((lead) => (
                         <PartnerLeadRow key={lead.id} lead={lead} onOpen={() => onOpen(lead.id)} />
                     ))}

@@ -24,6 +24,7 @@ import type {
 } from "../../../Types/developerProject";
 import ProjectCard from "./ProjectCard";
 import HiddenBadge from "./HiddenBadge";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 const { Title, Paragraph, Text } = Typography;
 
@@ -40,10 +41,11 @@ const DevelopersSection: React.FC<{
     availabilityLink,
     showHiddenBadge = false,
 }) => {
+    const { td } = useTd();
     if (!developer) {
         return (
             <Card>
-                <Empty description="No developer assigned to this project" />
+                <Empty description={td("No developer assigned to this project", { source: "en" })} />
             </Card>
         );
     }
@@ -98,7 +100,7 @@ const DevelopersSection: React.FC<{
                                             icon={<WhatsAppOutlined />}
                                             className="cursor-pointer"
                                         >
-                                            WhatsApp Group
+                                            {td("WhatsApp Group", { source: "en" })}
                                         </Tag>
                                     </a>
                                     <Button
@@ -110,7 +112,7 @@ const DevelopersSection: React.FC<{
                                                 developer.whatsapp_group_link!,
                                             );
                                             message.success(
-                                                "Link copied to clipboard",
+                                                td("Link copied to clipboard", { source: "en" }),
                                             );
                                         }}
                                     />
@@ -128,7 +130,7 @@ const DevelopersSection: React.FC<{
                                             icon={<FolderOpenOutlined />}
                                             className="cursor-pointer"
                                         >
-                                            Google Drive
+                                            {td("Google Drive", { source: "en" })}
                                         </Tag>
                                     </a>
                                     <Button
@@ -141,7 +143,7 @@ const DevelopersSection: React.FC<{
                                                     "",
                                             );
                                             message.success(
-                                                "Link copied to clipboard",
+                                                td("Link copied to clipboard", { source: "en" }),
                                             );
                                         }}
                                     />
@@ -159,7 +161,7 @@ const DevelopersSection: React.FC<{
                                             icon={<LinkOutlined />}
                                             className="cursor-pointer"
                                         >
-                                            Availability
+                                            {td("Availability", { source: "en" })}
                                         </Tag>
                                     </a>
                                     <Button
@@ -171,7 +173,7 @@ const DevelopersSection: React.FC<{
                                                 availabilityLink,
                                             );
                                             message.success(
-                                                "Link copied to clipboard",
+                                                td("Link copied to clipboard", { source: "en" }),
                                             );
                                         }}
                                     />

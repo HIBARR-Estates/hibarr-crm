@@ -223,6 +223,11 @@ return [
         ],
         'followups' => [
             'followup_webhook_url' => env('FOLLOWUP_WEBHOOK_URL'),
+            // Asks the meeting automation to send a summary again for a meeting
+            // whose first one never arrived. Unset until that automation
+            // exposes a trigger for it; with it unset the page offers writing
+            // the summary by hand and no Retry.
+            'summary_retry_webhook_url' => env('FOLLOWUP_SUMMARY_RETRY_WEBHOOK_URL'),
         ]
     ],
 

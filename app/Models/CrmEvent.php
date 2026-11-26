@@ -2,10 +2,10 @@
 
 namespace App\Models;
 
+use App\Enums\CrmEventDirection;
 use App\Enums\CrmEventGenerationType;
 use App\Enums\CrmEventSource;
 use App\Enums\CrmEventStatus;
-use App\Enums\CrmEventDirection;
 use App\Scopes\CompanyScope;
 use App\Traits\HasCompany;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -15,7 +15,7 @@ use Illuminate\Database\Eloquent\Relations\MorphTo;
 
 class CrmEvent extends BaseModel
 {
-    use HasFactory, HasCompany;
+    use HasCompany, HasFactory;
 
     protected $table = 'crm_events';
 
@@ -46,6 +46,21 @@ class CrmEvent extends BaseModel
         'status' => CrmEventStatus::class,
         'direction' => CrmEventDirection::class,
     ];
+
+    /**
+     * boot(), not booted(): HasCompany's booted() adds the company scope and
+     * a booted() here would replace it.
+     */
+    protected static function boot(): void
+    {
+        parent::boot();
+
+        // Call events get the key of the call they belong to as they are
+        // written, so the call log can group on the indexed column.
+        static::created(function (CrmEvent $event): void {
+            app(\App\Services\CallLog\CallKey::class)->assignFor($event);
+        });
+    }
 
     // ─── Relationships ───────────────────────────────────────────
 

@@ -24,6 +24,7 @@ import type {
 } from "@/Types/developerProject";
 import { formatCompanyDate } from "@/lib/companyDateTime";
 import { generatePropertySubtitle } from "@/lib/utils";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 const { Text } = Typography;
 
@@ -63,6 +64,7 @@ const OfferDetailDrawer: React.FC<OfferDetailDrawerProps> = ({
     offerId,
     onEdit,
 }) => {
+    const { td } = useTd();
     const { data, isLoading } = useApiQuery<OfferShowResponse>({
         path: offerId ? route("offers.show", offerId) : "",
         options: { enabled: open && !!offerId },
@@ -83,12 +85,12 @@ const OfferDetailDrawer: React.FC<OfferDetailDrawerProps> = ({
 
     const unitTypeColumns: TableColumnsType<UnitTypeWithPivot> = [
         {
-            title: "Unit Type",
+            title: td("Unit Type", { source: "en" }),
             key: "label",
             render: (_, record) => generatePropertySubtitle(record) || "N/A",
         },
         {
-            title: "Beds",
+            title: td("Beds", { source: "en" }),
             dataIndex: "bedrooms",
             key: "bedrooms",
             width: 60,
@@ -96,7 +98,7 @@ const OfferDetailDrawer: React.FC<OfferDetailDrawerProps> = ({
             render: (v: number | null) => v ?? "—",
         },
         {
-            title: "Status",
+            title: td("Status", { source: "en" }),
             key: "status",
             width: 100,
             align: "center",
@@ -130,7 +132,7 @@ const OfferDetailDrawer: React.FC<OfferDetailDrawerProps> = ({
                         icon={<EditOutlined />}
                         onClick={() => onEdit(offer)}
                     >
-                        Edit
+                        {td("Edit", { source: "en" })}
                     </Button>
                 ) : null
             }
@@ -140,25 +142,25 @@ const OfferDetailDrawer: React.FC<OfferDetailDrawerProps> = ({
                     <Spin />
                 </div>
             ) : !offer ? (
-                <Empty description="Offer not found" />
+                <Empty description={td("Offer not found", { source: "en" })} />
             ) : (
                 <div className="space-y-6">
                     {/* ── Core details ── */}
                     <Descriptions column={2} bordered size="small">
-                        <Descriptions.Item label="Name" span={2}>
+                        <Descriptions.Item label={td("Name", { source: "en" })} span={2}>
                             {offer.name}
                         </Descriptions.Item>
                         {offer.developer && (
-                            <Descriptions.Item label="Developer" span={2}>
+                            <Descriptions.Item label={td("Developer", { source: "en" })} span={2}>
                                 {offer.developer.name}
                             </Descriptions.Item>
                         )}
                         {offer.description && (
-                            <Descriptions.Item label="Description" span={2}>
+                            <Descriptions.Item label={td("Description", { source: "en" })} span={2}>
                                 {offer.description}
                             </Descriptions.Item>
                         )}
-                        <Descriptions.Item label="Type">
+                        <Descriptions.Item label={td("Type", { source: "en" })}>
                             <Tag
                                 color={
                                     offer.type === "percentage"
@@ -176,7 +178,7 @@ const OfferDetailDrawer: React.FC<OfferDetailDrawerProps> = ({
                             </Tag>
                         </Descriptions.Item>
                         {offer.type !== "perks" && (
-                            <Descriptions.Item label="Value">
+                            <Descriptions.Item label={td("Value", { source: "en" })}>
                                 {offer.type === "percentage"
                                     ? `${offer.value}%`
                                     : Number(offer.value).toLocaleString(
@@ -185,19 +187,19 @@ const OfferDetailDrawer: React.FC<OfferDetailDrawerProps> = ({
                             </Descriptions.Item>
                         )}
                         {offer.max_discount_amount && (
-                            <Descriptions.Item label="Max Cap">
+                            <Descriptions.Item label={td("Max Cap", { source: "en" })}>
                                 {Number(
                                     offer.max_discount_amount,
                                 ).toLocaleString("en-GB")}
                             </Descriptions.Item>
                         )}
-                        <Descriptions.Item label="Status">
+                        <Descriptions.Item label={td("Status", { source: "en" })}>
                             <Tag color={offer.is_active ? "green" : "default"}>
                                 {offer.is_active ? "Active" : "Inactive"}
                             </Tag>
                         </Descriptions.Item>
                         {(offer.starts_at || offer.ends_at) && (
-                            <Descriptions.Item label="Date Range" span={2}>
+                            <Descriptions.Item label={td("Date Range", { source: "en" })} span={2}>
                                 {offer.starts_at
                                     ? formatCompanyDate(offer.starts_at)
                                     : "No start"}{" "}
@@ -207,10 +209,10 @@ const OfferDetailDrawer: React.FC<OfferDetailDrawerProps> = ({
                                     : "No end"}
                             </Descriptions.Item>
                         )}
-                        <Descriptions.Item label="Deal Applications">
+                        <Descriptions.Item label={td("Deal Applications", { source: "en" })}>
                             {offer.deal_applications_count ?? 0}
                         </Descriptions.Item>
-                        <Descriptions.Item label="Unit Types Active">
+                        <Descriptions.Item label={td("Unit Types Active", { source: "en" })}>
                             {
                                 (offer.unit_types ?? []).filter((ut) =>
                                     isOfferablePivotActive(ut.pivot),
@@ -225,7 +227,7 @@ const OfferDetailDrawer: React.FC<OfferDetailDrawerProps> = ({
                         <div>
                             <Text strong className="block mb-2">
                                 <LinkOutlined className="mr-1" />
-                                Links
+                                {td("Links", { source: "en" })}
                             </Text>
                             <ul className="list-none p-0 m-0 space-y-1">
                                 {offer.links.map((link, i) => (
@@ -254,7 +256,7 @@ const OfferDetailDrawer: React.FC<OfferDetailDrawerProps> = ({
                         </Text>
                         {projectRows.length === 0 ? (
                             <Empty
-                                description="No projects attached"
+                                description={td("No projects attached", { source: "en" })}
                                 image={Empty.PRESENTED_IMAGE_SIMPLE}
                             />
                         ) : (

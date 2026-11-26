@@ -628,7 +628,11 @@ class MlmAdminApiController extends AccountBaseController
 
     public function getAgentCommissionProfile(Request $request, int $agentId): JsonResponse
     {
-        if (! FeatureFlags::enabled('sales.per-agent-commission-override')) {
+        $agent = \App\Models\LeadAgent::where('company_id', company()->id)->findOrFail($agentId);
+        $overrideEnabled = FeatureFlags::enabled('sales.per-agent-commission-override');
+        $referralEnabled = FeatureFlags::enabled('crm.partner-referral-commission') && $agent->is_partner;
+
+        if (! $overrideEnabled && ! $referralEnabled) {
             abort(404);
         }
 
@@ -640,16 +644,101 @@ class MlmAdminApiController extends AccountBaseController
         ]);
     }
 
+    /**
+     * A partner's terms on every package, in one place: what they earn as the
+     * closer and as the referrer. Served only for a partner, and only with the
+     * referral feature on: without it there is nothing partner-specific to show.
+     */
+    public function getAgentPackageTerms(int $agentId): JsonResponse
+    {
+        $agent = $this->partnerOrFail($agentId);
+
+        return response()->json([
+            'status' => 'success',
+            'data' => app(\App\Services\Partner\AgentPackageTerms::class)->forAgent($agent),
+        ]);
+    }
+
+    /** Sets what this partner earns on one package. The same rules and row as Settings → Packages. */
+    public function upsertAgentPackageTerms(Request $request, int $agentId, int $packageId): JsonResponse
+    {
+        $agent = $this->partnerOrFail($agentId);
+        $package = \App\Models\Package::findOrFail($packageId);
+
+        $validated = $request->validate(\App\Actions\Packages\SaveAgentPackageTerms::rules($request, true));
+
+        $result = app(\App\Actions\Packages\SaveAgentPackageTerms::class)
+            ->handleRequest($package, $agent, $request, $validated, company()->id, true);
+
+        if ($result === \App\Actions\Packages\SaveAgentPackageTerms::EMPTY) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'commission_type' => __('messages.packageOverrideNeedsTerms'),
+            ]);
+        }
+
+        return response()->json([
+            'status' => 'success',
+            'data' => app(\App\Services\Partner\AgentPackageTerms::class)->forAgent($agent),
+        ]);
+    }
+
+    public function destroyAgentPackageTerms(int $agentId, int $packageId): JsonResponse
+    {
+        $agent = $this->partnerOrFail($agentId);
+
+        \App\Models\AgentPackageCommissionRate::where('agent_id', $agent->id)
+            ->where('package_id', $packageId)
+            ->delete();
+
+        return response()->json([
+            'status' => 'success',
+            'data' => app(\App\Services\Partner\AgentPackageTerms::class)->forAgent($agent),
+        ]);
+    }
+
+    private function partnerOrFail(int $agentId): \App\Models\LeadAgent
+    {
+        $agent = \App\Models\LeadAgent::where('company_id', company()->id)->findOrFail($agentId);
+
+        abort_unless(FeatureFlags::enabled('crm.partner-referral-commission') && $agent->is_partner, 404);
+
+        return $agent;
+    }
+
     public function updateAgentCommissionProfile(Request $request, int $agentId): JsonResponse
     {
-        if (! FeatureFlags::enabled('sales.per-agent-commission-override')) {
+        $agent = \App\Models\LeadAgent::where('company_id', company()->id)->findOrFail($agentId);
+        $overrideEnabled = FeatureFlags::enabled('sales.per-agent-commission-override');
+        $referralEnabled = FeatureFlags::enabled('crm.partner-referral-commission') && $agent->is_partner;
+
+        if (! $overrideEnabled && ! $referralEnabled) {
             abort(404);
         }
 
-        $validated = $request->validate([
-            'custom_commission_rate' => 'nullable|numeric|min:0|max:100',
+        $rules = [
             'reason' => 'nullable|string|max:1000',
-        ]);
+        ];
+
+        if ($overrideEnabled) {
+            $rules['custom_commission_rate'] = 'nullable|numeric|min:0|max:100';
+        }
+
+        if ($referralEnabled) {
+            // With overrides off this is the only editable field, so the key
+            // must be present; an explicit null still clears the saved rate.
+            $rules['referral_commission_type'] = ($overrideEnabled ? '' : 'present|').'nullable|in:percentage,fixed,none';
+            $rules['referral_commission_value'] = 'nullable|numeric|min:0|decimal:0,2|max:9999999999999.99';
+        }
+
+        $validated = $request->validate($rules);
+
+        if (! $overrideEnabled) {
+            unset($validated['custom_commission_rate']);
+        }
+
+        if (! $referralEnabled) {
+            unset($validated['referral_commission_type'], $validated['referral_commission_value']);
+        }
 
         $result = $this->commissionProfileService->updateProfile(
             $agentId,

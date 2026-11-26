@@ -1,10 +1,54 @@
-/** sipgate Neo WebRTC config for one device/line (from its credentials). */
+/** Agent-facing messages a provider may word its own way. */
+export interface SipProviderMessages {
+    not_registered: string;
+    registration_auth_failed: string;
+    /** `:status` is replaced with the SIP status code. */
+    registration_rejected: string;
+    registration_timeout: string;
+    transport_failed: string;
+    invite_failed: string;
+    /** Overrides for a call's negative final response, keyed by SIP status. */
+    call_status: Record<string, string>;
+}
+
+/**
+ * How the softphone behaves for one SIP provider (SipProviderRegistry::
+ * clientProfile). Server-owned so a new provider is a registry entry.
+ */
+export interface SipProviderProfile {
+    /** Registry key (e.g. "sipgate"), null for an unknown provider. */
+    key: string | null;
+    /** Name shown to agents in messages. */
+    label: string;
+    /** SIP domain used when the line's URI has none. */
+    sip_domain: string | null;
+    ice_servers: Array<{ urls: string }>;
+    /** Digest algorithms the server signs for (e.g. ["MD5"]). */
+    digest_algorithms: string[];
+    /** Header carrying the line's URI on outgoing INVITEs, or null for none. */
+    identity_header: string | null;
+    messages: SipProviderMessages;
+}
+
+/** WebRTC config for one device/line (from its credentials). */
 export interface SoftphoneConfig {
+    /** Saved line id, used by server-side SIP Digest challenge signing. */
+    id?: number;
     wss_url: string;
     uri: string;
     authorization_username: string | null;
-    authorization_password: string;
+    /** Absent for saved lines (server signs SIP Digest challenges instead). */
+    authorization_password?: string;
+    /** Deprecated fallback; saved lines use `auth_mode: "challenge"`. */
+    authorization_ha1?: string;
+    /** "challenge" = server signs 401/407 SIP Digest challenges without exposing secrets. */
+    auth_mode?: "challenge" | "password" | "ha1";
     display_name: string | null;
+    provider?: string | null;
+    stun_url?: string | null;
+    max_concurrent_calls?: number;
+    /** Provider behaviour and wording; generic defaults when absent. */
+    provider_profile?: SipProviderProfile | null;
 }
 
 /** A device/line as listed for the picker + settings (no secrets). */
@@ -14,6 +58,10 @@ export interface SoftphoneDeviceSummary {
     is_default: boolean;
     /** false = disabled: no credentials, cannot place or receive calls. */
     is_active?: boolean;
+    /** Maximum concurrent calls allowed on this line (defaults to 2). */
+    max_concurrent_calls?: number;
+    provider?: string | null;
+    phone_number?: string | null;
 }
 
 export interface SoftphoneDevicesResponse {
@@ -35,6 +83,7 @@ export interface SoftphoneDeviceDetails extends SoftphoneDeviceSummary {
     authorization_username: string | null;
     display_name: string | null;
     has_password: boolean;
+    max_concurrent_calls?: number;
 }
 
 /** Full credentials for one device so the browser can register it. */
@@ -43,6 +92,7 @@ export interface SoftphoneDeviceCredentials extends SoftphoneConfig {
     label: string;
     /** SIP platform the line belongs to (e.g. sipgate), when known. */
     provider: string | null;
+    max_concurrent_calls?: number;
 }
 
 export interface SoftphoneDeviceCredentialsResponse {
@@ -117,6 +167,34 @@ export type SoftphoneConnectionQuality =
 export interface SoftphoneCallContext {
     leadId: number | null;
     leadName?: string | null;
+    entityType?: "lead" | "deal" | null;
+    entityId?: number | null;
+}
+
+/** Terminal outcome for a call that just ended (maps directly to Calls page outcomes). */
+export type SoftphoneCallEndReason =
+    | "completed"
+    | "missed"
+    | "declined"
+    | "busy"
+    | "voicemail"
+    | "failed"
+    | "answered_elsewhere";
+
+/** Snapshot emitted whenever any SIP call ends so the dock always logs its final status. */
+export interface SoftphoneEndedCall {
+    callId: string;
+    peer: string;
+    direction: "outbound" | "inbound";
+    stage: SoftphoneCallStage;
+    wasAnswered: boolean;
+    answeredAt: number | null;
+    endedAt: number;
+    endedByUser: boolean;
+    reason: SoftphoneCallEndReason;
+    failureCode: SoftphoneCallFailureCode | null;
+    failureMessage: string | null;
+    context: SoftphoneCallContext | null;
 }
 
 /** Why a call ended before it ever connected. */
@@ -131,6 +209,7 @@ export type SoftphoneCallFailureCode =
     | "terminated"
     | "answered_elsewhere"
     | "disconnected"
+    | "connection_failed"
     | "unknown";
 
 /**
@@ -146,14 +225,29 @@ export interface SoftphoneCallFailure {
     direction: "outbound" | "inbound";
     /** Kept so "Try again" redials the same number with the same context. */
     context: SoftphoneCallContext | null;
+    /** SIP Call-ID of the failed call, shared with every other agent's leg of it. */
+    callId?: string;
+}
+
+/** A second inbound call that arrived while this agent was on a call. */
+export interface SoftphoneWaitingCall {
+    /** SIP Call-ID, shared with every other agent's leg of the call. */
+    id: string;
+    peer: string;
+    /** Epoch ms it started waiting. */
+    receivedAt: number;
 }
 
 export interface SoftphoneState {
     registration: SoftphoneRegistrationState;
     registrationError: string | null;
     call: SoftphoneCall | null;
+    /** A call waiting behind the current one; null when none is. */
+    waitingCall: SoftphoneWaitingCall | null;
     /** Set when a call ends without connecting; cleared by the dock. */
     callFailure: SoftphoneCallFailure | null;
+    /** Set whenever any live call ends (answered, missed, failed, declined, busy). */
+    lastEndedCall?: SoftphoneEndedCall | null;
     /** Last error raised by a call attempt, cleared on a successful sale. */
     lastCallError: string | null;
     /** Rough audio/connection quality while a call is active. */

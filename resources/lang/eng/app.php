@@ -3,6 +3,13 @@
 return [
     'support' => 'Support',
 
+    'mlmCommissionType' => [
+        'agent' => 'Agent',
+        'upline' => 'Upline',
+        'system' => 'System',
+        'referral' => 'Referral',
+    ],
+
     // resolution status
     'unresolved' => 'Unresolved',
     // resolution status
@@ -531,12 +538,15 @@ return [
         'shiftRotation' => 'Shift Rotation',
         'addAutomateShift' => 'Add Automate Shift',
         'weeklyTimesheets' => 'Weekly Timesheets',
+        'allDeals' => 'All Deals',
+        'inAppNotifications' => 'In-app notifications',
+        'pipeline' => 'Pipeline',
     ],
     'settingsHub' => [
         'packagesDesc' => 'Create and price packages, and set how each one pays commission.',
         'automationDesc' => 'Manage email templates and automations that run on leads, deals and meetings.',
         'leadsDesc' => 'Company defaults for how leads are handled, including sources, statuses, and first-contact timing.',
-        'dealsDesc' => 'Manage deal categories, pipelines and stages.',
+        'dealsDesc' => 'Manage deal pipelines, stages, visibility and analysis scripts.',
         'meetingsDesc' => 'Manage meeting types and scheduling defaults.',
         'tasksDesc' => 'Create and manage the categories used to tag tasks.',
         'notesDesc' => 'Manage note types and visibility defaults.',
@@ -733,6 +743,7 @@ return [
         'targetStage' => 'Target stage',
         'sameAsSource' => 'Same as source',
         'forwardOnly' => 'Forward only',
+        'adjustmentCurrencyHint' => 'Applied in the currency of each deal.',
         'lockDealHint' => 'This locks the deal, preventing further changes to its stage, value, and other key fields.',
         'unconnectedTagsHint' => 'These merge tags aren\'t available to this automation and will send blank:',
         'sendTo' => 'Send to',
@@ -804,6 +815,7 @@ return [
         'refresh' => 'Refresh',
         'export' => 'Export',
         'last7Days' => 'Last 7 days',
+        'emailTemplate' => 'Email template',
     ],
     'parentId' => 'Parent',
     'childId' => 'Child',
@@ -2044,4 +2056,6 @@ return [
             'queue' => 'Background job',
         ],
     ],
+    'reportBugs' => 'Report bugs',
+    'requestFeatures' => 'Request features',
 ];

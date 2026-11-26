@@ -1,9 +1,10 @@
-import { type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Link } from "@inertiajs/react";
 import useTranslation from "@/Hooks/useTranslation";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import Badge from "@/Components/Redesign/primitives/Badge";
 import Button from "@/Components/Redesign/primitives/Button";
+import ConfirmDialog from "@/Components/Redesign/primitives/ConfirmDialog";
 import CheckoutLinkActions from "@/Components/Redesign/primitives/CheckoutLinkActions";
 import Icon from "@/Components/Redesign/primitives/Icon";
 import { Modal } from "@/Components/Redesign/primitives/Modal";
@@ -22,6 +23,8 @@ import {
     isCollectedPaymentState,
 } from "@/Pages/Deals/Redesign/adapters/mapDealPaymentUiState";
 import { formatCompanyDateTime } from "@/lib/companyDateTime";
+import usePaymentDocumentRequest from "./usePaymentDocumentRequest";
+import useVatCollection from "./useVatCollection";
 import type {
     DealPaymentRequest,
     DealPaymentUiState,
@@ -51,7 +54,19 @@ interface PaymentRequestDetailModalProps {
     onConfirm?: () => void;
     /** Present when this request's checkout link has expired and can be replaced. */
     onRetry?: () => void;
+    /** Present when the viewer may permanently delete this cancelled request. */
+    onDelete?: () => void;
     companyCurrency?: CurrencyDisplay | null;
+    /** Whether the viewer may record an invoice request (the same write access as cancelling). */
+    canRequestInvoice?: boolean;
+    /** Called with the updated request once an invoice has been requested. */
+    onDocumentsRequested?: (request: DealPaymentRequest) => void;
+    /** Whether the viewer may raise a second payment request for the KDV. */
+    canRequestVat?: boolean;
+    /** Whether the viewer may record the KDV as received in cash or outside the CRM. */
+    canSettleVat?: boolean;
+    /** Called with the updated row: the new KDV request (it carries its payment) or the payment itself. */
+    onVatChanged?: (updated: DealPaymentRequest) => void;
 }
 
 const SUMMARY_KEY: Record<DealPaymentUiState, string> = {
@@ -85,11 +100,22 @@ function safeRoute(name: string, param: string | number): string | null {
     }
 }
 
-function DocumentLink({ href, label, external = false }: { href: string; label: string; external?: boolean }) {
+function DocumentLink({
+    href,
+    label,
+    external = false,
+    onOpen,
+}: {
+    href: string;
+    label: string;
+    external?: boolean;
+    onOpen?: () => void;
+}) {
     return (
         <a
             className="dr-btn dr-btn-ghost"
             href={href}
+            onClick={onOpen}
             {...(external ? { target: "_blank", rel: "noreferrer" } : {})}
             style={{ textDecoration: "none" }}
         >
@@ -249,10 +275,34 @@ export default function PaymentRequestDetailModal({
     onCancel,
     onConfirm,
     onRetry,
+    onDelete,
     companyCurrency,
+    canRequestInvoice = false,
+    onDocumentsRequested,
+    canRequestVat = false,
+    canSettleVat = false,
+    onVatChanged,
 }: PaymentRequestDetailModalProps) {
     const { t } = useTranslation();
     const { td } = useTd();
+    const { requestDocuments, fetchStatus, requesting } = usePaymentDocumentRequest();
+    const [requestedId, setRequestedId] = useState<number | null>(null);
+    const receiptRefreshed = useRef<number | null>(null);
+    // Bumped whenever another payment is selected or the modal goes away, so a late receipt refresh is dropped.
+    const receiptRefreshToken = useRef(0);
+    const [confirmRequestOpen, setConfirmRequestOpen] = useState(false);
+    const { requestVat, settleVat, saving: savingVat } = useVatCollection();
+    const [vatAction, setVatAction] = useState<"request" | "cash" | "external" | null>(null);
+    useEffect(() => {
+        setRequestedId(null);
+        setConfirmRequestOpen(false);
+        setVatAction(null);
+        receiptRefreshed.current = null;
+        const token = receiptRefreshToken;
+        return () => {
+            token.current += 1;
+        };
+    }, [request?.id]);
 
     if (!request) return null;
 
@@ -275,9 +325,69 @@ export default function PaymentRequestDetailModal({
             : undefined;
     const leadName = [request.lead_name, request.lead_company].filter(Boolean).join(" · ");
     const leadHref = request.lead_id ? safeRoute("lead-contact.show", request.lead_id) : null;
-    const agentHref = request.agent_user_id ? safeRoute("employees.show", request.agent_user_id) : null;
-    const invoiceUrl = documentHref(request, "invoice");
-    const receiptUrl = collected ? documentHref(request, "receipt") : null;
+    const documentsRequested = Boolean(request.documents_requested) || requestedId === request.id;
+    const canRequestDocuments = canRequestInvoice
+        && !documentsRequested
+        && request.deal_id != null
+        && request.ui_state !== "invalidated"
+        && request.ui_state !== "failed";
+    const invoiceUrl = documentsRequested ? documentHref(request, "invoice") : null;
+    // A receipt only needs a collected payment, not the invoice or its request.
+    // Before any request, only someone who may record one can generate it.
+    const receiptUrl = collected && (documentsRequested || request.vat != null || canRequestInvoice)
+        ? documentHref(request, "receipt") : null;
+    // Asking for a receipt is itself the document request, so KDV becomes
+    // due. Read the payment back once the download has been issued.
+    const refreshAfterReceipt = () => {
+        if (request.vat != null || request.deal_id == null) return;
+        const { deal_id: dealId, id } = request;
+        const token = receiptRefreshToken.current;
+        // The server records the request while it makes the download, so
+        // look again a few times in case that takes a moment.
+        [1500, 4000, 9000].forEach((delay, attempt) => {
+            window.setTimeout(async () => {
+                if (attempt > 0 && receiptRefreshed.current === id) return;
+                const updated = await fetchStatus(dealId, id);
+                // Another payment was selected meanwhile: do not touch it.
+                if (token !== receiptRefreshToken.current) return;
+                if (updated?.vat != null) {
+                    receiptRefreshed.current = id;
+                    onDocumentsRequested?.(updated);
+                }
+            }, delay);
+        });
+    };
+    const askForInvoice = async () => {
+        if (request.deal_id == null) return;
+        const updated = await requestDocuments(request.deal_id, request.id);
+        setConfirmRequestOpen(false);
+        if (updated) {
+            setRequestedId(request.id);
+            onDocumentsRequested?.(updated);
+        }
+    };
+    const vat = request.vat ?? null;
+    const runVatAction = async () => {
+        if (request.deal_id == null || vatAction === null) return;
+        const result = vatAction === "request"
+            ? await requestVat(request.deal_id, request.id)
+            : await settleVat(request.deal_id, request.id, vatAction);
+        setVatAction(null);
+        if (result) {
+            // Drop receipt refreshes that were read before this KDV update.
+            receiptRefreshToken.current += 1;
+            // A KDV request carries its payment, so one call refreshes both.
+            onVatChanged?.(result.request ?? result.payment);
+        }
+    };
+    const vatMethodLabel = (method: string | null | undefined) =>
+        method === "request"
+            ? t("pages.payment_requests.vat_method_request")
+            : method === "cash"
+                ? t("pages.payment_requests.vat_method_cash")
+                : method === "external"
+                    ? t("pages.payment_requests.vat_method_external")
+                    : DASH;
     const linkExpired = isCheckoutLinkExpired(request);
     const activeLink = hasActiveCheckoutLink(request);
     const summary = linkExpired
@@ -319,17 +429,10 @@ export default function PaymentRequestDetailModal({
 
     const person = (entry: DealPaymentVerifiedBy | null | undefined) => {
         if (!entry) return DASH;
-        const href = safeRoute("employees.show", entry.id);
         const name = entry.name?.trim() || `#${entry.id}`;
         return (
             <span>
-                {href ? (
-                    <Link href={href} style={{ color: T.NAVY, fontWeight: 600, textDecoration: "underline" }}>
-                        {name}
-                    </Link>
-                ) : (
-                    name
-                )}
+                {name}
                 {entry.email ? (
                     <span style={{ display: "block", color: T.TEXT_MUTED }}>{entry.email}</span>
                 ) : null}
@@ -337,7 +440,16 @@ export default function PaymentRequestDetailModal({
         );
     };
 
+    const documentRules = (
+        <ul style={{ margin: 0, paddingLeft: 18, display: "grid", gap: 6 }}>
+            <li>{t("pages.payment_requests.rule_invoice_kdv")}</li>
+            <li>{t("pages.payment_requests.rule_invoice_on_request")}</li>
+            <li>{t("pages.payment_requests.rule_receipt_needs_invoice")}</li>
+        </ul>
+    );
+
     return (
+        <>
         <Modal
             open={open}
             title={t("pages.payment_requests.detail_title")}
@@ -348,11 +460,24 @@ export default function PaymentRequestDetailModal({
             maxWidth={680}
             footer={
                 <div className="flex w-full flex-wrap items-center gap-2">
+                    {canRequestDocuments && (
+                        <Button variant="ghost" onClick={() => setConfirmRequestOpen(true)}>
+                            <Icon name="file-text" size={14} />
+                            {t("pages.payment_requests.action_request_invoice")}
+                        </Button>
+                    )}
                     {invoiceUrl && (
-                        <DocumentLink href={invoiceUrl} label={t("pages.payment_requests.action_invoice")} />
+                        <DocumentLink
+                            href={invoiceUrl}
+                            label={t("pages.payment_requests.action_invoice")}
+                        />
                     )}
                     {receiptUrl && (
-                        <DocumentLink href={receiptUrl} label={t("pages.payment_requests.action_receipt")} />
+                        <DocumentLink
+                            href={receiptUrl}
+                            label={t("pages.payment_requests.action_receipt")}
+                            onOpen={refreshAfterReceipt}
+                        />
                     )}
                     {request.proof_url && (
                         <DocumentLink
@@ -361,11 +486,16 @@ export default function PaymentRequestDetailModal({
                             external
                         />
                     )}
-                    {(onCancel || onConfirm || (onRetry && linkExpired)) && (
+                    {(onCancel || onDelete || onConfirm || (onRetry && linkExpired)) && (
                         <div className="ml-auto flex items-center gap-2">
                             {onCancel && (
                                 <Button variant="ghost" style={{ color: T.RED }} onClick={onCancel}>
                                     {t("pages.deals.payment_request.cancel_action")}
+                                </Button>
+                            )}
+                            {onDelete && (
+                                <Button variant="ghost" style={{ color: T.RED }} onClick={onDelete}>
+                                    {t("pages.deals.payment_request.delete_action")}
                                 </Button>
                             )}
                             {onConfirm && (
@@ -452,7 +582,7 @@ export default function PaymentRequestDetailModal({
                     icon="users"
                     role={t("pages.payment_requests.detail_agent")}
                     name={request.agent_name ?? null}
-                    href={agentHref}
+                    href={null}
                 />
             </div>
 
@@ -483,6 +613,59 @@ export default function PaymentRequestDetailModal({
                         {request.expires_at && (
                             <div style={{ marginTop: 8, fontSize: REDESIGN_TYPE.BODY, color: T.TEXT_MUTED }}>
                                 {`${field("expires")} ${when(request.expires_at)}`}
+                            </div>
+                        )}
+                    </Panel>
+                </div>
+            )}
+
+            {vat && (
+                <div style={{ marginTop: 12 }}>
+                    <Panel title={t("pages.payment_requests.vat_title")}>
+                        <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 12 }}>
+                            <div
+                                style={{
+                                    fontSize: REDESIGN_TYPE.BODY_LG,
+                                    fontWeight: 700,
+                                    color: T.NAVY,
+                                    fontVariantNumeric: "tabular-nums",
+                                }}
+                            >
+                                {vat.amount != null ? formatMoneyAmount(vat.amount, requestCurrency) : DASH}
+                                {vat.rate != null ? (
+                                    <span style={{ marginLeft: 8, fontWeight: 500, color: T.TEXT_MUTED }}>
+                                        {`${t("pages.payment_requests.vat_rate")} ${vat.rate}%`}
+                                    </span>
+                                ) : null}
+                            </div>
+                            <Badge variant={vat.status === "settled" ? "green" : vat.status === "requested" ? "blue" : "amber"}>
+                                {t(`pages.payment_requests.vat_status_${vat.status}`)}
+                            </Badge>
+                        </div>
+                        <p style={{ margin: "8px 0 0", fontSize: REDESIGN_TYPE.BODY, color: T.TEXT_MUTED, lineHeight: 1.45 }}>
+                            {vat.status === "settled"
+                                ? `${vatMethodLabel(vat.method)} · ${when(vat.settled_at)}`
+                                : vat.status === "requested"
+                                    ? t("pages.payment_requests.vat_requested_hint")
+                                    : t("pages.payment_requests.vat_due_hint")}
+                        </p>
+                        {vat.status === "due" && (canRequestVat || canSettleVat) && (
+                            <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 12 }}>
+                                {canRequestVat && (
+                                    <Button variant="primary" onClick={() => setVatAction("request")}>
+                                        {t("pages.payment_requests.vat_action_request")}
+                                    </Button>
+                                )}
+                                {canSettleVat && (
+                                    <>
+                                        <Button variant="ghost" onClick={() => setVatAction("cash")}>
+                                            {t("pages.payment_requests.vat_action_cash")}
+                                        </Button>
+                                        <Button variant="ghost" onClick={() => setVatAction("external")}>
+                                            {t("pages.payment_requests.vat_action_external")}
+                                        </Button>
+                                    </>
+                                )}
                             </div>
                         )}
                     </Panel>
@@ -586,5 +769,28 @@ export default function PaymentRequestDetailModal({
                 <span>{`${field("reference")} ${request.payment_id ? `#${request.payment_id}` : DASH}`}</span>
             </div>
         </Modal>
+        <ConfirmDialog
+            open={vatAction !== null}
+            title={t(`pages.payment_requests.vat_confirm_${vatAction ?? "request"}_title`)}
+            message={t(`pages.payment_requests.vat_confirm_${vatAction ?? "request"}_message`, {
+                amount: vat?.amount != null ? formatMoneyAmount(vat.amount, requestCurrency) : "",
+            })}
+            confirmLabel={t(`pages.payment_requests.vat_confirm_${vatAction ?? "request"}_confirm`)}
+            confirmLoading={savingVat}
+            zIndex={1400}
+            onConfirm={runVatAction}
+            onCancel={() => setVatAction(null)}
+        />
+        <ConfirmDialog
+            open={confirmRequestOpen}
+            title={t("pages.payment_requests.request_invoice_title")}
+            message={documentRules}
+            confirmLabel={t("pages.payment_requests.request_invoice_confirm")}
+            confirmLoading={requesting}
+            zIndex={1400}
+            onConfirm={askForInvoice}
+            onCancel={() => setConfirmRequestOpen(false)}
+        />
+        </>
     );
 }

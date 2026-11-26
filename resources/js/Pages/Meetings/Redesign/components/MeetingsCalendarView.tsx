@@ -24,6 +24,7 @@ import {
     type UserCalendarEvent,
     type UserCalendarEventType,
 } from "../hooks/useUserCalendarEvents";
+import useMeetingUiLabel from "@/Components/Redesign/meeting/useMeetingUiLabel";
 
 dayjs.extend(utc);
 dayjs.extend(timezonePlugin);
@@ -60,6 +61,19 @@ export interface CalendarDayBuckets {
 }
 
 interface MeetingsCalendarViewProps {
+    /**
+     * The month on screen (`YYYY-MM`). Owned by the page, not read off `data`:
+     * `data` can still be the previous month's while the next one loads, and
+     * the toolbar has to move on the moment it is clicked.
+     */
+    month?: string;
+    /** True while `data` is not yet this month's (or is being re-read). */
+    loading?: boolean;
+    /**
+     * `crm.meetings-page-improvements`: reserve and draw the loading bar. Off,
+     * the calendar is as it was (it was never on screen while loading).
+     */
+    improved?: boolean;
     data: CalendarPayload;
     onMonthChange: (month: string) => void;
     /** The viewer's own tasks/events/tickets/leave for this month. */
@@ -136,6 +150,9 @@ export function chipTone(event: CalendarEvent) {
 }
 
 export default function MeetingsCalendarView({
+    month: monthProp,
+    loading = false,
+    improved = false,
     data,
     onMonthChange,
     overlayEvents,
@@ -148,6 +165,7 @@ export default function MeetingsCalendarView({
     zohoAvailable,
 }: MeetingsCalendarViewProps) {
     const { td } = useTd();
+    const ui = useMeetingUiLabel();
     const { t } = useTranslation();
     const { timezone } = useUserDateTime();
 
@@ -164,7 +182,9 @@ export default function MeetingsCalendarView({
     // clicking the arrow dozens of times.
     const [monthPickerOpen, setMonthPickerOpen] = useState(false);
 
-    const monthStart = dayjs(`${data.month}-01`);
+    // Left out, the month on screen is the payload's own, as it was.
+    const month = monthProp ?? data.month;
+    const monthStart = dayjs(`${month}-01`);
 
     const weekdays = useMemo(() => {
         // Week starts Monday; derived from dayjs so it follows the locale.
@@ -176,7 +196,10 @@ export default function MeetingsCalendarView({
 
     const meetingsByDay = useMemo(() => {
         const map = new Map<string, CalendarEvent[]>();
-        data.events.forEach((event) => {
+        // Another month's meetings would land in the wrong cells of this
+        // one's grid, so while it loads the grid is empty rather than wrong.
+        const events = data.month === month ? data.events : [];
+        events.forEach((event) => {
             if (!event.start) return;
             const key = dayjs
                 .utc(event.start)
@@ -187,7 +210,7 @@ export default function MeetingsCalendarView({
             else map.set(key, [event]);
         });
         return map;
-    }, [data.events, timezone]);
+    }, [data.events, data.month, month, timezone]);
 
     /**
      * A toggle appears when the month actually has rows of that type — no dead
@@ -245,11 +268,11 @@ export default function MeetingsCalendarView({
         }
         return result;
         // `monthStart` is a fresh Dayjs instance every render (derived from
-        // `data.month`, not memoized itself) — keying on it would recompute
-        // this on every render regardless of whether the month actually
-        // changed. `data.month` is the stable value that actually matters.
+        // `month`, not memoized itself) — keying on it would recompute this
+        // on every render regardless of whether the month actually changed.
+        // `month` is the stable value that actually matters.
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [data.month]);
+    }, [month]);
 
     const todayKey = dayjs().tz(timezone).format("YYYY-MM-DD");
 
@@ -259,12 +282,26 @@ export default function MeetingsCalendarView({
     return (
         <div
             className="overflow-hidden"
+            aria-busy={loading}
             style={{
                 background: T.WHITE,
                 border: `1px solid ${T.BORDER}`,
                 borderRadius: 10,
             }}
         >
+            {/* A month (or a re-read after a change) is on its way. The
+                toolbar above stays live; only the grid below waits. */}
+            {improved && (
+                <div
+                    aria-hidden
+                    className={loading ? "animate-pulse" : undefined}
+                    style={{
+                        height: 2,
+                        background: loading ? T.BLUE : "transparent",
+                        transition: "background 120ms ease",
+                    }}
+                />
+            )}
             <div
                 className="flex flex-wrap items-center gap-4 px-[18px] py-3.5"
                 style={{ borderBottom: `1px solid ${T.BORDER_SOFT}` }}
@@ -274,14 +311,14 @@ export default function MeetingsCalendarView({
                         <Button
                             variant="ghost"
                             size="sm"
-                            aria-label={td("Previous month")}
+                            aria-label={t("pages.meetings.ui.previous_month")}
                             onClick={() => shiftMonth(-1)}
                             icon={<Icon name="chevron-left" size={15} />}
                         />
                         <Button
                             variant="ghost"
                             size="sm"
-                            aria-label={td("Next month")}
+                            aria-label={t("pages.meetings.ui.next_month")}
                             onClick={() => shiftMonth(1)}
                             icon={<Icon name="chevron-right" size={15} />}
                         />
@@ -338,7 +375,7 @@ export default function MeetingsCalendarView({
                         size="sm"
                         onClick={() => onMonthChange(dayjs().format("YYYY-MM"))}
                     >
-                        {td("Today")}
+                        {t("pages.meetings.ui.today")}
                     </Button>
                 </div>
 
@@ -360,7 +397,7 @@ export default function MeetingsCalendarView({
                                     border: `1px solid ${entry.border}`,
                                 }}
                             />
-                            {td(entry.label)}
+                            {ui(entry.label)}
                         </span>
                     ))}
                 </div>
@@ -379,7 +416,7 @@ export default function MeetingsCalendarView({
                             color: T.TEXT_HINT,
                         }}
                     >
-                        {td("Also show")}
+                        {t("pages.meetings.ui.also_show")}
                     </span>
                     {availableOverlayTypes.map((type) => {
                         // Zoho is announced, not shipped: the chip renders so
@@ -396,7 +433,7 @@ export default function MeetingsCalendarView({
                                 aria-pressed={active}
                                 aria-disabled={pending}
                                 disabled={pending}
-                                title={pending ? td("Coming soon") : undefined}
+                                title={pending ? t("pages.meetings.ui.coming_soon") : undefined}
                                 onClick={() =>
                                     pending
                                         ? undefined
@@ -415,7 +452,7 @@ export default function MeetingsCalendarView({
                                 }}
                             >
                                 <Icon name={type.icon} size={12} />
-                                {td(type.label)}
+                                {ui(type.label)}
                                 {pending && (
                                     <span
                                         className="font-semibold uppercase"
@@ -428,7 +465,7 @@ export default function MeetingsCalendarView({
                                             color: T.TEXT_HINT,
                                         }}
                                     >
-                                        {td("Soon")}
+                                        {t("pages.meetings.ui.soon")}
                                     </span>
                                 )}
                             </button>
@@ -454,7 +491,13 @@ export default function MeetingsCalendarView({
                 ))}
             </div>
 
-            <div className="grid grid-cols-7">
+            <div
+                className="grid grid-cols-7"
+                style={{
+                    opacity: loading ? 0.55 : 1,
+                    transition: "opacity 120ms ease",
+                }}
+            >
                 {cells.map(({ date, key }) => {
                     const dayKey = date?.format("YYYY-MM-DD");
                     const dayMeetings = dayKey
@@ -532,9 +575,7 @@ export default function MeetingsCalendarView({
                                             // screen readers handle worst.
                                             <button
                                                 type="button"
-                                                aria-label={td(
-                                                    "Schedule a meeting on this day",
-                                                )}
+                                                aria-label={t("pages.meetings.ui.schedule_a_meeting_on_this_day")}
                                                 onClick={(event) => {
                                                     event.stopPropagation();
                                                     onCreateAt!(
@@ -630,7 +671,7 @@ export default function MeetingsCalendarView({
                                                     }}
                                                     title={
                                                         event.record_name
-                                                            ? `${label} ${td("with")} ${event.record_name}`
+                                                            ? `${label} ${t("pages.meetings.ui.with")} ${event.record_name}`
                                                             : label
                                                     }
                                                 >
@@ -638,7 +679,7 @@ export default function MeetingsCalendarView({
                                                     {event.record_name && (
                                                         <>
                                                             {" "}
-                                                            {td("with")}{" "}
+                                                            {t("pages.meetings.ui.with")}{" "}
                                                             {event.record_name}
                                                         </>
                                                     )}
@@ -663,7 +704,7 @@ export default function MeetingsCalendarView({
                                         );
                                         const label =
                                             event.title?.trim() ||
-                                            td(meta?.label ?? "Event");
+                                            ui(meta?.label ?? "Event");
                                         return (
                                             <div
                                                 key={`o-${event.event_type}-${event.id}`}
@@ -738,7 +779,7 @@ export default function MeetingsCalendarView({
                                                 color: T.BLUE,
                                             }}
                                         >
-                                            +{overflow} {td("more")}
+                                            +{overflow} {t("pages.meetings.ui.more")}
                                         </button>
                                     )}
                                 </>
@@ -812,6 +853,7 @@ function PreviewLine({
  */
 function PreviewCard({ event }: { event: CalendarEvent }) {
     const { td } = useTd();
+    const ui = useMeetingUiLabel();
     const { t } = useTranslation();
     const { formatDate } = useUserDateTime();
 
@@ -852,8 +894,8 @@ function PreviewCard({ event }: { event: CalendarEvent }) {
                             style={{ fontSize: 13, color: T.BLUE }}
                         >
                             {event.record_type === "lead"
-                                ? td("Lead")
-                                : td("Deal")}
+                                ? t("pages.meetings.ui.lead")
+                                : t("pages.meetings.ui.deal")}
                             {" · "}
                             {td(event.record_name)}
                         </span>
@@ -873,7 +915,7 @@ function PreviewCard({ event }: { event: CalendarEvent }) {
                 >
                     {event.bucket === "live"
                         ? t("pages.meetings.card.live")
-                        : td(event.status)}
+                        : ui(event.status)}
                 </span>
             </div>
 
@@ -883,29 +925,29 @@ function PreviewCard({ event }: { event: CalendarEvent }) {
                     {" · "}
                     {formatMeetingTime(event.start, "--", event.timezone)}
                     {" · "}
-                    {event.duration} {td("min")}
+                    {event.duration} {t("pages.meetings.ui.min")}
                 </PreviewLine>
 
                 <PreviewLine icon="map-pin">
                     {platform}
-                    {event.has_link ? ` · ${td("Link available")}` : ""}
+                    {event.has_link ? ` · ${t("pages.meetings.ui.link_available")}` : ""}
                 </PreviewLine>
 
                 {event.host_name && (
                     <PreviewLine icon="user">
-                        {td("Host")}: {event.host_name}
+                        {t("pages.meetings.ui.host")}: {event.host_name}
                     </PreviewLine>
                 )}
 
                 <PreviewLine icon="users">
                     {names.length === 0
-                        ? td("No participants")
+                        ? t("pages.meetings.ui.no_participants")
                         : `${shown.join(", ")}${hidden > 0 ? ` +${hidden}` : ""}`}
                 </PreviewLine>
 
                 {event.attendance === "attended" && (
                     <PreviewLine icon="check-square">
-                        {td("Client attended")}
+                        {t("pages.meetings.ui.client_attended")}
                     </PreviewLine>
                 )}
 
@@ -934,7 +976,7 @@ function PreviewCard({ event }: { event: CalendarEvent }) {
                     color: T.TEXT_HINT,
                 }}
             >
-                {td("Click to open the meeting")}
+                {t("pages.meetings.ui.click_to_open_the_meeting")}
             </div>
         </>
     );

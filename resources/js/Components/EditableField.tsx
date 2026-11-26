@@ -41,12 +41,14 @@ import { parseMultiSelectStoredValue } from "@/lib/parseMultiSelectStoredValue";
 import { DetailFieldEditContext } from "./DetailSection";
 import DealBadge from "@/Components/Redesign/primitives/Badge";
 import CopyValueButton from "@/Components/Redesign/primitives/CopyValueButton";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 const { Text } = Typography;
 
 type MultiValueTagRender = NonNullable<SelectProps["tagRender"]>;
 
 const MultiValueTag: MultiValueTagRender = ({ label, closable, onClose }) => {
+    const { td } = useTd();
     return (
         <DealBadge
             variant="navy"
@@ -58,7 +60,7 @@ const MultiValueTag: MultiValueTagRender = ({ label, closable, onClose }) => {
             {closable ? (
                 <button
                     type="button"
-                    aria-label="Remove"
+                    aria-label={td("Remove", { source: "en" })}
                     onMouseDown={(event) => {
                         event.preventDefault();
                         event.stopPropagation();
@@ -244,6 +246,7 @@ export default function EditableField({
     copyable = false,
     copyValue,
 }: EditableFieldProps) {
+    const { td } = useTd();
     const { props } = usePage<any>();
     const { countries } = useCountries();
     const { currencies } = useCurrencies();
@@ -563,7 +566,7 @@ export default function EditableField({
             inputValue.trim() &&
             !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(inputValue.trim())
         ) {
-            message.error("Please enter a valid email address");
+            message.error(td("Please enter a valid email address", { source: "en" }));
             return;
         }
 
@@ -573,7 +576,7 @@ export default function EditableField({
             if (!alwaysEditing) {
                 setEditing(false);
             }
-            message.success("Field updated successfully");
+            message.success(td("Field updated successfully", { source: "en" }));
         } catch (error: any) {
             message.error(
                 error?.message || "Failed to update field. Please try again.",
@@ -676,14 +679,14 @@ export default function EditableField({
         setUploading(true);
         try {
             await onSave(file);
-            message.success("File uploaded successfully");
+            message.success(td("File uploaded successfully", { source: "en" }));
         } catch (error: any) {
             if (error?.response?.status === 413) {
                 message.error(
                     `File is too large. Maximum allowed size is ${maxFileSizeMB}MB. Please check your server's upload_max_filesize and post_max_size settings.`,
                 );
             } else {
-                message.error("Failed to upload file");
+                message.error(td("Failed to upload file", { source: "en" }));
             }
         } finally {
             setUploading(false);
@@ -695,9 +698,9 @@ export default function EditableField({
         setUploading(true);
         try {
             await onSave("");
-            message.success("File removed successfully");
+            message.success(td("File removed successfully", { source: "en" }));
         } catch (error) {
-            message.error("Failed to remove file");
+            message.error(td("Failed to remove file", { source: "en" }));
         } finally {
             setUploading(false);
         }
@@ -738,14 +741,14 @@ export default function EditableField({
                         rel="noopener noreferrer"
                     >
                         <FileOutlined className="mr-1" />
-                        View File
+                        {td("View File", { source: "en" })}
                     </a>
                     <Space size="small">
                         <a
                             href={fileUrl}
                             className="text-blue-600 hover:text-blue-800"
                             download
-                            title="Download"
+                            title={td("Download", { source: "en" })}
                             aria-label={downloadLabel}
                         >
                             <DownloadOutlined />
@@ -757,7 +760,7 @@ export default function EditableField({
                                 danger
                                 icon={<DeleteOutlined />}
                                 onClick={handleFileRemove}
-                                title="Delete"
+                                title={td("Delete", { source: "en" })}
                                 aria-label={deleteLabel}
                             />
                         )}
@@ -976,7 +979,7 @@ export default function EditableField({
                             disabled={saving || loading}
                             defaultOpen={!alwaysEditing}
                             allowClear
-                            placeholder="Select options..."
+                            placeholder={td("Select options...", { source: "en" })}
                             tagRender={MultiValueTag}
                         />
                     ) : fieldType === "boolean" ? (
@@ -984,8 +987,8 @@ export default function EditableField({
                             value={inputValue}
                             onChange={(val) => handleValueChange(val)}
                             options={[
-                                { label: "Yes", value: 1 },
-                                { label: "No", value: 0 },
+                                { label: td("Yes", { source: "en" }), value: 1 },
+                                { label: td("No", { source: "en" }), value: 0 },
                             ]}
                             className="flex-1 min-w-[80px]"
                             disabled={saving || loading}
@@ -1018,7 +1021,7 @@ export default function EditableField({
                             defaultOpen={!alwaysEditing}
                             allowClear
                             showSearch
-                            placeholder="Select country"
+                            placeholder={td("Select country", { source: "en" })}
                             filterOption={(input, option) => {
                                 const searchText = input.toLowerCase();
                                 const countryValue = option?.value as string;
@@ -1071,7 +1074,7 @@ export default function EditableField({
                                 ))
                             ) : (
                                 <Select.Option disabled value="">
-                                    No countries available
+                                    {td("No countries available", { source: "en" })}
                                 </Select.Option>
                             )}
                         </Select>
@@ -1085,7 +1088,7 @@ export default function EditableField({
                             defaultOpen={!alwaysEditing}
                             allowClear
                             showSearch
-                            placeholder="Select countries"
+                            placeholder={td("Select countries", { source: "en" })}
                             tagRender={MultiValueTag}
                             filterOption={(input, option) => {
                                 const searchText = input.toLowerCase();
@@ -1139,7 +1142,7 @@ export default function EditableField({
                                 ))
                             ) : (
                                 <Select.Option disabled value="">
-                                    No countries available
+                                    {td("No countries available", { source: "en" })}
                                 </Select.Option>
                             )}
                         </Select>
@@ -1150,7 +1153,7 @@ export default function EditableField({
                                 onChange={(val) => handleValueChange(val)}
                                 onBlur={handleBlur}
                                 onKeyDown={handleKeyPress}
-                                placeholder="Enter amount"
+                                placeholder={td("Enter amount", { source: "en" })}
                                 noFormItem={true}
                                 disabled={saving || loading}
                             />
@@ -1161,7 +1164,7 @@ export default function EditableField({
                                 type="number"
                                 min={0}
                                 value={inputValue?.min ?? ""}
-                                placeholder="Min"
+                                placeholder={td("Min", { source: "en" })}
                                 onChange={(e) =>
                                     handleValueChange({
                                         ...inputValue,
@@ -1182,7 +1185,7 @@ export default function EditableField({
                                 type="number"
                                 min={0}
                                 value={inputValue?.max ?? ""}
-                                placeholder="Max"
+                                placeholder={td("Max", { source: "en" })}
                                 onChange={(e) =>
                                     handleValueChange({
                                         ...inputValue,

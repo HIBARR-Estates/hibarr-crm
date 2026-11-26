@@ -1,5 +1,6 @@
 import { Modal, Form, Input, Button } from "antd";
 import { useApiMutate } from "@/lib/api/client/useApiMutate";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 interface Props {
     open: boolean;
@@ -12,6 +13,7 @@ export default function AddTaskCategoryModal({
     onClose,
     onSuccess,
 }: Props) {
+    const { td } = useTd();
     const [form] = Form.useForm();
 
     const { mutate, isPending } = useApiMutate(
@@ -30,7 +32,7 @@ export default function AddTaskCategoryModal({
 
     return (
         <Modal
-            title="Add Task Category"
+            title={td("Add Task Category", { source: "en" })}
             open={open}
             onCancel={onClose}
             footer={null}
@@ -39,7 +41,7 @@ export default function AddTaskCategoryModal({
             <Form form={form} layout="vertical" onFinish={handleSubmit}>
                 <Form.Item
                     name="category_name"
-                    label="Category Name"
+                    label={td("Category Name", { source: "en" })}
                     rules={[
                         {
                             required: true,
@@ -47,16 +49,16 @@ export default function AddTaskCategoryModal({
                         },
                     ]}
                 >
-                    <Input placeholder="Enter category name" />
+                    <Input placeholder={td("Enter category name", { source: "en" })} />
                 </Form.Item>
                 <div className="flex justify-end space-x-2">
-                    <Button onClick={onClose}>Cancel</Button>
+                    <Button onClick={onClose}>{td("Cancel", { source: "en" })}</Button>
                     <Button
                         type="primary"
                         htmlType="submit"
                         loading={isPending}
                     >
-                        Save
+                        {td("Save", { source: "en" })}
                     </Button>
                 </div>
             </Form>

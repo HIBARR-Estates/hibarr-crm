@@ -15,6 +15,7 @@ import { Property, PropertyEnumValues } from "@/Types";
 import { usePage } from "@inertiajs/react";
 import { EnvironmentOutlined, GlobalOutlined } from "@ant-design/icons";
 import { formatLocationNameForDisplay } from "@/lib/utils";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 const { Option } = Select;
 const { Text } = Typography;
@@ -41,6 +42,7 @@ export default function LocationStep({
     enumValues,
     data,
 }: LocationStepProps) {
+    const { td } = useTd();
     const { props } = usePage<any>();
     const developerProjects = (props?.developerProjects ||
         []) as DeveloperProject[];
@@ -103,8 +105,7 @@ export default function LocationStep({
         <Card size="small" className="border-0 shadow-none">
             <Text type="secondary" className="block mb-4">
                 <EnvironmentOutlined className="mr-2" />
-                Specify the property's location details including city, area,
-                and address.
+                {td("Specify the property's location details including city, area, and address.", { source: "en" })}
             </Text>
 
             <Row gutter={[16, 0]}>
@@ -125,11 +126,11 @@ export default function LocationStep({
                     <Col span={24}>
                         <Form.Item
                             name="project_location_id"
-                            label="Project Location"
-                            tooltip="Select a predefined project location for this property"
+                            label={td("Project Location", { source: "en" })}
+                            tooltip={td("Select a predefined project location for this property", { source: "en" })}
                         >
                             <Select
-                                placeholder="Select project location"
+                                placeholder={td("Select project location", { source: "en" })}
                                 allowClear
                                 showSearch
                                 optionFilterProp="children"
@@ -151,7 +152,7 @@ export default function LocationStep({
                 <Col xs={24} md={12}>
                     <Form.Item
                         name="city"
-                        label="City"
+                        label={td("City", { source: "en" })}
                         tooltip={
                             projectHasLocation
                                 ? "Derived from project location"
@@ -177,7 +178,7 @@ export default function LocationStep({
                 <Col xs={24} md={12}>
                     <Form.Item
                         name="area"
-                        label="Area / District"
+                        label={td("Area / District", { source: "en" })}
                         tooltip={
                             projectHasLocation
                                 ? "Derived from project location"
@@ -206,12 +207,12 @@ export default function LocationStep({
                 <Col span={24}>
                     <Form.Item
                         name="address"
-                        label="Full Address"
-                        tooltip="Complete street address (optional)"
+                        label={td("Full Address", { source: "en" })}
+                        tooltip={td("Complete street address (optional)", { source: "en" })}
                     >
                         <Input.TextArea
                             rows={2}
-                            placeholder="Enter full street address..."
+                            placeholder={td("Enter full street address...", { source: "en" })}
                         />
                     </Form.Item>
                 </Col>
@@ -219,14 +220,14 @@ export default function LocationStep({
                 <Col span={24}>
                     <Divider className="my-2">
                         <GlobalOutlined className="mr-2" />
-                        GPS Coordinates (Optional)
+                        {td("GPS Coordinates (Optional)", { source: "en" })}
                     </Divider>
                 </Col>
 
                 <Col xs={24} md={12}>
                     <Form.Item
                         name="latitude"
-                        label="Latitude"
+                        label={td("Latitude", { source: "en" })}
                         rules={[
                             {
                                 type: "number",
@@ -249,7 +250,7 @@ export default function LocationStep({
                 <Col xs={24} md={12}>
                     <Form.Item
                         name="longitude"
-                        label="Longitude"
+                        label={td("Longitude", { source: "en" })}
                         rules={[
                             {
                                 type: "number",

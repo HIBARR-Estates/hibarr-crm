@@ -7,6 +7,7 @@ import { TeamOutlined } from "@ant-design/icons";
 import { pluralOrSingular, isLoading as getLoadingStatus } from "@/lib/utils";
 import { useApiMutate } from "@/lib/api/client";
 import { ApiResponse } from "@/lib/api/types";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 interface Props extends IModalProps {
     ids: number[];
@@ -14,6 +15,7 @@ interface Props extends IModalProps {
 }
 
 const BulkChangeAgentRole: React.FC<Props> = ({ open, onClose, ids, roles = [] }) => {
+    const { td } = useTd();
     const [roleId, setRoleId] = useState<number | null>(null);
     const [form] = Form.useForm();
 
@@ -25,7 +27,7 @@ const BulkChangeAgentRole: React.FC<Props> = ({ open, onClose, ids, roles = [] }
 
     const handleBulkChangeRole = () => {
         if (!roleId) {
-            message.warning("Please select a role");
+            message.warning(td("Please select a role", { source: "en" }));
             return;
         }
 
@@ -37,14 +39,14 @@ const BulkChangeAgentRole: React.FC<Props> = ({ open, onClose, ids, roles = [] }
             },
             {
                 onSuccess: () => {
-                    message.success("Role updated successfully");
+                    message.success(td("Role updated successfully", { source: "en" }));
                     setRoleId(null);
                     form.resetFields();
                     onClose(true);
                     router.reload();
                 },
                 onError: () => {
-                    message.error("Failed to update role");
+                    message.error(td("Failed to update role", { source: "en" }));
                 },
             },
         );
@@ -66,11 +68,11 @@ const BulkChangeAgentRole: React.FC<Props> = ({ open, onClose, ids, roles = [] }
             title={
                 <div className="flex items-center gap-3">
                     <TeamOutlined className="text-blue-500 text-xl" />
-                    <span>Change Role</span>
+                    <span>{td("Change Role", { source: "en" })}</span>
                 </div>
             }
-            okText="Update Role"
-            cancelText="Cancel"
+            okText={td("Update Role", { source: "en" })}
+            cancelText={td("Cancel", { source: "en" })}
             confirmLoading={loading}
         >
             <div className="py-4">
@@ -79,11 +81,11 @@ const BulkChangeAgentRole: React.FC<Props> = ({ open, onClose, ids, roles = [] }
                     {pluralOrSingular(ids.length, "this agent", "agents")}.
                 </p>
                 <Form form={form} layout="vertical">
-                    <Form.Item label="Role" name="role_id">
+                    <Form.Item label={td("Role", { source: "en" })} name="role_id">
                         <Select
                             value={roleId}
                             onChange={(value) => setRoleId(value)}
-                            placeholder="Select a role"
+                            placeholder={td("Select a role", { source: "en" })}
                             allowClear
                             options={roles.map((r) => ({
                                 label: r.display_name || r.name,

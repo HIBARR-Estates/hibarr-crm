@@ -81,6 +81,9 @@ ApiRoute::group(['namespace' => 'App\Http\Controllers'], function () {
         // Custom field definitions (optional ?model=Deal|Lead|... ; omit for all modules)
         ApiRoute::get('custom-fields', ['as' => 'api.custom-fields.index', 'uses' => 'Api\CustomFieldApiController@index']);
 
+        // Writable lead fields (read live from the leads table; target of `lead_fields` on contact/create)
+        ApiRoute::get('lead-fields', ['as' => 'api.lead-fields.index', 'uses' => 'Api\LeadFieldApiController@index']);
+
         // Qualification action catalog (OL authoring)
         ApiRoute::get('qualification-actions', ['as' => 'api.qualification-actions.index', 'uses' => 'Api\QualificationActionCatalogController@index']);
 

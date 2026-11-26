@@ -54,6 +54,15 @@ export type { AgentOption } from "./primitives/AgentPicker";
 export { default as PeoplePicker } from "./primitives/PeoplePicker";
 export type { PersonOption } from "./primitives/PeoplePicker";
 
+export { default as CommissionRuleFields } from "./commission/CommissionRuleFields";
+export {
+    EMPTY_COMMISSION_RULE,
+    isRuleComplete,
+    ruleForSave,
+    ruleNeedsValue,
+} from "./commission/CommissionRuleFields";
+export type { CommissionRuleDraft, CommissionRuleType } from "./commission/CommissionRuleFields";
+
 export { default as AssigneeField } from "./fields/AssigneeField";
 export { default as MeetingFormFields } from "./meeting/MeetingFormFields";
 export * from "./meeting/meetingFormUtils";

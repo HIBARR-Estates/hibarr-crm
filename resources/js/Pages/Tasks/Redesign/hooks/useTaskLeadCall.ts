@@ -33,11 +33,13 @@ export interface TaskLeadCall {
     canCall: boolean;
     /** Available softphone lines when multiple lines are configured. */
     devices: SoftphoneDeviceSummary[];
-    /** False when the user has no assigned line, so the action falls back to tel:. */
+    /** False when the user has no assigned line. */
     hasLine: boolean;
+    /** True when this user can dial from the CRM (assigned line, or the 3CX bridge). */
+    canDial: boolean;
     /** Currently active softphone line id. */
     activeDeviceId: number | null;
-    /** Place the call (optionally selecting a specific line). Falls back to the device dialler without the softphone. */
+    /** Place the call (optionally selecting a specific line). No-ops when the user cannot dial. */
     startCall: (deviceId?: number) => Promise<void>;
 }
 
@@ -78,37 +80,26 @@ export default function useTaskLeadCall(task: Task): TaskLeadCall {
     const phone = resolveLeadPhoneDisplay(lead?.mobile).trim();
     const email = lead?.client_email?.trim() ?? "";
 
-    // Mirrors ClickToCallButton: the softphone needs make_softphone_calls;
-    // without it the button falls back to the device dialler.
+    // Softphone needs make_softphone_calls. Without a line or the 3CX bridge
+    // there is nothing to dial — callers hide the button.
     const canCall = canMakeSoftphoneCalls(
         props.auth?.user,
         props.auth?.permissions,
     );
+    const canDial =
+        (softphoneEnabled && canCall && devices.length > 0) ||
+        clickToCall.isEnabled;
 
     const startCall = useCallback(
         async (deviceId?: number) => {
-            if (!lead) return;
+            if (!lead || !canDial) return;
 
-            // No assigned line (Call routing): use the device dialler via tel:.
-            if (softphoneEnabled && canCall && !hasLine) {
-                if (phone) {
-                    window.location.href = `tel:${phone.replace(/[^\d+]/g, "")}`;
-                }
-                return;
-            }
-
-            // Require both the softphone feature and the canCall permission
-            // for the softphone path. Without canCall, fall back to the device dialler.
-            if (!softphoneEnabled || !canCall) {
-                if (!phone) return;
-                if (clickToCall.isEnabled) {
-                    await clickToCall.initiateCall(phone, {
-                        type: "lead",
-                        id: lead.id,
-                    });
-                } else {
-                    window.location.href = `tel:${phone.replace(/[^\d+]/g, "")}`;
-                }
+            if (!softphoneEnabled || !canCall || devices.length === 0) {
+                if (!phone || !clickToCall.isEnabled) return;
+                await clickToCall.initiateCall(phone, {
+                    type: "lead",
+                    id: lead.id,
+                });
                 return;
             }
 
@@ -143,15 +134,21 @@ export default function useTaskLeadCall(task: Task): TaskLeadCall {
                     {
                         leadId: lead.id,
                         leadName: lead.client_name ?? null,
+                        entityType: "lead",
+                        entityId: lead.id,
                     },
                     deviceId,
                 );
                 toast.info(t("pages.telephony.calling_number", { phone }));
+                const liveCall = softphone.getState().call;
                 void axios
                     .post(route("telephony.softphone.events.store"), {
-                        phone,
+                        phone: liveCall?.peer ?? dialingPhone,
+                        ...(liveCall?.id ? { call_id: liveCall.id } : {}),
+                        ...(deviceId ?? activeDeviceId ? { device_id: deviceId ?? activeDeviceId } : {}),
                         entity_type: "lead",
                         entity_id: lead.id,
+                        direction: "outbound",
                         event: "call.started",
                     })
                     .catch(() => {
@@ -169,9 +166,9 @@ export default function useTaskLeadCall(task: Task): TaskLeadCall {
         },
         [
             calling,
+            canDial,
             clickToCall,
             devices.length,
-            hasLine,
             lead,
             phone,
             softphoneCall,
@@ -193,6 +190,7 @@ export default function useTaskLeadCall(task: Task): TaskLeadCall {
         canCall,
         devices,
         hasLine,
+        canDial,
         activeDeviceId,
         startCall,
     };

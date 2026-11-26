@@ -1,7 +1,5 @@
 import { useMemo } from "react";
-import { Dropdown, type MenuProps } from "antd";
-import Button from "@/Components/Redesign/primitives/Button";
-import Icon from "@/Components/Redesign/primitives/Icon";
+import { AgentCardControls, AgentCardFilters } from "@/Components/Redesign/agent";
 import useEmailTimelineGroups from "@/Email/hooks/useEmailTimelineGroups";
 import useIsAdminRole from "@/Hooks/useIsAdminRole";
 import useTranslation from "@/Hooks/useTranslation";
@@ -13,7 +11,9 @@ import SectionCard from "./SectionCard";
 const FILTERS: TimelineFilter[] = ["all", "agent", "system", "external"];
 
 interface HistorySectionProps {
-    dealId: number;
+    /** The deal, or the lead on the lead page (canvas L8-05). */
+    recordId: number;
+    recordType?: "deal" | "lead";
     timeline: ReturnType<typeof useDealTimeline>;
     emailEnabled: boolean;
     onOpenEmailMessage: (messageId: string) => void;
@@ -25,14 +25,14 @@ interface HistorySectionProps {
  * system's or outside parties'. The list is the deal page's own timeline,
  * so recordings, email conversations and an admin's edits all work here.
  */
-export default function HistorySection({ dealId, timeline, emailEnabled, onOpenEmailMessage }: HistorySectionProps) {
+export default function HistorySection({ recordId, recordType = "deal", timeline, emailEnabled, onOpenEmailMessage }: HistorySectionProps) {
     const { t } = useTranslation();
     const canManage = useIsAdminRole();
     const { filter, setFilter, dateRange, events, isLoading, refetch, hasNextPage, isFetchingNextPage, fetchNextPage } = timeline;
     const {
         groups: emailGroups,
         loading: emailLoading,
-    } = useEmailTimelineGroups({ recordType: "deal", recordId: dealId, enabled: emailEnabled });
+    } = useEmailTimelineGroups({ recordType, recordId, enabled: emailEnabled });
 
     // Email is its own projection; it joins only the unfiltered history.
     const filteredEmailGroups = useMemo(() => {
@@ -50,26 +50,21 @@ export default function HistorySection({ dealId, timeline, emailEnabled, onOpenE
     const listLoading =
         (isLoading && events.length === 0) || (emailEnabled && emailLoading && filteredEmailGroups.length === 0 && events.length === 0);
 
-    const items: MenuProps["items"] = FILTERS.map((value) => ({ key: value, label: t(`pages.deals.timeline.filter_${value}`) }));
 
     return (
         <SectionCard
             id="deal-history"
             title={t("pages.agent_workspace.deal.history.title")}
             className="agent-deal__section--history"
-            action={
-                <Dropdown
-                    menu={{ items, selectedKeys: [filter], onClick: ({ key }) => setFilter(key as TimelineFilter) }}
-                    trigger={["click"]}
-                    placement="bottomRight"
-                >
-                    <span className="agent-contact__menu-anchor">
-                        <Button size="sm" aria-haspopup="menu">
-                            <Icon name="filter" size={12} />
-                            {filter === "all" ? t("pages.agent_workspace.deal.history.filter") : t(`pages.deals.timeline.filter_${filter}`)}
-                        </Button>
-                    </span>
-                </Dropdown>
+            controls={
+                <AgentCardControls>
+                    <AgentCardFilters<TimelineFilter>
+                        value={filter}
+                        onChange={setFilter}
+                        label={t("pages.agent_workspace.deal.history.filter")}
+                        options={FILTERS.map((value) => ({ value, label: t(`pages.agent_workspace.deal.history.filter_${value}`) }))}
+                    />
+                </AgentCardControls>
             }
         >
             <DealTimelineEventList

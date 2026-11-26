@@ -48,6 +48,19 @@ class NotificationServiceLinkTest extends TestCase
         $this->assertStringContainsString('tab=meetings', $link);
     }
 
+    public function test_meeting_link_generation_failed_links_to_deal_meetings_tab(): void
+    {
+        $link = $this->invokeGetNotificationLink('meeting_link_generation_failed', [
+            'follow_up_id' => 99,
+            'deal_id' => 10,
+            'deal_name' => 'Müller · Nicosia apartment',
+        ]);
+
+        $this->assertNotNull($link);
+        $this->assertStringContainsString('deals/10', $link);
+        $this->assertStringContainsString('tab=meetings', $link);
+    }
+
     public function test_lead_imported_links_to_lead_index(): void
     {
         $link = $this->invokeGetNotificationLink('lead_imported', [

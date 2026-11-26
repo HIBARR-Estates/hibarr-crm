@@ -4,6 +4,8 @@ import {
     conditionFieldGroups,
     conditionValueOptions,
     fieldValueOptions,
+    parseUtmField,
+    utmFieldKey,
 } from "../config/builderFields";
 import {
     Automation,
@@ -55,6 +57,13 @@ function conditionFieldLabels(subjectType: SubjectType, catalog: AutomationCatal
         for (const option of group.options) {
             labels[option.value] = option.label;
         }
+    }
+
+    // Multi-touch UTM keys aren't separate picker entries (the builder swaps
+    // the key via the touch selector), so label them from their first-touch twin.
+    for (const [key, label] of Object.entries(labels)) {
+        const utm = parseUtmField(key);
+        if (utm?.mode === "first") labels[utmFieldKey(utm.column, "any")] = `${label} (any touch)`;
     }
 
     return labels;

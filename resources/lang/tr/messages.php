@@ -1,6 +1,6 @@
 <?php
 
-return array(
+return [
     'importStarted' => 'İçe aktarma başladı. Tamamlandığında bildirim alacaksınız.',
     'availabilityRequestSent' => 'Uygunluk isteği başarıyla gönderildi.',
     'availabilityRequestApproved' => 'Uygunluk isteği başarıyla onaylandı.',
@@ -22,6 +22,9 @@ return array(
     'updateSuccess' => 'Başarıyla güncellendi.',
     'dealUpdateSuccess' => 'Anlaşma başarıyla güncellendi.',
     'dealLocked' => 'Bu anlaşma kilitli ve değiştirilemez.',
+    'dealReferralLockedByCommission' => 'Bu anlaşmanın komisyonu zaten hesaplandı, bu yüzden yönlendirme payı artık değiştirilemez.',
+    'dealReferralAmountTooHigh' => 'Yönlendirme komisyonu bu anlaşmanın taşıyabileceği komisyonu (:max) aşamaz.',
+    'packageOverrideNeedsTerms' => 'Bu temsilcinin kapatan, yönlendiren veya her iki rolde ne kazanacağını belirleyin.',
     'leadUpdateSuccess' => 'İletişim başarıyla güncellendi.',
     'leadReferrerImmutable' => 'Yönlendiren zaten belirlenmiş ve değiştirilemez.',
     'propertyUpdateSuccess' => 'Mülk başarıyla güncellendi.',
@@ -147,4 +150,14 @@ return array(
     'resyncUserPermissionsAlreadyRunning' => 'Bu şirket için kullanıcı izinleri yeniden senkronizasyonu zaten çalışıyor.',
     'resyncUserPermissionsSuccess' => ':synced kullanıcı için izinler yeniden senkronize edildi. Rolü olmayan :skipped kullanıcı atlandı.',
     'resyncUserPermissionsFailed' => 'Kullanıcı izinleri yeniden senkronizasyonu başarısız oldu. Uygulama günlüklerini kontrol edip tekrar deneyin.',
-);
+    'paymentRequestDeleteOnlyCancelled' => 'Yalnızca iptal edilmiş bir ödeme talebi silinebilir.',
+    'deleteTaskCategory' => 'Silinen görev kategorisini geri alamayacaksınız!',
+    'noLeadSourceAdded' => 'Potansiyel müşteri kaynağı eklenmedi.',
+    'somethingWentWrong' => 'Bir şeyler ters gitti. Lütfen tekrar deneyin.',
+    'calendlyLinkMustBeCalendly' => 'calendly.com adresinden güvenli bir bağlantı girin, örneğin https://calendly.com/your-team/intro-call.',
+
+    'meetingContactNoEmail' => ':name için e-posta adresi yok, bu yüzden çevrim içi toplantı kurulamıyor. Potansiyel müşteriye bir tane ekleyin veya başka bir görüşme yöntemi seçin.',
+    'meetingContactNoPhone' => ':name için telefon numarası yok, bu yüzden telefon görüşmesi kurulamıyor. Potansiyel müşteriye bir tane ekleyin veya başka bir görüşme yöntemi seçin.',
+    'meetingContactNoWay' => ':name için ne e-posta adresi ne de telefon numarası var, bu yüzden ulaşmanın bir yolu yok. Toplantı planlamadan önce potansiyel müşteriye bir tane ekleyin.',
+
+];

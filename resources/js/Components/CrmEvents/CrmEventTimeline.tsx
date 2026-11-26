@@ -139,10 +139,10 @@ export default function CrmEventTimeline({
         value: FilterMode;
         icon?: React.ReactNode;
     }[] = [
-        { label: "All", value: "all" },
-        { label: "Agent", value: "agent", icon: <UserOutlined /> },
-        { label: "System", value: "system", icon: <ThunderboltOutlined /> },
-        { label: "External", value: "external", icon: <ApiOutlined /> },
+        { label: td("All", { source: "en" }), value: "all" },
+        { label: td("Agent", { source: "en" }), value: "agent", icon: <UserOutlined /> },
+        { label: td("System", { source: "en" }), value: "system", icon: <ThunderboltOutlined /> },
+        { label: td("External", { source: "en" }), value: "external", icon: <ApiOutlined /> },
     ];
 
     const isDealRedesign = variant === "deal-redesign";

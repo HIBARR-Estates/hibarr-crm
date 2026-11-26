@@ -21,6 +21,7 @@ use App\Services\CrmEventService;
 use App\Services\MlmCommissionService;
 use App\Support\DashboardDateRange;
 use App\Support\FeatureFlags;
+use App\Support\PartnerRole;
 use App\Support\TaskPresenter;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Carbon;
@@ -226,7 +227,7 @@ class DashboardMetricsService
         $deals = Deal::query()
             ->with(['leadStage:id,name,label_color', 'contact:id,client_name,mobile'])
             ->whereIn('id', $links->where('taskable_type', Deal::class)->pluck('taskable_id'))
-            ->get(['id', 'name', 'lead_id', 'pipeline_stage_id'])
+            ->get(['id', 'name', 'lead_id', 'pipeline_stage_id', 'outcome_status'])
             ->keyBy('id');
 
         $phone = static function (?Lead $lead): ?string {
@@ -273,6 +274,9 @@ class DashboardMetricsService
                 'status_color' => $deal->leadStage?->label_color,
                 'person' => $deal->contact?->client_name,
                 'phone' => $phone($deal->contact),
+                // Won or lost: Do next stops asking for a next step on it.
+                'outcome' => $deal->outcome_status?->value,
+                'lead_id' => $deal->lead_id !== null ? (int) $deal->lead_id : null,
             ];
         }
 
@@ -292,6 +296,45 @@ class DashboardMetricsService
         return $this->presentQueueTasks($tasks, true);
     }
 
+    /**
+     * The deal or lead a meeting is on, in relatedRecords()' shape, so Do next
+     * can tell whether it still wants a next step (an open deal, a lead not
+     * yet qualified) and link the new one to the same record.
+     *
+     * @return array<string, mixed>|null
+     */
+    private function meetingRecord(DealFollowUp $followUp): ?array
+    {
+        $deal = $followUp->deal;
+        if ($deal !== null) {
+            return [
+                'type' => 'deal',
+                'id' => (int) $deal->id,
+                'name' => $deal->name,
+                'status' => $deal->leadStage?->name,
+                'status_color' => $deal->leadStage?->label_color,
+                'person' => $deal->contact?->client_name,
+                'outcome' => $deal->outcome_status?->value,
+                'lead_id' => $deal->lead_id !== null ? (int) $deal->lead_id : null,
+            ];
+        }
+
+        $lead = $followUp->lead;
+        if ($lead === null) {
+            return null;
+        }
+
+        return [
+            'type' => 'lead',
+            'id' => (int) $lead->id,
+            'name' => $lead->client_name,
+            'status' => $lead->lifecycleStatus?->label,
+            'status_key' => $lead->lifecycleStatus?->key,
+            'status_color' => $lead->lifecycleStatus?->label_color,
+            'person' => $lead->client_name,
+        ];
+    }
+
     /** Base query shared by the agenda panels — only the date window differs. */
     private function followUpQuery(int $userId)
     {
@@ -301,13 +344,17 @@ class DashboardMetricsService
             ->with([
                 // lead_id is the FK for deal.contact (Lead) — phone fields feed
                 // the meeting modal's Call / Copy CTAs for phone meetings.
-                'deal:id,name,lead_id,pipeline_stage_id',
-                'deal.leadStage:id,name',
+                'deal:id,name,lead_id,pipeline_stage_id,outcome_status',
+                'deal.leadStage:id,name,label_color',
                 'deal.contact:id,client_name,mobile,cell,office',
-                'lead:id,client_name,mobile,cell,office',
+                'lead:id,client_name,mobile,cell,office,lead_lifecycle_status_id',
+                // Where the person stands, for Do next after the meeting is held.
+                'lead.lifecycleStatus:id,key,label,label_color',
                 'meetingType',
                 'meetingSummary',
                 'addedBy:id,name,image',
+                // The agenda's next meeting names its host under "Who joins".
+                'host:id,name',
             ]);
     }
 
@@ -327,6 +374,8 @@ class DashboardMetricsService
                 // the agent workspace's "Type · Person" and "Deal · stage" lines.
                 'person' => $followUp->lead?->client_name ?? $followUp->deal?->contact?->client_name,
                 'deal_stage' => $followUp->deal?->leadStage?->name,
+                // The deal or lead it is on, in the task rows' shape (Do next).
+                'related' => $this->meetingRecord($followUp),
                 // Named _label, not `location`: the model's own `location` is the
                 // raw platform slug (office / zoom / free text) that
                 // meetingListAdapter.getPlatformMeta() switches on. Overwriting
@@ -2009,13 +2058,11 @@ class DashboardMetricsService
      * one thing this view must not leak. Below three deals the sum is
      * suppressed for the same reason.
      *
-     * KNOWN LIMITATION, not a bug: this returns zero today. distribute() pays
-     * deals.agent_id and their agent_hierarchy ancestors, and never reads
-     * leads.referred_by_agent_id — referral is not a concept the commission
-     * engine has. agent_hierarchy is also empty, so upline legs pay nothing at
-     * all. The tile renders an em dash and says so. It starts producing real
-     * numbers the day referral attribution reaches the engine and the hierarchy
-     * is populated; no dashboard change is needed then.
+     * Counts the legs preview() would write to this partner, including a
+     * referral leg on deals whose lead they introduced. The company (system)
+     * leg is excluded. Upline legs still pay nothing while agent_hierarchy is
+     * empty. Below three deals that actually pay this partner, the sum is
+     * suppressed. A deal that pays nothing does not count toward that three.
      *
      * ponytail: N previews for N open referred deals (single digits today).
      * Batch the level and hierarchy lookups if a partner ever carries hundreds.
@@ -2035,16 +2082,21 @@ class DashboardMetricsService
         // Only the legs distribute() would write *to this partner*: the System
         // leg is addressed to the deal's own agent too, so a partner who sold
         // the deal themselves would otherwise be forecast the house's cut.
-        $amount = $deals->sum(
-            fn (Deal $deal) => collect($commissions->preview($deal))
+        $contributions = $deals->map(
+            fn (Deal $deal) => round((float) collect($commissions->preview($deal))
                 ->where('agent_id', $leadAgentId)
                 ->where('type', '!=', MlmCommissionType::System->value)
-                ->sum('amount')
+                ->sum('amount'), 2)
         );
+        $amount = round((float) $contributions->sum(), 2);
+        $contributing = $contributions->filter(fn (float $share) => $share > 0)->count();
 
-        // Two open deals plus a known rate is one subtraction away from a deal
-        // value, so the number only appears once it is genuinely aggregated.
-        $suppressed = $deals->count() > 0 && $deals->count() < self::FORECAST_MIN_DEALS;
+        // A deal that pays nothing must not pad the count. Two agreed-zero
+        // referrals plus one paying deal would otherwise publish that one amount.
+        // With the referral feature off, the cohort size alone decides, as before it.
+        $suppressed = FeatureFlags::enabled('crm.partner-referral-commission')
+            ? $contributing > 0 && $contributing < self::FORECAST_MIN_DEALS
+            : $deals->count() > 0 && $deals->count() < self::FORECAST_MIN_DEALS;
 
         return [
             'deal_count' => $deals->count(),
@@ -2140,10 +2192,11 @@ class DashboardMetricsService
     /**
      * A partner's open referrals, one row each.
      *
-     * Names are abbreviated server-side ("Sarah Al-Rashid" → "S. Al-Rashid")
-     * and no email, phone or deal value is selected at all — the partner sits
-     * outside the trust boundary, so the redaction happens in the query rather
-     * than by the UI choosing not to render a field it was handed.
+     * The client name is the full name. No email, phone or deal value is
+     * selected at all — the partner sits outside the trust boundary, so that
+     * redaction happens in the query rather than by the UI choosing not to
+     * render a field it was handed. Source is the first-touch UTM source when
+     * the lead has one, otherwise the lead source.
      *
      * Stalled, behind PARTNER_LEAD_STALLED_FLAG: the lead was touched (first
      * contact, a held meeting, or any deal) and leads.updated_at is then at
@@ -2178,6 +2231,7 @@ class DashboardMetricsService
                         PartnerFlag::STATUS_ACKNOWLEDGED,
                     ]);
             })
+            ->leftJoin('lead_sources', 'lead_sources.id', '=', 'leads.source_id')
             ->orderBy('leads.created_at')
             ->limit(50)
             ->toBase()
@@ -2187,8 +2241,10 @@ class DashboardMetricsService
                 'leads.created_at',
                 'leads.updated_at',
                 'leads.first_contacted_at',
+                'lead_sources.type as lead_source_type',
                 'partner_flags.status as flag_status',
                 'partner_flags.response as flag_response',
+                DB::raw($this->firstTouchUtmSourceSql().' as first_touch_utm_source'),
                 DB::raw($this->firstMeetingSubquery().' as met_at'),
                 DB::raw('(SELECT COUNT(*) FROM deals d WHERE d.lead_id = leads.id AND d.outcome_status IS NULL) as open_deals'),
                 DB::raw('(SELECT COUNT(*) FROM deals dx WHERE dx.lead_id = leads.id) as deal_count'),
@@ -2209,10 +2265,12 @@ class DashboardMetricsService
 
                 return [
                     'id' => $row->id,
-                    'client' => $this->abbreviateName($row->client_name),
+                    'client' => PartnerRole::fullName($row->client_name),
+                    ...PartnerRole::sourceLabels($row->first_touch_utm_source, $row->lead_source_type),
                     'stage' => $stage,
                     'stalled' => self::referralIsStalled($touched, $idleDays, $stalledAfterDays, $requireTouch),
                     'days_open' => (int) Carbon::parse($row->created_at)->diffInDays(now()),
+                    'added_at' => $row->created_at ? Carbon::parse($row->created_at)->toIso8601String() : null,
                     'idle_days' => $idleDays,
                     'flag_status' => $row->flag_status,
                     'flag_response' => $row->flag_response,
@@ -2252,7 +2310,7 @@ class DashboardMetricsService
             ->map(fn (PartnerFlag $flag) => [
                 'id' => $flag->id,
                 'lead_id' => $flag->lead_id,
-                'client' => $this->abbreviateName($flag->lead?->client_name),
+                'client' => PartnerRole::fullName($flag->lead?->client_name),
                 'reason' => $flag->reason,
                 'message' => $flag->message,
                 'status' => $flag->status,
@@ -2401,6 +2459,24 @@ class DashboardMetricsService
     }
 
     /**
+     * First-touch UTM source: the touch flagged as first, then the marketing
+     * row, which keeps that same first set and is never overwritten.
+     */
+    private function firstTouchUtmSourceSql(): string
+    {
+        return "COALESCE(
+            (SELECT t.utm_source FROM lead_utm_touches t
+             WHERE t.lead_id = leads.id AND t.is_first_touch = 1
+               AND t.utm_source IS NOT NULL AND t.utm_source <> ''
+             ORDER BY t.id ASC LIMIT 1),
+            (SELECT lm.utm_source FROM lead_marketing lm
+             WHERE lm.lead_id = leads.id
+               AND lm.utm_source IS NOT NULL AND lm.utm_source <> ''
+             ORDER BY lm.id ASC LIMIT 1)
+        )";
+    }
+
+    /**
      * Correlated subquery for a lead's first held meeting, reached either
      * directly (`lead_id`) or through one of its deals.
      */
@@ -2498,14 +2574,5 @@ class DashboardMetricsService
         $rank = (int) ceil($percentile / 100 * count($values));
 
         return (float) $values[max(0, $rank - 1)];
-    }
-
-    /**
-     * "Sarah Al-Rashid" → "S. Al-Rashid". Used on the partner view, where the
-     * full client name is more than the partner is entitled to see.
-     */
-    private function abbreviateName(?string $name): ?string
-    {
-        return \App\Support\PartnerRole::abbreviateName($name);
     }
 }

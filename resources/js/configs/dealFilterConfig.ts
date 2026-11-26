@@ -48,6 +48,7 @@ export const createDealFilterConfig = (
         // ── General ──────────────────────────────────────────────
         {
             key: "pipeline_stage_id",
+            exclusions: ["not_in"],
             label: "Stage",
             type: "multiselect",
             control: "pills",
@@ -92,16 +93,20 @@ export const createDealFilterConfig = (
         { key: "end_date", label: "Created to", type: "date", hidden: true },
         {
             key: "close_start",
+            exclusions: ["empty", "any"],
+            exclusionLabels: { in: "In range", empty: "Not closed yet", any: "Has a close date" },
             label: "Closed",
             type: "date",
             control: "datePresets",
             rangeKeys: ["close_start", "close_end"],
-            sentence: "closed",
+            sentence: "close date",
             section: "General",
         },
         { key: "close_end", label: "Closed to", type: "date", hidden: true },
         {
             key: "value_range",
+            exclusions: ["empty"],
+            exclusionLabels: { in: "In range", empty: "No value" },
             label: "Deal value",
             type: "numberrange",
             control: "scoreRange",
@@ -116,6 +121,7 @@ export const createDealFilterConfig = (
             ? [
                   {
                       key: "lead_pipeline_id",
+            exclusions: ["not_in"] as FilterFieldConfig["exclusions"],
                       label: "Pipeline",
                       type: "multiselect" as const,
                       control: "pills" as const,
@@ -133,6 +139,8 @@ export const createDealFilterConfig = (
         // ── Assignment & source ──────────────────────────────────
         {
             key: "agent_id",
+            exclusions: ["not_in", "empty", "any", "active", "inactive"],
+            exclusionLabels: { active: "Agent is active", inactive: "Agent is inactive" },
             label: "Agent",
             type: "multiselect",
             control: "checklist",
@@ -147,6 +155,7 @@ export const createDealFilterConfig = (
         },
         {
             key: "category_id",
+            exclusions: ["not_in", "empty"],
             label: "Categories",
             type: "multiselect",
             control: "pills",
@@ -160,6 +169,7 @@ export const createDealFilterConfig = (
         },
         {
             key: "source_id",
+            exclusions: ["not_in", "empty"],
             label: "Source",
             type: "multiselect",
             control: "pills",
@@ -173,6 +183,7 @@ export const createDealFilterConfig = (
         },
         {
             key: "package_id",
+            exclusions: ["not_in", "empty", "any"],
             label: "Packages",
             type: "multiselect",
             control: "checklist",

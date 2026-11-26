@@ -61,6 +61,10 @@ export interface DealShowProps extends PageProps {
     pageTitle: string;
     dealAiSummary?: DealSummaryPayload | null;
     restrictPackageOrProperty?: boolean;
+    /** Explicit pipeline offering — drives package vs property selectors. */
+    pipelineOfferingType?: "property" | "package" | "both";
+    /** @deprecated Prefer pipelineOfferingType; kept for older payloads. */
+    pipelineHasPackages?: boolean;
     /** Null when crm.email is off or the user is not on the pilot allowlist. */
     emailQuickAction?: EmailQuickAction | null;
     visibleLeadFieldKeys?: string[] | null;

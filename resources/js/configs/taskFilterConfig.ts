@@ -23,6 +23,7 @@ const createTaskFilterConfig = (
         },
         {
             key: "status",
+            exclusions: ["not_in"],
             label: "Status",
             type: "multiselect",
             control: "pills",
@@ -37,6 +38,7 @@ const createTaskFilterConfig = (
         },
         {
             key: "priority",
+            exclusions: ["not_in", "empty"],
             label: "Priority",
             type: "multiselect",
             control: "pills",
@@ -53,6 +55,7 @@ const createTaskFilterConfig = (
         },
         {
             key: "assigned_to",
+            exclusions: ["not_in", "empty", "any"],
             label: "Assigned to",
             type: "multiselect",
             control: "checklist",
@@ -67,6 +70,7 @@ const createTaskFilterConfig = (
         },
         {
             key: "assigned_by",
+            exclusions: ["not_in"],
             label: "Assigned by",
             type: "multiselect",
             control: "checklist",
@@ -81,6 +85,7 @@ const createTaskFilterConfig = (
         },
         {
             key: "category_id",
+            exclusions: ["not_in", "empty"],
             label: "Task category",
             type: "multiselect",
             control: "pills",
@@ -95,6 +100,7 @@ const createTaskFilterConfig = (
         },
         {
             key: "project_id",
+            exclusions: ["not_in", "empty"],
             label: "Project",
             type: "select",
             control: "select",
@@ -109,6 +115,7 @@ const createTaskFilterConfig = (
         },
         {
             key: "labels",
+            exclusions: ["not_in", "empty", "any"],
             label: "Labels",
             type: "multiselect",
             control: "tokens",
@@ -123,6 +130,8 @@ const createTaskFilterConfig = (
         },
         {
             key: "due_date_range",
+            exclusions: ["empty", "any"],
+            exclusionLabels: { in: "In range", empty: "No due date", any: "Has a due date" },
             label: "Due date",
             type: "daterange",
             control: "datePresets",

@@ -34,6 +34,7 @@ import { usePage } from "@inertiajs/react";
 import AddProposal from "./proposals/AddProposal";
 import EditProposal from "./proposals/EditProposal";
 import DeleteProposal from "./proposals/DeleteProposal";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 interface Props {
     deal: Deal;
@@ -42,6 +43,7 @@ interface Props {
 }
 
 export default function ProposalsTab({ deal, proposals, permissions }: Props) {
+    const { td } = useTd();
     const { props } = usePage();
     const user = props.auth.user;
 
@@ -75,7 +77,7 @@ export default function ProposalsTab({ deal, proposals, permissions }: Props) {
             })
             .catch((error) => {
                 console.error("Error sending proposal:", error);
-                message.error("Failed to send proposal");
+                message.error(td("Failed to send proposal", { source: "en" }));
             });
     };
 
@@ -95,15 +97,15 @@ export default function ProposalsTab({ deal, proposals, permissions }: Props) {
             .then((response) => response.json())
             .then((data) => {
                 if (data.status === "success") {
-                    message.success("Proposal marked as sent");
+                    message.success(td("Proposal marked as sent", { source: "en" }));
                     window.location.reload();
                 } else {
-                    message.error("Failed to mark proposal as sent");
+                    message.error(td("Failed to mark proposal as sent", { source: "en" }));
                 }
             })
             .catch((error) => {
                 console.error("Error marking proposal as sent:", error);
-                message.error("Failed to mark proposal as sent");
+                message.error(td("Failed to mark proposal as sent", { source: "en" }));
             });
     };
 
@@ -137,7 +139,7 @@ export default function ProposalsTab({ deal, proposals, permissions }: Props) {
 
     const columns: TableColumnsType<Proposal> = [
         {
-            title: "Proposal Number",
+            title: td("Proposal Number", { source: "en" }),
             dataIndex: "proposal_number",
             key: "proposal_number",
             width: "20%",
@@ -161,7 +163,7 @@ export default function ProposalsTab({ deal, proposals, permissions }: Props) {
             ),
         },
         {
-            title: "Total",
+            title: td("Total", { source: "en" }),
             dataIndex: "total",
             key: "total",
             width: "15%",
@@ -173,7 +175,7 @@ export default function ProposalsTab({ deal, proposals, permissions }: Props) {
             ),
         },
         {
-            title: "Date",
+            title: td("Date", { source: "en" }),
             dataIndex: "created_at",
             key: "created_at",
             width: "12%",
@@ -184,7 +186,7 @@ export default function ProposalsTab({ deal, proposals, permissions }: Props) {
             ),
         },
         {
-            title: "Valid Till",
+            title: td("Valid Till", { source: "en" }),
             dataIndex: "valid_till",
             key: "valid_till",
             width: "12%",
@@ -195,7 +197,7 @@ export default function ProposalsTab({ deal, proposals, permissions }: Props) {
             ),
         },
         {
-            title: "Status",
+            title: td("Status", { source: "en" }),
             dataIndex: "status",
             key: "status",
             width: "15%",
@@ -230,13 +232,13 @@ export default function ProposalsTab({ deal, proposals, permissions }: Props) {
                             : status}
                     </Tag>
                     {!record.send_status && (
-                        <Badge status="default" text="Not Sent" />
+                        <Badge status="default" text={td("Not Sent", { source: "en" })} />
                     )}
                 </Space>
             ),
         },
         {
-            title: "Actions",
+            title: td("Actions", { source: "en" }),
             key: "actions",
             width: "26%",
             render: (_, record: Proposal) => {
@@ -253,7 +255,7 @@ export default function ProposalsTab({ deal, proposals, permissions }: Props) {
                                 rel="noopener noreferrer"
                             >
                                 <EyeOutlined className="mr-2" />
-                                View
+                                {td("View", { source: "en" })}
                             </a>
                         ),
                     });
@@ -272,7 +274,7 @@ export default function ProposalsTab({ deal, proposals, permissions }: Props) {
                                 rel="noopener noreferrer"
                             >
                                 <LinkOutlined className="mr-2" />
-                                Public Link
+                                {td("Public Link", { source: "en" })}
                             </a>
                         ),
                     });
@@ -284,7 +286,7 @@ export default function ProposalsTab({ deal, proposals, permissions }: Props) {
                     label: (
                         <a href={route("proposals.download", record.id)}>
                             <DownloadOutlined className="mr-2" />
-                            Download
+                            {td("Download", { source: "en" })}
                         </a>
                     ),
                 });
@@ -313,7 +315,7 @@ export default function ProposalsTab({ deal, proposals, permissions }: Props) {
                         label: (
                             <span onClick={() => handleSendProposal(record)}>
                                 <SendOutlined className="mr-2" />
-                                Send
+                                {td("Send", { source: "en" })}
                             </span>
                         ),
                     });
@@ -326,7 +328,7 @@ export default function ProposalsTab({ deal, proposals, permissions }: Props) {
                         label: (
                             <span onClick={() => handleMarkSent(record)}>
                                 <CheckOutlined className="mr-2" />
-                                Mark Sent
+                                {td("Mark Sent", { source: "en" })}
                             </span>
                         ),
                     });
@@ -349,7 +351,7 @@ export default function ProposalsTab({ deal, proposals, permissions }: Props) {
                                 rel="noopener noreferrer"
                             >
                                 <DollarOutlined className="mr-2" />
-                                Create Invoice
+                                {td("Create Invoice", { source: "en" })}
                             </a>
                         ),
                     });
@@ -401,7 +403,7 @@ export default function ProposalsTab({ deal, proposals, permissions }: Props) {
                         description={
                             <div className="text-center">
                                 <p className="text-gray-500 mb-2">
-                                    No proposals found
+                                    {td("No proposals found", { source: "en" })}
                                 </p>
 
                                 {(permissions.add_lead_proposals === "all" ||
@@ -414,7 +416,7 @@ export default function ProposalsTab({ deal, proposals, permissions }: Props) {
                                         trigger="custom"
                                     >
                                         <Button type="primary">
-                                            Create Proposal
+                                            {td("Create Proposal", { source: "en" })}
                                         </Button>
                                     </AddProposal>
                                 )}
@@ -431,7 +433,7 @@ export default function ProposalsTab({ deal, proposals, permissions }: Props) {
                                 Proposals ({proposals.length})
                             </h3>
                             <p className="text-sm text-gray-500">
-                                Manage and track deal proposals
+                                {td("Manage and track deal proposals", { source: "en" })}
                             </p>
                         </div>
                         {(permissions.add_lead_proposals === "all" ||
@@ -446,7 +448,7 @@ export default function ProposalsTab({ deal, proposals, permissions }: Props) {
                                     type="primary"
                                     icon={<FileTextOutlined />}
                                 >
-                                    Add Proposal
+                                    {td("Add Proposal", { source: "en" })}
                                 </Button>
                             </AddProposal>
                         )}

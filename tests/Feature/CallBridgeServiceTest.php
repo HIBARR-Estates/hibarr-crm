@@ -328,7 +328,8 @@ class CallBridgeServiceTest extends TestCase
 
         $this->assertNotNull($event);
         $this->assertSame('call_voicemail', $event->eventType->slug);
-        $this->assertSame('completed', $event->status->value);
+        // Connected, but not to a person: never reported as completed.
+        $this->assertSame('voicemail', $event->status->value);
 
         // A voicemail is not an answered conversation — the callback stays open.
         $this->assertNull(DB::table('tasks')->where('id', $taskId)->value('completed_on'));
@@ -635,6 +636,198 @@ class CallBridgeServiceTest extends TestCase
         $this->assertSame(['fetched' => 0, 'logged' => 0, 'skipped' => 0, 'errors' => 0], $summary);
     }
 
+    public function test_feed_agent_email_is_resolved_to_the_crm_user(): void
+    {
+        $agentId = (int) DB::table('users')->insertGetId([
+            'name' => 'Agent',
+            'email' => 'Agent@Example.com',
+            'company_id' => self::COMPANY_ID,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $event = $this->service()->logCallEvent($this->olEvent([
+            'id' => 'ol-evt-email',
+            'call_id' => 'sipgate-1',
+            'event' => 'call.ended',
+            'status' => 'answered',
+            'user_id' => null,
+            'user_email' => 'agent@example.com',
+        ]));
+
+        $this->assertNotNull($event);
+        $this->assertSame($agentId, (int) $event->user_id);
+    }
+
+    public function test_ambiguous_feed_agent_email_is_left_unattributed(): void
+    {
+        foreach ([self::COMPANY_ID + 1, self::COMPANY_ID + 2] as $companyId) {
+            DB::table('users')->insert([
+                'name' => 'Twin',
+                'email' => 'twin@example.com',
+                'company_id' => $companyId,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        }
+
+        // The lead's company matches neither twin, so nobody is attributed.
+        $event = $this->service()->logCallEvent($this->olEvent([
+            'id' => 'ol-evt-twin',
+            'call_id' => 'sipgate-2',
+            'event' => 'call.ended',
+            'status' => 'answered',
+            'user_id' => null,
+            'user_email' => 'twin@example.com',
+        ]));
+
+        $this->assertNotNull($event);
+        $this->assertNull($event->user_id);
+    }
+
+    public function test_lone_feed_email_match_from_another_company_is_left_unattributed(): void
+    {
+        DB::table('users')->insert([
+            'name' => 'Elsewhere',
+            'email' => 'elsewhere@example.com',
+            'company_id' => self::COMPANY_ID + 1,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $event = $this->service()->logCallEvent($this->olEvent([
+            'id' => 'ol-evt-elsewhere',
+            'call_id' => 'sipgate-3',
+            'event' => 'call.ended',
+            'status' => 'answered',
+            'user_id' => null,
+            'user_email' => 'elsewhere@example.com',
+        ]));
+
+        $this->assertNotNull($event);
+        $this->assertNull($event->user_id);
+    }
+
+    public function test_poll_attributes_by_email_instead_of_ols_own_user_id(): void
+    {
+        $this->configureBridge();
+        $agentId = (int) DB::table('users')->insertGetId([
+            'name' => 'Agent',
+            'email' => 'agent@example.com',
+            'company_id' => self::COMPANY_ID,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        Http::fake([
+            'https://bridge.test/v1/call-bridge/events*' => Http::response([
+                'data' => [
+                    'events' => [
+                        $this->olEvent([
+                            'id' => 'ol-evt-native-id',
+                            'call_id' => 'call-native',
+                            'event' => 'call.ended',
+                            'status' => 'answered',
+                            // OL's own user id, which is not a CRM id.
+                            'user_id' => 987654,
+                            'user_email' => 'agent@example.com',
+                        ]),
+                    ],
+                    'cursor' => null,
+                    'has_more' => false,
+                ],
+            ]),
+        ]);
+
+        $this->service()->poll();
+
+        $userId = DB::table('crm_events')
+            ->where('metadata->ol_event_id', 'ol-evt-native-id')
+            ->value('user_id');
+        $this->assertSame($agentId, (int) $userId);
+    }
+
+    // ─── CRM → OL payloads ──────────────────────────────────────────────
+
+    public function test_emit_sends_crm_correlation_fields_to_ol(): void
+    {
+        $this->configureBridge();
+        Http::fake(['https://bridge.test/v1/call-bridge/emit' => Http::response(['data' => []])]);
+
+        app(\App\Services\CallBridge\CallBridgeClient::class)->emitCallEvent([
+            'event' => 'call.ended',
+            'call_id' => 'sip-abc',
+            'call_ref' => 'ref-abc',
+            'direction' => 'outbound',
+            'phone_number' => '+491701234567',
+            'agent_email' => 'agent@example.com',
+            'entity_type' => 'lead',
+            'entity_id' => 12,
+        ]);
+
+        Http::assertSent(function ($request) {
+            return $request->url() === 'https://bridge.test/v1/call-bridge/emit'
+                && $request['callId'] === 'sip-abc'
+                && $request['callRef'] === 'ref-abc'
+                && $request['agentEmail'] === 'agent@example.com'
+                && $request['entityType'] === 'lead'
+                && $request['entityId'] === 12;
+        });
+    }
+
+    public function test_emit_drops_invalid_correlation_fields(): void
+    {
+        $this->configureBridge();
+        Http::fake(['https://bridge.test/v1/call-bridge/emit' => Http::response(['data' => []])]);
+
+        app(\App\Services\CallBridge\CallBridgeClient::class)->emitCallEvent([
+            'event' => 'call.started',
+            'call_id' => 'sip-xyz',
+            'agent_email' => 'not-an-email',
+            'entity_type' => 'App\Models\Lead',
+            'entity_id' => 5,
+        ]);
+
+        Http::assertSent(function ($request) {
+            $body = $request->data();
+
+            return ! array_key_exists('agentEmail', $body)
+                && ! array_key_exists('entityType', $body)
+                && ! array_key_exists('entityId', $body);
+        });
+    }
+
+    public function test_emit_recording_posts_to_ol_and_omits_non_https_urls(): void
+    {
+        $this->configureBridge();
+        Http::fake(['https://bridge.test/v1/call-bridge/emit/recording' => Http::response(['data' => []])]);
+
+        $client = app(\App\Services\CallBridge\CallBridgeClient::class);
+
+        $client->emitRecording([
+            'callRef' => 'ref-1',
+            'crmRecordingId' => 501,
+            'url' => 'https://cdn.example.com/rec.mp3',
+            'mimeType' => 'audio/mpeg',
+            'durationSeconds' => 170,
+            'direction' => 'inbound',
+            'entityType' => 'lead',
+            'entityId' => 12,
+        ]);
+        $client->emitRecording([
+            'callRef' => 'ref-2',
+            'crmRecordingId' => 502,
+            'url' => null,
+        ]);
+
+        Http::assertSent(fn ($r) => $r['callRef'] === 'ref-1'
+            && $r['crmRecordingId'] === 501
+            && $r['url'] === 'https://cdn.example.com/rec.mp3'
+            && $r['entityId'] === 12);
+        Http::assertSent(fn ($r) => $r['callRef'] === 'ref-2'
+            && ! array_key_exists('url', $r->data()));
+    }
+
     // ─── Helpers ────────────────────────────────────────────────────────
 
     private function service(): CallBridgeService
@@ -854,6 +1047,7 @@ class CallBridgeServiceTest extends TestCase
             $table->increments('id');
             $table->string('name')->nullable();
             $table->string('image')->nullable();
+            $table->string('email')->nullable();
             $table->unsignedInteger('company_id')->nullable();
             $table->string('status')->default('active');
             $table->timestamps();

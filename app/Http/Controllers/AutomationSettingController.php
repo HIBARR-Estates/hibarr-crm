@@ -55,7 +55,7 @@ class AutomationSettingController extends AccountBaseController
             'metaEvents' => Inertia::defer(fn () => MetaEvent::allWithUsage(), 'automation'),
 
             'catalog' => Inertia::defer(fn () => [
-                'pipelines' => LeadPipeline::all(['id', 'name']),
+                'pipelines' => LeadPipeline::visibleInSystem()->get(['id', 'name']),
                 'stages' => PipelineStage::all(['id', 'name', 'lead_pipeline_id']),
                 'users' => User::allEmployees(null, false),
                 'dealCustomFields' => AutomationFieldCatalog::dealCustomFields(),

@@ -8,6 +8,10 @@ export interface Agent {
     lead_category_id: number | null;
     parent_agent_id: number | null;
     status: "enabled" | "disabled";
+    is_partner?: boolean;
+    /** What a partner earns on a referred deal with no package; a decimal string from the `decimal:2` cast. */
+    referral_commission_type?: "percentage" | "fixed" | null;
+    referral_commission_value?: string | null;
     added_by: number | null;
     last_updated_by: number | null;
     created_at: string;
@@ -58,6 +62,7 @@ export interface AgentShowProps {
         edit_lead_agent: string;
         delete_lead_agent: string;
         view_deals: string;
+        manage_partner_network?: boolean;
     };
 }
 

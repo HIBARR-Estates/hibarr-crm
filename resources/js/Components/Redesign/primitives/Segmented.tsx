@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { REDESIGN_RADIUS as R, REDESIGN_TOKENS as T } from "../tokens";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 export interface SegmentedOption<V extends string | number> {
     value: V;
@@ -41,6 +42,7 @@ export default function Segmented<V extends string | number>({
     variant = "solid",
     fullWidth = false,
 }: SegmentedProps<V>) {
+    const { td } = useTd();
     return (
         <div
             role="group"

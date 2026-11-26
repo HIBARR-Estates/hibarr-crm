@@ -63,6 +63,7 @@ import type {
 import type { IInvitation, InvitationStatus } from "@/Types/invitations";
 import type { Deal } from "@/Types/api/deals";
 import { OrderedListOutlined, PartitionOutlined } from "@ant-design/icons";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 interface Props extends PageProps {
     network: AgentHierarchyNode | null;
@@ -70,6 +71,7 @@ interface Props extends PageProps {
 
 // ── Downline Deals Table (used inside the Drawer) ────────────────
 const DownlineDealsSection: React.FC<{ agentId: number }> = ({ agentId }) => {
+    const { td } = useTd();
     const { default_currency_symbol: currencySymbol = "" } = usePage()
         .props as any;
     const [page, setPage] = useState(1);
@@ -84,7 +86,7 @@ const DownlineDealsSection: React.FC<{ agentId: number }> = ({ agentId }) => {
 
     const columns = [
         {
-            title: "Deal",
+            title: td("Deal", { source: "en" }),
             key: "deal",
             render: (_: any, r: DownlineDealContribution) => (
                 <div>
@@ -94,7 +96,7 @@ const DownlineDealsSection: React.FC<{ agentId: number }> = ({ agentId }) => {
             ),
         },
         {
-            title: "Value",
+            title: td("Value", { source: "en" }),
             dataIndex: "deal_value",
             key: "deal_value",
             align: "right" as const,
@@ -108,7 +110,7 @@ const DownlineDealsSection: React.FC<{ agentId: number }> = ({ agentId }) => {
             ),
         },
         {
-            title: "Commission",
+            title: td("Commission", { source: "en" }),
             dataIndex: "commission_amount",
             key: "commission_amount",
             align: "right" as const,
@@ -122,7 +124,7 @@ const DownlineDealsSection: React.FC<{ agentId: number }> = ({ agentId }) => {
             ),
         },
         {
-            title: "Type",
+            title: td("Type", { source: "en" }),
             dataIndex: "commission_type",
             key: "commission_type",
             render: (t: string) => (
@@ -140,7 +142,7 @@ const DownlineDealsSection: React.FC<{ agentId: number }> = ({ agentId }) => {
             ),
         },
         {
-            title: "Date",
+            title: td("Date", { source: "en" }),
             dataIndex: "date",
             key: "date",
             render: (d: string) => formatCompanyDate(d, "—"),
@@ -171,6 +173,7 @@ const DownlineDealsSection: React.FC<{ agentId: number }> = ({ agentId }) => {
 
 // ── Invitations Tab ──────────────────────────────────────────────
 const InvitationsTab: React.FC = () => {
+    const { td } = useTd();
     const [form] = Form.useForm();
 
     const {
@@ -206,7 +209,7 @@ const InvitationsTab: React.FC = () => {
 
     const inviteColumns = [
         {
-            title: "Email",
+            title: td("Email", { source: "en" }),
             dataIndex: "email",
             key: "email",
             render: (email: string) => (
@@ -214,7 +217,7 @@ const InvitationsTab: React.FC = () => {
             ),
         },
         {
-            title: "Name",
+            title: td("Name", { source: "en" }),
             key: "name",
             render: (_: any, r: IInvitation) => {
                 const name = [r.firstName, r.lastName]
@@ -224,7 +227,7 @@ const InvitationsTab: React.FC = () => {
             },
         },
         {
-            title: "Status",
+            title: td("Status", { source: "en" }),
             dataIndex: "status",
             key: "status",
             render: (s: InvitationStatus) => (
@@ -232,14 +235,14 @@ const InvitationsTab: React.FC = () => {
             ),
         },
         {
-            title: "Expires",
+            title: td("Expires", { source: "en" }),
             dataIndex: "tokenExpiresAt",
             key: "tokenExpiresAt",
             render: (d: string | null) =>
                 d ? formatCompanyDate(d) : "—",
         },
         {
-            title: "Sent",
+            title: td("Sent", { source: "en" }),
             dataIndex: "createdAt",
             key: "createdAt",
             render: (d: string) => (d ? formatCompanyDate(d) : "—"),
@@ -260,7 +263,7 @@ const InvitationsTab: React.FC = () => {
                     title={
                         <div className="flex items-center gap-2">
                             <Mail size={16} className="text-indigo-500" />
-                            <span>Invite Agent</span>
+                            <span>{td("Invite Agent", { source: "en" })}</span>
                         </div>
                     }
                 >
@@ -285,7 +288,7 @@ const InvitationsTab: React.FC = () => {
                             className="flex-1 min-w-[250px]"
                         >
                             <Input
-                                placeholder="agent@example.com"
+                                placeholder={td("agent@example.com", { source: "en" })}
                                 size="middle"
                             />
                         </Form.Item>
@@ -296,7 +299,7 @@ const InvitationsTab: React.FC = () => {
                                 loading={sending}
                                 icon={<Send size={14} />}
                             >
-                                Send Invite
+                                {td("Send Invite", { source: "en" })}
                             </Button>
                         </Form.Item>
                     </Form>
@@ -312,7 +315,7 @@ const InvitationsTab: React.FC = () => {
                 <Card
                     size="small"
                     className="shadow-sm"
-                    title="Sent Invitations"
+                    title={td("Sent Invitations", { source: "en" })}
                     extra={
                         <Button
                             icon={<RefreshCw size={14} />}
@@ -320,7 +323,7 @@ const InvitationsTab: React.FC = () => {
                             onClick={() => refetchInvites()}
                             loading={invitesLoading}
                         >
-                            Refresh
+                            {td("Refresh", { source: "en" })}
                         </Button>
                     }
                 >
@@ -350,6 +353,7 @@ const InvitationsTab: React.FC = () => {
 
 // ── Deals Tab ────────────────────────────────────────────────────
 const DealsTab: React.FC = () => {
+    const { td } = useTd();
     const { default_currency_symbol: currencySymbol = "" } = usePage()
         .props as any;
     const [page, setPage] = useState(1);
@@ -375,7 +379,7 @@ const DealsTab: React.FC = () => {
 
     const dealColumns = [
         {
-            title: "Deal Name",
+            title: td("Deal Name", { source: "en" }),
             key: "deal_name",
             width: 250,
             render: (_: any, record: Deal) => (
@@ -390,7 +394,7 @@ const DealsTab: React.FC = () => {
             ),
         },
         {
-            title: "Contact",
+            title: td("Contact", { source: "en" }),
             key: "contact",
             width: 180,
             render: (_: any, record: Deal) => {
@@ -411,7 +415,7 @@ const DealsTab: React.FC = () => {
             },
         },
         {
-            title: "Stage",
+            title: td("Stage", { source: "en" }),
             key: "stage",
             width: 140,
             render: (_: any, record: Deal) => {
@@ -427,14 +431,14 @@ const DealsTab: React.FC = () => {
                             }}
                         />
                         <span className="text-sm text-gray-900 truncate">
-                            {record.lead_stage.name}
+                            {td(record.lead_stage.name, { source: "en" })}
                         </span>
                     </div>
                 );
             },
         },
         {
-            title: "Assigned Agent",
+            title: td("Assigned Agent", { source: "en" }),
             key: "agent",
             width: 160,
             render: (_: any, record: Deal) => {
@@ -450,7 +454,7 @@ const DealsTab: React.FC = () => {
             },
         },
         {
-            title: "Value",
+            title: td("Value", { source: "en" }),
             key: "value",
             width: 110,
             align: "right" as const,
@@ -468,7 +472,7 @@ const DealsTab: React.FC = () => {
             },
         },
         {
-            title: "Created",
+            title: td("Created", { source: "en" }),
             key: "created_at",
             width: 110,
             render: (_: any, record: Deal) =>
@@ -493,7 +497,7 @@ const DealsTab: React.FC = () => {
                 <Card size="small" className="shadow-sm">
                     <div className="flex flex-wrap items-center gap-3">
                         <Select
-                            placeholder="My Deals"
+                            placeholder={td("My Deals", { source: "en" })}
                             allowClear
                             showSearch
                             optionFilterProp="label"
@@ -509,7 +513,7 @@ const DealsTab: React.FC = () => {
                             }))}
                         />
                         <Input
-                            placeholder="Search deals..."
+                            placeholder={td("Search deals...", { source: "en" })}
                             prefix={
                                 <Search size={14} className="text-gray-400" />
                             }
@@ -527,7 +531,7 @@ const DealsTab: React.FC = () => {
                             onClick={() => refetch()}
                             loading={isLoading}
                         >
-                            Refresh
+                            {td("Refresh", { source: "en" })}
                         </Button>
                     </div>
                 </Card>
@@ -572,6 +576,7 @@ const DealsTab: React.FC = () => {
 const AgentLevelHistorySection: React.FC<{ agentId: number }> = ({
     agentId,
 }) => {
+    const { td } = useTd();
     const { default_currency_symbol: currencySymbol = "" } = usePage()
         .props as any;
     const { data, isLoading } = useLevelHistory({
@@ -587,7 +592,7 @@ const AgentLevelHistorySection: React.FC<{ agentId: number }> = ({
     if (records.length === 0) {
         return (
             <Empty
-                description="No level history"
+                description={td("No level history", { source: "en" })}
                 image={Empty.PRESENTED_IMAGE_SIMPLE}
             />
         );
@@ -601,11 +606,11 @@ const AgentLevelHistorySection: React.FC<{ agentId: number }> = ({
                     <div>
                         <div className="flex items-center gap-2">
                             <Tag color="blue">
-                                {r.level?.name ?? "Unknown Level"}
+                                {td(r.level?.name ?? "Unknown Level", { source: "en" })}
                             </Tag>
                             {r.system_assigned && (
                                 <Tag color="default" className="text-xs">
-                                    Auto
+                                    {td("Auto", { source: "en" })}
                                 </Tag>
                             )}
                         </div>
@@ -636,6 +641,7 @@ const AgentDetailContent: React.FC<{
     node: AgentHierarchyNode;
     extraContent?: React.ReactNode;
 }> = ({ node, extraContent }) => {
+    const { td } = useTd();
     const { default_currency_symbol: currencySymbol = "" } = usePage()
         .props as any;
     return (
@@ -660,7 +666,7 @@ const AgentDetailContent: React.FC<{
                     className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-indigo-600 hover:text-indigo-800 border border-indigo-200 rounded-lg hover:bg-indigo-50 transition-colors"
                 >
                     <ExternalLink size={14} />
-                    View Dashboard
+                    {td("View Dashboard", { source: "en" })}
                 </Link>
             </div>
 
@@ -670,19 +676,19 @@ const AgentDetailContent: React.FC<{
                 title={
                     <div className="flex items-center gap-2">
                         <Users size={14} className="text-indigo-500" />
-                        <span>Overview</span>
+                        <span>{td("Overview", { source: "en" })}</span>
                     </div>
                 }
             >
                 <Descriptions column={2} size="small">
-                    <Descriptions.Item label="Level">
+                    <Descriptions.Item label={td("Level", { source: "en" })}>
                         {node.level_name ? (
                             <Tag color="blue">{node.level_name}</Tag>
                         ) : (
                             "Unranked"
                         )}
                     </Descriptions.Item>
-                    <Descriptions.Item label="Direct Downlines">
+                    <Descriptions.Item label={td("Direct Downlines", { source: "en" })}>
                         {node.children?.length ?? 0}
                     </Descriptions.Item>
                 </Descriptions>
@@ -694,7 +700,7 @@ const AgentDetailContent: React.FC<{
                 title={
                     <div className="flex items-center gap-2">
                         <BarChart3 size={14} className="text-indigo-500" />
-                        <span>All-Time Metrics</span>
+                        <span>{td("All-Time Metrics", { source: "en" })}</span>
                     </div>
                 }
             >
@@ -704,7 +710,7 @@ const AgentDetailContent: React.FC<{
                             {node.nsa ?? 0}
                         </div>
                         <div className="text-xs text-blue-600">
-                            Individual Sales
+                            {td("Individual Sales", { source: "en" })}
                         </div>
                     </div>
                     <div className="text-center p-3 rounded-lg bg-purple-50 border border-purple-100">
@@ -712,7 +718,7 @@ const AgentDetailContent: React.FC<{
                             {node.nsd ?? 0}
                         </div>
                         <div className="text-xs text-purple-600">
-                            Team Sales
+                            {td("Team Sales", { source: "en" })}
                         </div>
                     </div>
                     <div className="text-center p-3 rounded-lg bg-green-50 border border-green-100">
@@ -721,7 +727,7 @@ const AgentDetailContent: React.FC<{
                             {(node.vsa ?? 0).toLocaleString()}
                         </div>
                         <div className="text-xs text-green-600">
-                            Individual Revenue
+                            {td("Individual Revenue", { source: "en" })}
                         </div>
                     </div>
                     <div className="text-center p-3 rounded-lg bg-amber-50 border border-amber-100">
@@ -730,7 +736,7 @@ const AgentDetailContent: React.FC<{
                             {(node.vsd ?? 0).toLocaleString()}
                         </div>
                         <div className="text-xs text-amber-600">
-                            Team Revenue
+                            {td("Team Revenue", { source: "en" })}
                         </div>
                     </div>
                 </div>
@@ -742,7 +748,7 @@ const AgentDetailContent: React.FC<{
                 title={
                     <div className="flex items-center gap-2">
                         <History size={14} className="text-indigo-500" />
-                        <span>Level History</span>
+                        <span>{td("Level History", { source: "en" })}</span>
                     </div>
                 }
             >
@@ -757,6 +763,7 @@ const AgentDetailContent: React.FC<{
 
 // ── Main Page ────────────────────────────────────────────────────
 const MyNetwork: React.FC<Props> = ({ network: initialNetwork }) => {
+    const { td } = useTd();
     const { t } = useTranslation();
     const { data, isLoading, refetch } = useMyNetwork();
     const network: AgentHierarchyNode | null =
@@ -827,7 +834,7 @@ const MyNetwork: React.FC<Props> = ({ network: initialNetwork }) => {
                                 label: (
                                     <span className="flex items-center gap-1.5">
                                         <GitBranch size={14} />
-                                        Network
+                                        {td("Network", { source: "en" })}
                                     </span>
                                 ),
                                 children: (
@@ -850,14 +857,14 @@ const MyNetwork: React.FC<Props> = ({ network: initialNetwork }) => {
                                                             className="text-indigo-500"
                                                         />
                                                         <span className="text-sm text-gray-600">
-                                                            Total Downlines:{" "}
+                                                            {td("Total Downlines:", { source: "en" })}{" "}
                                                             <strong>
                                                                 {totalNodes}
                                                             </strong>
                                                         </span>
                                                         {selfNode && (
                                                             <span className="text-sm text-gray-600">
-                                                                Direct:{" "}
+                                                                {td("Direct:", { source: "en" })}{" "}
                                                                 <strong>
                                                                     {selfNode
                                                                         .children
@@ -909,7 +916,7 @@ const MyNetwork: React.FC<Props> = ({ network: initialNetwork }) => {
                                                                 )
                                                             }
                                                         >
-                                                            Fullscreen
+                                                            {td("Fullscreen", { source: "en" })}
                                                         </Button>
                                                         <Button
                                                             icon={
@@ -923,7 +930,7 @@ const MyNetwork: React.FC<Props> = ({ network: initialNetwork }) => {
                                                             }
                                                             loading={isLoading}
                                                         >
-                                                            Refresh
+                                                            {td("Refresh", { source: "en" })}
                                                         </Button>
                                                     </Space>
                                                 </div>
@@ -982,7 +989,7 @@ const MyNetwork: React.FC<Props> = ({ network: initialNetwork }) => {
                                                     )
                                                 ) : (
                                                     <div className="flex items-center justify-center h-96">
-                                                        <Empty description="You don't have any downlines yet." />
+                                                        <Empty description={td("You don't have any downlines yet.", { source: "en" })} />
                                                     </div>
                                                 )}
                                             </Card>
@@ -995,7 +1002,7 @@ const MyNetwork: React.FC<Props> = ({ network: initialNetwork }) => {
                                 label: (
                                     <span className="flex items-center gap-1.5">
                                         <Mail size={14} />
-                                        Invitations
+                                        {td("Invitations", { source: "en" })}
                                     </span>
                                 ),
                                 children: <InvitationsTab />,
@@ -1005,7 +1012,7 @@ const MyNetwork: React.FC<Props> = ({ network: initialNetwork }) => {
                                 label: (
                                     <span className="flex items-center gap-1.5">
                                         <Briefcase size={14} />
-                                        Deals
+                                        {td("Deals", { source: "en" })}
                                     </span>
                                 ),
                                 children: <DealsTab />,
@@ -1021,7 +1028,7 @@ const MyNetwork: React.FC<Props> = ({ network: initialNetwork }) => {
                                     size={18}
                                     className="text-indigo-500"
                                 />
-                                <span>My Network</span>
+                                <span>{td("My Network", { source: "en" })}</span>
                             </div>
                         }
                         open={fullscreenOpen}
@@ -1055,14 +1062,14 @@ const MyNetwork: React.FC<Props> = ({ network: initialNetwork }) => {
                             )
                         ) : (
                             <div className="flex items-center justify-center h-96">
-                                <Empty description="No network data available" />
+                                <Empty description={td("No network data available", { source: "en" })} />
                             </div>
                         )}
                     </Modal>
 
                     {/* Node Detail Drawer (with Downline Deals) */}
                     <Drawer
-                        title="Agent Details"
+                        title={td("Agent Details", { source: "en" })}
                         open={drawerOpen}
                         onClose={() => {
                             setDrawerOpen(false);
@@ -1083,7 +1090,7 @@ const MyNetwork: React.FC<Props> = ({ network: initialNetwork }) => {
                                                         size={14}
                                                         className="text-indigo-500"
                                                     />
-                                                    <span>Deals</span>
+                                                    <span>{td("Deals", { source: "en" })}</span>
                                                 </div>
                                             }
                                         >

@@ -44,6 +44,9 @@ class LeadPipelineSettingController extends AccountBaseController
         $pipeline = new LeadPipeline();
         $pipeline->name = $request->name;
         $pipeline->label_color = $request->label_color;
+        $pipeline->offering_type = $this->normalizeOfferingType(
+            $request->input('offering_type', LeadPipeline::OFFERING_PROPERTY)
+        );
         $pipeline->added_by = user()->id;
         $pipeline->save();
 
@@ -70,13 +73,24 @@ class LeadPipelineSettingController extends AccountBaseController
 
         $this->categoryScopes = $this->scopeResolver->getCategoryScopesForPipeline($this->pipeline);
         $this->scopeableFieldsCatalog = $this->scopeResolver->getScopeableFieldsCatalog();
-        $this->pipelineFieldScopes = \App\Models\PipelineFieldScope::where('pipeline_id', $this->pipeline->id)->get();
+        $this->pipelineFieldScopes = PipelineFieldScope::where('pipeline_id', $this->pipeline->id)->get();
         $this->pipelineFieldScopeMap = $this->buildFieldScopeMap($this->pipelineFieldScopes);
 
         // The analysis script is edited on its own settings page now, so this view
         // no longer needs to load it.
 
         return view('lead-settings.edit-pipeline-modal', $this->data);
+    }
+
+    /**
+     * JSON editor payload for the Deal Settings pipeline-management tab.
+     */
+    public function show($id)
+    {
+        $payload = $this->pipelineEditorPayload($id);
+        unset($payload['pipelineModel']);
+
+        return response()->json($payload);
     }
 
     public function update(UpdateLeadPipeline $request, $id)
@@ -97,10 +111,39 @@ class LeadPipelineSettingController extends AccountBaseController
         $fieldScopes = $validated['field_scopes'] ?? $request->input('field_scopes', []);
         $fieldScopes = is_array($fieldScopes) ? $fieldScopes : [];
 
-        DB::transaction(function () use ($request, $pipeline, $categoryScopes, $fieldScopes) {
+        $hideFromNav = array_key_exists('hidden_from_nav', $validated)
+            ? (bool) $validated['hidden_from_nav']
+            : null;
+        $hideFromSystem = array_key_exists('hidden_from_system', $validated)
+            ? (bool) $validated['hidden_from_system']
+            : null;
+
+        if ($pipeline->default == 1) {
+            if ($hideFromNav === true) {
+                return Reply::error(__('modules.deal.pipelineDefaultNavVisibilityError'));
+            }
+            if ($hideFromSystem === true) {
+                return Reply::error(__('modules.deal.pipelineDefaultSystemVisibilityError'));
+            }
+        }
+
+        $offeringType = array_key_exists('offering_type', $validated)
+            ? $this->normalizeOfferingType($validated['offering_type'])
+            : null;
+
+        DB::transaction(function () use ($request, $pipeline, $categoryScopes, $fieldScopes, $hideFromNav, $hideFromSystem, $offeringType) {
             $pipeline->name = $request->name;
             $pipeline->label_color = $request->label_color;
             $pipeline->hide_all_categories = $request->boolean('hide_all_categories');
+            if ($hideFromNav !== null) {
+                $pipeline->hidden_from_nav = $hideFromNav;
+            }
+            if ($hideFromSystem !== null) {
+                $pipeline->hidden_from_system = $hideFromSystem;
+            }
+            if ($offeringType !== null) {
+                $pipeline->offering_type = $offeringType;
+            }
             $pipeline->save();
 
             $this->scopeResolver->syncCategoryScopes($pipeline, $categoryScopes);
@@ -112,13 +155,14 @@ class LeadPipelineSettingController extends AccountBaseController
 
     public function statusUpdate($id)
     {
-        // Added 'hidden_from_nav' to the select query to ensure it is modified and saved correctly
-        $allLeadSPipelines = LeadPipeline::select('id', 'default', 'hidden_from_nav')->get();
+        // Include visibility flags so promoting a pipeline to default also un-hides it.
+        $allLeadSPipelines = LeadPipeline::select('id', 'default', 'hidden_from_nav', 'hidden_from_system')->get();
 
         foreach ($allLeadSPipelines as $pipeline) {
             if ($pipeline->id == $id) {
                 $pipeline->default = '1';
-                $pipeline->hidden_from_nav = false; // Forces the default pipeline to always be visible
+                $pipeline->hidden_from_nav = false;
+                $pipeline->hidden_from_system = false;
             } else {
                 $pipeline->default = '0';
             }
@@ -151,6 +195,110 @@ class LeadPipelineSettingController extends AccountBaseController
         return Reply::success(__('messages.updateSuccess'));
     }
 
+    public function updateSystemVisibility(Request $request, $id)
+    {
+        $request->validate([
+            'hidden_from_system' => 'required|boolean',
+        ]);
+
+        $pipeline = LeadPipeline::where('company_id', company()->id)
+            ->where('id', $id)
+            ->firstOrFail();
+
+        if ($pipeline->default == 1 && $request->boolean('hidden_from_system')) {
+            return Reply::error(__('modules.deal.pipelineDefaultSystemVisibilityError'));
+        }
+
+        $pipeline->hidden_from_system = $request->boolean('hidden_from_system');
+        $pipeline->save();
+
+        return Reply::success(__('messages.updateSuccess'));
+    }
+
+    /**
+     * Shared payload for the Blade edit modal and the React Deal Settings tab.
+     *
+     * @return array{
+     *     pipeline: array,
+     *     stages: array,
+     *     categories: array,
+     *     category_scopes: array,
+     *     field_scopes: array,
+     *     scopeable_fields: array,
+     *     pipelineModel: LeadPipeline
+     * }
+     */
+    protected function pipelineEditorPayload(int|string $id): array
+    {
+        $pipeline = LeadPipeline::with(['customFieldCategoryScopes', 'stages'])
+            ->where('company_id', company()->id)
+            ->where('id', $id)
+            ->firstOrFail();
+
+        $dealCustomFieldGroup = CustomFieldGroup::where('model', Deal::CUSTOM_FIELD_MODEL)->first();
+        $categories = collect();
+        if ($dealCustomFieldGroup) {
+            $categories = CustomFieldCategory::where('custom_field_group_id', $dealCustomFieldGroup->id)
+                ->where('company_id', company()->id)
+                ->orderBy(DB::raw('`order`'), 'asc')
+                ->orderBy('id', 'asc')
+                ->get(['id', 'name']);
+        }
+
+        $fieldScopes = PipelineFieldScope::where('pipeline_id', $pipeline->id)->get();
+        $catalog = $this->scopeResolver->getScopeableFieldsCatalog();
+
+        $fieldOptions = [];
+        foreach ($catalog as $model => $fields) {
+            $items = [];
+            foreach ($fields as $fieldKey => $fieldLabel) {
+                $fieldType = str_starts_with($fieldKey, 'custom_field_')
+                    ? PipelineFieldScope::TYPE_CUSTOM_FIELD
+                    : (array_key_exists($fieldKey, PipelineScopeResolverService::HIBARR_FIELDS)
+                        ? PipelineFieldScope::TYPE_HIBARR_FIELD
+                        : PipelineFieldScope::TYPE_NATIVE_FIELD);
+                $items[] = [
+                    'value' => $model . '|' . $fieldType . '|' . $fieldKey,
+                    'label' => $fieldLabel,
+                ];
+            }
+            $fieldOptions[] = [
+                'model' => $model,
+                'label' => class_basename($model),
+                'items' => $items,
+            ];
+        }
+
+        return [
+            'pipeline' => [
+                'id' => (int) $pipeline->id,
+                'name' => $pipeline->name,
+                'label_color' => $pipeline->label_color,
+                'default' => (bool) $pipeline->default,
+                'hidden_from_nav' => (bool) $pipeline->hidden_from_nav,
+                'hidden_from_system' => (bool) $pipeline->hidden_from_system,
+                'hide_all_categories' => (bool) $pipeline->hide_all_categories,
+                'offering_type' => $pipeline->offeringType(),
+            ],
+            'stages' => $pipeline->stages->map(fn (PipelineStage $stage) => [
+                'id' => (int) $stage->id,
+                'name' => $stage->name,
+                'label_color' => $stage->label_color,
+                'priority' => (int) $stage->priority,
+                'default' => (bool) $stage->default,
+            ])->values()->all(),
+            'categories' => $categories->map(fn ($c) => [
+                'id' => (int) $c->id,
+                'name' => $c->name,
+            ])->values()->all(),
+            'category_scopes' => $this->scopeResolver->getCategoryScopesForPipeline($pipeline),
+            'field_scopes' => $this->buildFieldScopeMap($fieldScopes),
+            'scopeable_fields' => $catalog,
+            'field_options' => $fieldOptions,
+            'pipelineModel' => $pipeline,
+        ];
+    }
+
     /**
      * Remove the specified resource from storage.
      *
@@ -181,6 +329,15 @@ class LeadPipelineSettingController extends AccountBaseController
         });
 
         return Reply::success(__('messages.deleteSuccess'));
+    }
+
+    protected function normalizeOfferingType(mixed $value): string
+    {
+        return match ($value) {
+            LeadPipeline::OFFERING_PACKAGE => LeadPipeline::OFFERING_PACKAGE,
+            LeadPipeline::OFFERING_BOTH => LeadPipeline::OFFERING_BOTH,
+            default => LeadPipeline::OFFERING_PROPERTY,
+        };
     }
 
     protected function buildFieldScopeMap($scopes): array

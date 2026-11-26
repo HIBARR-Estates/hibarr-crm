@@ -44,6 +44,7 @@ export function formatCallFailure(
         registration_required: "Line not registered",
         temporarily_unavailable: "Temporarily unavailable",
         browser_unsupported: "Browser unsupported",
+        connection_failed: "Connection failed",
     };
     return friendly[reason] ?? reason.replace(/_/g, " ");
 }
@@ -87,25 +88,35 @@ function formatSeconds(secs: number): string {
     return `${m}:${s.toString().padStart(2, "0")}`;
 }
 
-/** Icon tile colours: connected green, unanswered red, refused amber. */
-export function outcomeTone(outcome: string): { bg: string; fg: string } {
-    if (outcome === "ended" || outcome === "started") {
-        return { bg: T.GREEN_LIGHT, fg: T.GREEN };
-    }
-    if (outcome === "missed" || outcome === "failed") {
-        return { bg: T.RED_SOFT, fg: T.RED };
-    }
-    return { bg: T.AMBER_SOFT, fg: T.AMBER };
+/** Only missed or failed calls are shown in red; all other outcomes use green icon and dark text. */
+export function isMissedOrFailedCall(outcome: string | null | undefined): boolean {
+    return outcome === "missed" || outcome === "failed";
 }
 
-/** Inbound/outbound arrow in a tinted square, coloured by outcome. */
+/** Icon tile colours by outcome: red for missed/failed calls, green for all others. */
+export function outcomeTone(outcome: string | null | undefined): { bg: string; fg: string } {
+    if (isMissedOrFailedCall(outcome)) {
+        return { bg: T.RED_SOFT, fg: T.RED };
+    }
+    return { bg: T.GREEN_LIGHT, fg: T.GREEN };
+}
+
+/** @deprecated Kept for backwards compatibility; prefer `outcomeTone(outcome)`. */
+export function directionTone(direction: "inbound" | "outbound" | null): { bg: string; fg: string } {
+    if (direction === "inbound" || direction === "outbound") {
+        return { bg: T.GREEN_LIGHT, fg: T.GREEN };
+    }
+    return { bg: T.SURFACE_2, fg: T.TEXT_MUTED };
+}
+
+/** Inbound/outbound arrow in a tinted square: red only for missed/failed, green for all others. */
 export function CallDirectionIcon({
     direction,
     outcome,
     size = 34,
 }: {
     direction: "inbound" | "outbound" | null;
-    outcome: string;
+    outcome?: string | null;
     size?: number;
 }) {
     const tone = outcomeTone(outcome);

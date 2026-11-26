@@ -4,6 +4,7 @@ import Switch from "@/Components/Redesign/primitives/Switch";
 import type { PoolAgent } from "../types";
 import { getInitials, POOL_GRID_STYLE } from "../utils";
 import PriorityCell from "./PriorityCell";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 interface AgentPoolTableProps {
     agents: PoolAgent[];
@@ -29,8 +30,9 @@ export default function AgentPoolTable({
     onRequestDelete,
     onPriorityUpdated,
 }: AgentPoolTableProps) {
+    const { td } = useTd();
     if (isLoading) {
-        return <div className="cb-empty">Loading…</div>;
+        return <div className="cb-empty">{td("Loading…", { source: "en" })}</div>;
     }
 
     if (agents.length === 0) {
@@ -74,7 +76,7 @@ export default function AgentPoolTable({
                                         }}
                                     >
                                         <InfoCircleOutlined style={{ fontSize: "10px" }} />
-                                        <span>Calls paused by user</span>
+                                        <span>{td("Calls paused by user", { source: "en" })}</span>
                                     </span>
                                 )}
                             </span>

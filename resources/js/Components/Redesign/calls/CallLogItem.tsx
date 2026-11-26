@@ -9,7 +9,8 @@ import { useTd } from "@/Hooks/useDynamicTranslation";
 import { useUserDateTime } from "@/Hooks/useUserDateTime";
 import { formatCallDuration } from "@/lib/crmEvents/callSummary";
 import type { CallLogRow } from "./types";
-import { CallDirectionIcon, OUTCOME_KEYS, formatCallFailure, getRecordingStatus } from "./callFormat";
+import CallLegs from "./CallLegs";
+import { CallDirectionIcon, OUTCOME_KEYS, formatCallFailure, getRecordingStatus, isMissedOrFailedCall } from "./callFormat";
 
 interface CallLogItemProps {
     row: CallLogRow;
@@ -40,9 +41,10 @@ export default function CallLogItem({ row, showEntity = false, timeOnly = false 
     const outcome = outcomeKey ? t(`pages.call_summary.${outcomeKey}`) : td(row.outcome, { source: "en" });
     const when = timeOnly ? formatTime(row.occurred_at) : formatDateTime(row.occurred_at);
     const duration = row.duration ? formatCallDuration(row.duration, t) : "";
-    const meta = [when, duration, row.user_name, row.phone_number].filter(Boolean).join(" · ");
+    const meta = [when, duration, row.phone_number].filter(Boolean).join(" · ");
 
-    const failureText = formatCallFailure(row.failure_reason, row.failure_message);
+    const isRed = isMissedOrFailedCall(row.outcome);
+    const failureText = formatCallFailure(row.failure_reason, row.failure_message, t);
     const rec = row.recording;
     const recState = getRecordingStatus(row);
     const playable = Boolean(rec?.can_play && rec.play_url);
@@ -63,16 +65,17 @@ export default function CallLogItem({ row, showEntity = false, timeOnly = false 
 
                 <div style={{ display: "flex", flexDirection: "column", gap: 2, flex: "1 1 280px", minWidth: 0 }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                        <span style={{ fontWeight: 600, fontSize: 14, color: T.TEXT }}>
+                        <span style={{ fontWeight: 600, fontSize: 14, color: isRed ? T.RED : T.TEXT }}>
                             {direction} · {outcome}
                         </span>
                         {failureText && (
-                            <Badge variant="red" style={{ fontSize: 11, padding: "1px 8px" }}>
+                            <Badge variant={isRed ? "red" : "gray"} style={{ fontSize: 11, padding: "1px 8px" }}>
                                 {failureText}
                             </Badge>
                         )}
                     </div>
                     <span style={{ fontSize: 12, color: T.TEXT_MUTED }}>{meta}</span>
+                    <CallLegs row={row} compact />
                 </div>
 
                 {showEntity &&
@@ -158,6 +161,8 @@ export default function CallLogItem({ row, showEntity = false, timeOnly = false 
                 <RecordingPlayer
                     playUrl={rec.play_url}
                     downloadUrl={rec.download_url}
+                    openUrl={rec.open_url}
+                    opensInNewTab={Boolean(rec.open_url)}
                     durationSeconds={rec.duration_seconds}
                     filename={rec.filename ?? undefined}
                     expired={rec.expired}

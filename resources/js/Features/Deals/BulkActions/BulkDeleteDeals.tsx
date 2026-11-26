@@ -8,12 +8,14 @@ import { pluralOrSingular } from "@/lib/utils";
 import { getCurrentQueryParams } from "@/lib/inertiaQuery";
 import type { BulkTarget } from "@/Features/BulkActions/bulkTarget";
 import { buildBulkTargetPayload } from "@/Features/BulkActions/bulkTarget";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 interface Props extends IModalProps {
     target: BulkTarget;
 }
 
 const BulkDeleteDeals: React.FC<Props> = ({ open, onClose, target }) => {
+    const { td } = useTd();
     const [bulkDeleteLoading, setBulkDeleteLoading] = useState(false);
 
     const handleBulkDelete = () => {
@@ -30,13 +32,13 @@ const BulkDeleteDeals: React.FC<Props> = ({ open, onClose, target }) => {
 
         router.post(route("deals.apply_quick_action"), payload as any, {
             onSuccess: () => {
-                message.success("Deals deleted successfully");
+                message.success(td("Deals deleted successfully", { source: "en" }));
                 onClose(true);
                 // X2: bulk actions render in table view only — refresh deals list
                 router.reload({ only: ["deals"] });
             },
             onError: () => {
-                message.error("Failed to delete deals");
+                message.error(td("Failed to delete deals", { source: "en" }));
             },
             onFinish: () => {
                 setBulkDeleteLoading(false);
@@ -52,15 +54,15 @@ const BulkDeleteDeals: React.FC<Props> = ({ open, onClose, target }) => {
                 fn: handleBulkDelete,
                 loading: bulkDeleteLoading,
             }}
-            title="Delete Selected Deals"
+            title={td("Delete Selected Deals", { source: "en" })}
             description={`Are you sure you want to delete ${pluralOrSingular(
                 target.count,
                 "this deal",
                 "deals",
             )}? This action cannot be undone.`}
             icon={<DeleteOutlined className="text-red-500 text-3xl" />}
-            confirmText="Yes, Delete All"
-            cancelText="Cancel"
+            confirmText={td("Yes, Delete All", { source: "en" })}
+            cancelText={td("Cancel", { source: "en" })}
             confirmType="primary"
             confirmDanger={true}
         />

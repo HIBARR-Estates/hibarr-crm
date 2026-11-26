@@ -46,7 +46,7 @@
 
                 <div class="mt-2 mb-2 alert alert-primary">
 
-                    <div><strong>Note:</strong>
+                    <div><strong>{{ td('Note:') }}</strong>
                         {{__('messages.languageEnabledAlertMessage')}}
                     </div>
                 </div>

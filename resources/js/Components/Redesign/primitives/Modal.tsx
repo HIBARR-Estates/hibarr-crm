@@ -121,11 +121,13 @@ export function Modal({
 interface ModalFieldProps {
     label: ReactNode;
     children: ReactNode;
+    /** Extra class on the wrapper, for a layout that styles some fields apart. */
+    className?: string;
 }
 
-export function ModalField({ label, children }: ModalFieldProps) {
+export function ModalField({ label, children, className }: ModalFieldProps) {
     return (
-        <div className="modal-field" style={{ marginBottom: 16 }}>
+        <div className={className ? `modal-field ${className}` : "modal-field"} style={{ marginBottom: 16 }}>
             <label>{label}</label>
             {children}
         </div>

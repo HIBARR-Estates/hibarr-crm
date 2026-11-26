@@ -60,11 +60,11 @@ class PartnerLeadController extends AccountBaseController
     }
 
     /**
-     * Only the three filters the page offers, each normalised; anything else in
-     * the query string is ignored. The shared filter modal writes a multi-select
+     * Only the filters the page offers, each normalised; anything else in the
+     * query string is ignored. The shared filter modal writes a multi-select
      * as a comma-joined value, so those are split here.
      *
-     * @return array{search: string|null, status: array<int, int>, deals: array<int, string>}
+     * @return array{search: string|null, status: array<int, int>, source: array<int, string>, deals: array<int, string>, added_from: string|null, added_to: string|null, sort: string}
      */
     private function filters(Request $request): array
     {
@@ -74,11 +74,24 @@ class PartnerLeadController extends AccountBaseController
         ));
 
         $search = trim(mb_substr((string) $request->query('search', ''), 0, 100));
+        $day = function (string $key) use ($request): ?string {
+            $value = trim((string) $request->query($key, ''));
+
+            return preg_match('/^\d{4}-\d{2}-\d{2}$/', $value) === 1 ? $value : null;
+        };
+        $sort = (string) $request->query('sort', '');
 
         return [
             'search' => $search !== '' ? $search : null,
             'status' => array_map('intval', array_filter($list('status'), 'ctype_digit')),
+            'source' => array_values(array_unique(array_map(
+                fn (string $value) => mb_substr($value, 0, 100),
+                $list('source')
+            ))),
             'deals' => array_values(array_intersect($list('deals'), ['open', 'won', 'lost', 'none'])),
+            'added_from' => $day('added_from'),
+            'added_to' => $day('added_to'),
+            'sort' => in_array($sort, ['added_asc', 'added_desc'], true) ? $sort : 'added_desc',
         ];
     }
 

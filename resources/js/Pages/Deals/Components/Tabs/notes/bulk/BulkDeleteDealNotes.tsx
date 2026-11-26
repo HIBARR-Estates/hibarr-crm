@@ -5,12 +5,14 @@ import { DeleteOutlined } from "@ant-design/icons";
 import { isLoading, pluralOrSingular } from "@/lib/utils";
 import { useApiMutate } from "@/lib/api/client";
 import { ApiResponse } from "@/lib/api/types";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 interface Props extends IModalProps {
     ids: number[];
 }
 
 const BulkDeleteDealNotes: React.FC<Props> = ({ open, onClose, ids }) => {
+    const { td } = useTd();
     const handleCancel = () => {
         onClose();
     };
@@ -51,15 +53,15 @@ const BulkDeleteDealNotes: React.FC<Props> = ({ open, onClose, ids }) => {
                 fn: onSubmit,
                 loading: isLoading({ status }),
             }}
-            title="Delete Selected Notes"
+            title={td("Delete Selected Notes", { source: "en" })}
             description={`Are you sure you want to delete ${pluralOrSingular(
                 ids.length,
                 "this note",
                 "notes"
             )} ? This action cannot be undone.`}
             icon={<DeleteOutlined className="text-red-500 text-3xl" />}
-            confirmText="Yes, Delete All"
-            cancelText="Cancel"
+            confirmText={td("Yes, Delete All", { source: "en" })}
+            cancelText={td("Cancel", { source: "en" })}
             confirmType="primary"
             confirmDanger={true}
         />

@@ -108,7 +108,7 @@ const QualificationMappingIndex = ({ leadFields, writeModes }: Props) => {
                 setTemplateId((prev) => prev ?? list[0]?.id ?? null);
             })
             .catch(() => {
-                if (!cancelled) message.error("Failed to load qualification scripts");
+                if (!cancelled) message.error(td("Failed to load qualification scripts", { source: "en" }));
             })
             .finally(() => {
                 if (!cancelled) setLoading(false);
@@ -146,7 +146,7 @@ const QualificationMappingIndex = ({ leadFields, writeModes }: Props) => {
                 });
             })
             .catch(() => {
-                if (!cancelled) message.error("Failed to load the script mapping");
+                if (!cancelled) message.error(td("Failed to load the script mapping", { source: "en" }));
             })
             .finally(() => {
                 if (!cancelled) setLoading(false);
@@ -725,7 +725,7 @@ function OptionMapModal({
                     }}
                 >
                     <span>{td("Script option", { source: "en" })}</span>
-                    <span>{field?.label ?? td("Lead field", { source: "en" })}</span>
+                    <span>{td(field?.label ?? td("Lead field", { source: "en" }), { source: "en" })}</span>
                 </div>
 
                 {(segment.options ?? []).map((option) => (

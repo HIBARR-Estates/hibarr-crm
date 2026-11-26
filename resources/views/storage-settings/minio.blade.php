@@ -6,7 +6,7 @@
                           fieldName="minio_endpoint"
                           fieldId="minio_endpoint"
                           :fieldValue="$minioKeys->endpoint ?? '' "
-                          fieldPlaceholder="https://minio:9000"
+                          :fieldPlaceholder="td('https://minio:9000')"
                           :fieldRequired="true">
             </x-forms.text>
         </div>

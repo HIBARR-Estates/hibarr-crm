@@ -1,8 +1,13 @@
 import { useEffect, useState } from "react";
-import { router } from "@inertiajs/react";
+import { Link, router } from "@inertiajs/react";
 import { message } from "antd";
 import axios from "axios";
 import DashboardLayout from "@/Components/DashboardLayout";
+import usePartnerReferralCommissionFlag from "@/Hooks/usePartnerReferralCommissionFlag";
+import useTranslation from "@/Hooks/useTranslation";
+import { useCompanyCurrency } from "@/Pages/Leads/Redesign/adapters/currencyAdapter";
+import { describeReferralTerms } from "@/lib/referralTerms";
+import { PartnerPackageTerms } from "@/Features/Mlm/Components";
 import PageLayout from "@/Components/PageLayout";
 import {
     Button,
@@ -24,6 +29,9 @@ interface PartnerAgent {
     id: number;
     status: "enabled" | "disabled";
     is_partner: boolean;
+    /** What the partner earns on a referred deal with no package; a decimal string from the `decimal:2` cast. */
+    referral_commission_type?: "percentage" | "fixed" | null;
+    referral_commission_value?: string | null;
     referred_leads_count: number;
     /** True for an account made through Invite Partner, which can be re-invited. */
     can_resend?: boolean;
@@ -38,6 +46,7 @@ interface Stats {
 
 interface Props {
     pageTitle: string;
+    canManageCommissionProfile?: boolean;
     agents: {
         data: PartnerAgent[];
         current_page: number;
@@ -79,8 +88,18 @@ const StatTile = ({ label, value }: { label: string; value: number }) => (
     </div>
 );
 
-const PartnersIndex = ({ pageTitle, agents, filters, stats: initialStats }: Props) => {
+const PartnersIndex = ({ pageTitle, agents, filters, stats: initialStats, canManageCommissionProfile = false }: Props) => {
     const { td } = useTd();
+    const { t } = useTranslation();
+    const referralCommissionEnabled = usePartnerReferralCommissionFlag();
+    const currency = useCompanyCurrency();
+    const describeTerms = (agent: PartnerAgent) =>
+        describeReferralTerms(
+            t,
+            agent.referral_commission_type,
+            agent.referral_commission_value,
+            currency.symbol || currency.code || "",
+        );
 
     const [rows, setRows] = useState<PartnerAgent[]>(agents.data);
     const [stats, setStats] = useState<Stats>(initialStats);
@@ -99,6 +118,7 @@ const PartnersIndex = ({ pageTitle, agents, filters, stats: initialStats }: Prop
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [debouncedSearch]);
 
+    const [termsTarget, setTermsTarget] = useState<PartnerAgent | null>(null);
     const [addOpen, setAddOpen] = useState(false);
     const [addingId, setAddingId] = useState<number | null>(null);
     const existingIds = rows.map((row) => row.id);
@@ -279,12 +299,35 @@ const PartnersIndex = ({ pageTitle, agents, filters, stats: initialStats }: Prop
                                         ? td("Enabled", { source: "en" })
                                         : td("Disabled", { source: "en" })}
                                 </Badge>
+                                {referralCommissionEnabled &&
+                                    (canManageCommissionProfile ? (
+                                        <Link
+                                            href={route("mlm.agent_dashboard", agent.id)}
+                                            style={{ fontSize: TYPE.CAPTION, color: T.TEXT_MUTED, whiteSpace: "nowrap" }}
+                                        >
+                                            {describeTerms(agent)}
+                                        </Link>
+                                    ) : (
+                                        <span style={{ fontSize: TYPE.CAPTION, color: T.TEXT_MUTED, whiteSpace: "nowrap" }}>
+                                            {describeTerms(agent)}
+                                        </span>
+                                    ))}
                                 <Badge variant="blue">
                                     {td(":count leads referred", { source: "en" }).replace(
                                         ":count",
                                         String(agent.referred_leads_count),
                                     )}
                                 </Badge>
+                                {referralCommissionEnabled && canManageCommissionProfile && (
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        icon={<Icon name="edit" size={12} />}
+                                        onClick={() => setTermsTarget(agent)}
+                                    >
+                                        {t("pages.agents.package_terms_manage")}
+                                    </Button>
+                                )}
                                 {agent.can_resend && (
                                     <Button
                                         variant="ghost"
@@ -347,6 +390,21 @@ const PartnersIndex = ({ pageTitle, agents, filters, stats: initialStats }: Prop
                     </div>
                 )}
             </div>
+
+            <Modal
+                open={termsTarget !== null}
+                title={t("pages.agents.package_terms_modal_title")}
+                subtitle={termsTarget?.user?.name}
+                maxWidth={720}
+                onClose={() => setTermsTarget(null)}
+            >
+                {termsTarget && (
+                    <PartnerPackageTerms
+                        agentId={termsTarget.id}
+                        currencySymbol={currency.symbol || currency.code || ""}
+                    />
+                )}
+            </Modal>
 
             <Modal
                 open={addOpen}

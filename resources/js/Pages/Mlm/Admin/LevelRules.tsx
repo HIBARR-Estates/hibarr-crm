@@ -38,6 +38,7 @@ import type {
     CriteriaOperator,
 } from "@/Features/Mlm/types";
 import { MLM_METRIC_LABELS } from "@/Features/Mlm/types";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 interface Props extends PageProps {
     level: MlmLevel;
@@ -85,6 +86,7 @@ const MlmLevelRules: React.FC<Props> = ({
     level: initialLevel,
     criteria: initialCriteria,
 }) => {
+    const { td } = useTd();
     const { t } = useTranslation();
     const { data: levelData } = useMlmLevel(initialLevel?.id ?? 0);
     const { data: criteriaData, refetch } = useMlmLevelCriteria(
@@ -102,14 +104,14 @@ const MlmLevelRules: React.FC<Props> = ({
     const [form] = Form.useForm<MlmLevelCriterionFormData>();
 
     const createCriterion = useCreateLevelCriterion(() => {
-        message.success("Criterion added");
+        message.success(td("Criterion added", { source: "en" }));
         refetch();
         closeModal();
         router.reload();
     });
 
     const updateCriterion = useUpdateLevelCriterion(editing?.id ?? 0, () => {
-        message.success("Criterion updated");
+        message.success(td("Criterion updated", { source: "en" }));
         refetch();
         closeModal();
         router.reload();
@@ -118,7 +120,7 @@ const MlmLevelRules: React.FC<Props> = ({
     const deleteCriterion = useDeleteLevelCriterion(
         deletingCriterion?.id ?? 0,
         () => {
-            message.success("Criterion removed");
+            message.success(td("Criterion removed", { source: "en" }));
             setDeletingCriterion(null);
             refetch();
             router.reload();
@@ -192,7 +194,7 @@ const MlmLevelRules: React.FC<Props> = ({
 
     const columns = [
         {
-            title: "Metric",
+            title: td("Metric", { source: "en" }),
             dataIndex: "metric",
             key: "metric",
             render: (m: MlmMetric) => (
@@ -200,7 +202,7 @@ const MlmLevelRules: React.FC<Props> = ({
             ),
         },
         {
-            title: "Operator",
+            title: td("Operator", { source: "en" }),
             dataIndex: "operator",
             key: "operator",
             width: 100,
@@ -211,7 +213,7 @@ const MlmLevelRules: React.FC<Props> = ({
             ),
         },
         {
-            title: "Threshold",
+            title: td("Threshold", { source: "en" }),
             dataIndex: "threshold",
             key: "threshold",
             align: "right" as const,
@@ -220,7 +222,7 @@ const MlmLevelRules: React.FC<Props> = ({
             ),
         },
         {
-            title: "Description",
+            title: td("Description", { source: "en" }),
             dataIndex: "description",
             key: "description",
             render: (val: string | null) =>
@@ -231,7 +233,7 @@ const MlmLevelRules: React.FC<Props> = ({
                 ),
         },
         {
-            title: "Actions",
+            title: td("Actions", { source: "en" }),
             key: "actions",
             width: 100,
             render: (_: any, record: MlmLevelCriterion) => (
@@ -284,7 +286,7 @@ const MlmLevelRules: React.FC<Props> = ({
                                             router.visit("/account/mlm/levels")
                                         }
                                     >
-                                        Back
+                                        {td("Back", { source: "en" })}
                                     </Button>
                                     {level && (
                                         <LevelBadge
@@ -294,13 +296,13 @@ const MlmLevelRules: React.FC<Props> = ({
                                     )}
                                 </div>
                                 <Descriptions size="small" column={3}>
-                                    <Descriptions.Item label="Rank">
+                                    <Descriptions.Item label={td("Rank", { source: "en" })}>
                                         #{level?.rank}
                                     </Descriptions.Item>
-                                    <Descriptions.Item label="Commission">
+                                    <Descriptions.Item label={td("Commission", { source: "en" })}>
                                         {level?.commission_percentage}%
                                     </Descriptions.Item>
-                                    <Descriptions.Item label="Criteria">
+                                    <Descriptions.Item label={td("Criteria", { source: "en" })}>
                                         {criteria.length} rule
                                         {criteria.length !== 1 ? "s" : ""}
                                     </Descriptions.Item>
@@ -318,7 +320,7 @@ const MlmLevelRules: React.FC<Props> = ({
                         <Card
                             title={
                                 <span className="font-semibold">
-                                    Promotion Criteria
+                                    {td("Promotion Criteria", { source: "en" })}
                                 </span>
                             }
                             extra={
@@ -327,7 +329,7 @@ const MlmLevelRules: React.FC<Props> = ({
                                     icon={<Plus size={14} />}
                                     onClick={openCreate}
                                 >
-                                    Add Criterion
+                                    {td("Add Criterion", { source: "en" })}
                                 </Button>
                             }
                             className="shadow-sm"
@@ -337,7 +339,7 @@ const MlmLevelRules: React.FC<Props> = ({
                                 <Alert
                                     type="info"
                                     showIcon
-                                    message="How criteria work"
+                                    message={td("How criteria work", { source: "en" })}
                                     description={
                                         <>
                                             Rules within the same{" "}
@@ -347,16 +349,16 @@ const MlmLevelRules: React.FC<Props> = ({
                                                 color="green"
                                                 className="mx-0.5"
                                             >
-                                                AND
+                                                {td("AND", { source: "en" })}
                                             </Tag>
                                             ). If multiple groups exist,
-                                            satisfying <em>any one</em> group is
+                                            satisfying <em>{td("any one", { source: "en" })}</em> group is
                                             enough (
                                             <Tag
                                                 color="orange"
                                                 className="mx-0.5"
                                             >
-                                                OR
+                                                {td("OR", { source: "en" })}
                                             </Tag>
                                             ).
                                         </>
@@ -365,7 +367,7 @@ const MlmLevelRules: React.FC<Props> = ({
                             </div>
 
                             {criteria.length === 0 ? (
-                                <Empty description="No criteria defined. Agents cannot be auto-promoted to this level until criteria are set." />
+                                <Empty description={td("No criteria defined. Agents cannot be auto-promoted to this level until criteria are set.", { source: "en" })} />
                             ) : (
                                 <div className="flex flex-col gap-y-4">
                                     {groupedEntries.map(
@@ -378,7 +380,7 @@ const MlmLevelRules: React.FC<Props> = ({
                                                             color="orange"
                                                             className="text-sm font-semibold"
                                                         >
-                                                            OR
+                                                            {td("OR", { source: "en" })}
                                                         </Tag>
                                                     </Divider>
                                                 )}
@@ -391,8 +393,7 @@ const MlmLevelRules: React.FC<Props> = ({
                                                         <span className="text-sm text-gray-600">
                                                             Group {groupNum}
                                                             <span className="ml-2 text-xs text-gray-400">
-                                                                — all of these
-                                                                must be true
+                                                                {td("— all of these must be true", { source: "en" })}
                                                             </span>
                                                         </span>
                                                     }
@@ -415,8 +416,8 @@ const MlmLevelRules: React.FC<Props> = ({
                             {/* Human-readable summary */}
                             {groupedEntries.length > 0 && (
                                 <div className="mt-4 p-3 bg-gray-50 rounded-lg text-sm text-gray-600">
-                                    <strong>Summary:</strong> An agent qualifies
-                                    for <em>{level?.name}</em> if{" "}
+                                    <strong>{td("Summary:", { source: "en" })}</strong> An agent qualifies
+                                    for <em>{td(level?.name, { source: "en" })}</em> if{" "}
                                     {groupedEntries.map(
                                         ([groupNum, items], gIdx) => (
                                             <React.Fragment key={groupNum}>
@@ -425,7 +426,7 @@ const MlmLevelRules: React.FC<Props> = ({
                                                         color="orange"
                                                         className="mx-1"
                                                     >
-                                                        OR
+                                                        {td("OR", { source: "en" })}
                                                     </Tag>
                                                 )}
                                                 <span>
@@ -439,7 +440,7 @@ const MlmLevelRules: React.FC<Props> = ({
                                                                     color="green"
                                                                     className="mx-1"
                                                                 >
-                                                                    AND
+                                                                    {td("AND", { source: "en" })}
                                                                 </Tag>
                                                             )}
                                                             <CriterionSentence
@@ -472,7 +473,7 @@ const MlmLevelRules: React.FC<Props> = ({
                     >
                         <Form form={form} layout="vertical" className="mt-4">
                             <Form.Item
-                                label="Metric"
+                                label={td("Metric", { source: "en" })}
                                 name="metric"
                                 rules={[
                                     {
@@ -483,13 +484,13 @@ const MlmLevelRules: React.FC<Props> = ({
                             >
                                 <Select
                                     options={METRIC_OPTIONS}
-                                    placeholder="Select metric..."
+                                    placeholder={td("Select metric...", { source: "en" })}
                                 />
                             </Form.Item>
 
                             <div className="grid grid-cols-2 gap-4">
                                 <Form.Item
-                                    label="Operator"
+                                    label={td("Operator", { source: "en" })}
                                     name="operator"
                                     rules={[
                                         {
@@ -500,12 +501,12 @@ const MlmLevelRules: React.FC<Props> = ({
                                 >
                                     <Select
                                         options={OPERATOR_OPTIONS}
-                                        placeholder="Operator"
+                                        placeholder={td("Operator", { source: "en" })}
                                     />
                                 </Form.Item>
 
                                 <Form.Item
-                                    label="Threshold"
+                                    label={td("Threshold", { source: "en" })}
                                     name="threshold"
                                     rules={[
                                         {
@@ -524,9 +525,9 @@ const MlmLevelRules: React.FC<Props> = ({
                             </div>
 
                             <Form.Item
-                                label="Logic Group"
+                                label={td("Logic Group", { source: "en" })}
                                 name="logic_group"
-                                tooltip="Criteria in the same group are AND'd. Different groups are OR'd."
+                                tooltip={td("Criteria in the same group are AND'd. Different groups are OR'd.", { source: "en" })}
                                 rules={[
                                     {
                                         required: true,
@@ -542,15 +543,15 @@ const MlmLevelRules: React.FC<Props> = ({
                             </Form.Item>
 
                             <Form.Item
-                                label="Description"
+                                label={td("Description", { source: "en" })}
                                 name="description"
-                                tooltip="Optional note explaining what this criterion represents."
+                                tooltip={td("Optional note explaining what this criterion represents.", { source: "en" })}
                             >
                                 <Input.TextArea
                                     rows={2}
                                     maxLength={500}
                                     showCount
-                                    placeholder="e.g. Must have at least 10 direct sales to qualify"
+                                    placeholder={td("e.g. Must have at least 10 direct sales to qualify", { source: "en" })}
                                 />
                             </Form.Item>
 
@@ -565,22 +566,21 @@ const MlmLevelRules: React.FC<Props> = ({
                         title={
                             <div className="flex items-center gap-2 text-red-600">
                                 <AlertTriangle size={18} />
-                                Remove Criterion
+                                {td("Remove Criterion", { source: "en" })}
                             </div>
                         }
                         open={!!deletingCriterion}
                         onOk={handleDeleteConfirm}
                         onCancel={() => setDeletingCriterion(null)}
                         confirmLoading={deleteCriterion.isPending}
-                        okText="Remove"
+                        okText={td("Remove", { source: "en" })}
                         okType="danger"
                         destroyOnClose
                     >
                         {deletingCriterion && (
                             <div className="py-2">
                                 <p className="mb-2">
-                                    Are you sure you want to remove this
-                                    criterion?
+                                    {td("Are you sure you want to remove this criterion?", { source: "en" })}
                                 </p>
                                 <div className="p-3 bg-gray-50 rounded-lg">
                                     <CriterionSentence
@@ -588,8 +588,8 @@ const MlmLevelRules: React.FC<Props> = ({
                                     />
                                 </div>
                                 <p className="mt-2 text-sm text-gray-500">
-                                    This may affect how agents qualify for the{" "}
-                                    <strong>{level?.name}</strong> level.
+                                    {td("This may affect how agents qualify for the", { source: "en" })}{" "}
+                                    <strong>{td(level?.name, { source: "en" })}</strong> level.
                                 </p>
                             </div>
                         )}

@@ -25,6 +25,7 @@ use App\Services\DealAutomationService;
 use App\Services\LeadApiChangeRecorder;
 use App\Services\LeadApiFieldMerger;
 use App\Services\LeadCoreFieldsService;
+use App\Services\LeadFieldWriter;
 use App\Services\LeadLifecycleStatusService;
 use App\Services\LeadUtmService;
 use Illuminate\Http\Request;
@@ -540,11 +541,13 @@ class DealContactApiController extends Controller
 
                     $this->applyAddressAndDobToLead($contact, $request);
                     $this->applyLeadOptionalFields($contact, $request);
+                    $this->applyLeadFields($contact, $request);
                     $this->applyReferralAgentToLead($contact, $request);
                     $this->saveContact($contact, $request, $notify);
                     $this->applyLeadCategories($contact, $request);
                     $this->applyLeadCustomFields($contact, $request);
                     $contactId = $contact->id;
+                    $this->logSkippedLeadFields($contactId);
                     $shouldFireLeadTrigger = true;
                 } else {
                     // Existing contact: fill what is empty, never overwrite (see fillExistingContactBasics)
@@ -565,11 +568,15 @@ class DealContactApiController extends Controller
                     if ($this->applyLeadOptionalFields($existingContact, $request)) {
                         $updated = true;
                     }
+                    if ($this->applyLeadFields($existingContact, $request)) {
+                        $updated = true;
+                    }
                     if ($updated) {
                         $this->saveContact($existingContact, $request, $notify);
                     }
                     $customFieldsChanged = $this->applyLeadCustomFields($existingContact, $request);
                     $contactId = $existingContact->id;
+                    $this->logSkippedLeadFields($contactId);
                     // A custom-field-only change (no core field touched) still
                     // counts as an update — otherwise lead_updated_api would
                     // never fire for it at all. Marketing-only writes do not.
@@ -603,6 +610,7 @@ class DealContactApiController extends Controller
                     'referred_by_agent_id' => $savedContact?->referred_by_agent_id,
                     'preferred_contact_times' => $preferredContactTimes,
                     'preferred_contact_time' => $preferredContactTimes[0] ?? null,
+                    'skipped_lead_fields' => $this->skippedLeadFields,
                 ]);
             }));
         } catch (\Exception $e) {
@@ -944,6 +952,47 @@ class DealContactApiController extends Controller
         }
 
         return $updated;
+    }
+
+    /** Fields from `lead_fields` the last request could not write, key => reason. */
+    private array $skippedLeadFields = [];
+
+    /**
+     * Write `lead_fields` (native lead columns chosen in the backoffice) onto the lead, validated
+     * against the live LeadFieldCatalog. Anything the catalog no longer offers, or a value of the
+     * wrong type, is skipped and logged rather than failing the contact request.
+     *
+     * @return bool True when a field was set on the in-memory lead (caller saves).
+     */
+    private function applyLeadFields(Lead $lead, Request $request): bool
+    {
+        $this->skippedLeadFields = [];
+        $input = $request->input('lead_fields');
+        if (! is_array($input) || $input === []) {
+            return false;
+        }
+
+        $result = app(LeadFieldWriter::class)->apply($lead, $input);
+        $this->skippedLeadFields = $result['skipped'];
+
+        return $result['changed'];
+    }
+
+    /**
+     * Log what applyLeadFields() skipped. Called once the lead is saved: for a
+     * newly created contact applyLeadFields() runs before the insert, so the
+     * lead has no id yet and a warning logged there couldn't be correlated.
+     */
+    private function logSkippedLeadFields(int|string|null $leadId): void
+    {
+        if ($this->skippedLeadFields === []) {
+            return;
+        }
+
+        Log::warning('DealContactApi: lead_fields skipped', [
+            'lead_id' => $leadId,
+            'skipped' => $this->skippedLeadFields,
+        ]);
     }
 
     /**

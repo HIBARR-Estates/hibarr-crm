@@ -1,5 +1,6 @@
 import { usePage } from "@inertiajs/react";
 import { useTd } from "@/Hooks/useDynamicTranslation";
+import useTranslation from "@/Hooks/useTranslation";
 import useCalendarSync, {
     CALENDAR_SYNC_FLAG,
     canManageCalendarSync,
@@ -30,6 +31,7 @@ export default function MeetingCalendarSyncRow({
     className,
 }: MeetingCalendarSyncRowProps) {
     const { td } = useTd();
+    const { t } = useTranslation();
     const { props } = usePage();
     const viewerId = userId ?? (props.auth?.user?.id as number | undefined);
     const visible =
@@ -46,12 +48,12 @@ export default function MeetingCalendarSyncRow({
 
     const pill =
         status === "synced"
-            ? { className: "dr-pill dr-pill-green", label: "Synced" }
+            ? { className: "dr-pill dr-pill-green", label: t("pages.meetings.ui.synced") }
             : status === "failed"
-              ? { className: "dr-pill", label: "Sync failed" }
+              ? { className: "dr-pill", label: t("pages.meetings.ui.sync_failed") }
               : {
                     className: "dr-pill dr-pill-gray",
-                    label: hasMaxAttempts ? "Sync pending" : "Syncing…",
+                    label: hasMaxAttempts ? t("pages.meetings.ui.sync_pending") : t("pages.meetings.ui.syncing"),
                 };
 
     return (
@@ -71,7 +73,7 @@ export default function MeetingCalendarSyncRow({
                     className="flex flex-wrap items-center gap-2 font-semibold"
                     style={{ fontSize: 13.5, color: T.TEXT }}
                 >
-                    {td("Zoho Calendar", { source: "en" })}
+                    {t("pages.meetings.ui.zoho_calendar")}
                     <span
                         className={pill.className}
                         style={
@@ -101,12 +103,8 @@ export default function MeetingCalendarSyncRow({
                         style={{ fontSize: 12, color: T.TEXT_MUTED }}
                     >
                         {hasMaxAttempts
-                            ? td("Still waiting on the calendar service.", {
-                                  source: "en",
-                              })
-                            : td("Adding this meeting to the calendar…", {
-                                  source: "en",
-                              })}
+                            ? t("pages.meetings.ui.still_waiting_on_the_calendar_service")
+                            : t("pages.meetings.ui.adding_this_meeting_to_the_calendar")}
                     </span>
                 )}
             </span>
@@ -119,14 +117,14 @@ export default function MeetingCalendarSyncRow({
                         disabled={retrying}
                         onClick={() => void retry()}
                     >
-                        {td("Retry sync", { source: "en" })}
+                        {t("pages.meetings.ui.retry_sync")}
                     </Button>
                 </span>
             )}
             {status === "pending" && hasMaxAttempts && (
                 <span className="shrink-0">
                     <Button variant="ghost" size="sm" onClick={refresh}>
-                        {td("Refresh", { source: "en" })}
+                        {t("pages.meetings.ui.refresh")}
                     </Button>
                 </span>
             )}

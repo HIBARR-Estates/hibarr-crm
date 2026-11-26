@@ -28,6 +28,7 @@ class DealPaymentService
         private readonly OlPaymentReviewDecisionService $reviewDecisionService,
         private readonly ExchangeRateService $exchangeRates,
         private readonly DealOutcomeService $outcomes,
+        private readonly DealPaymentDocumentService $documents,
     ) {}
 
     /**
@@ -68,6 +69,7 @@ class DealPaymentService
 
         $requests = $this->dealRequestsQuery($deal)
             ->with('currency')
+            ->withExists('invoiceDocuments as invoice_document_exists')
             ->orderByDesc('id')
             ->get()
             ->map(fn (Payment $payment) => $this->serializeDealPayment(
@@ -133,6 +135,141 @@ class DealPaymentService
             ? (string) $input['provider_key']
             : null;
 
+        return $this->issueRequest($deal, $user, $currency, $companyCurrency, $baseAmount, $amount, $rate, $providerKey);
+    }
+
+    /**
+     * Customer-facing KDV request: a second request for the KDV owed on a
+     * collected payment whose invoice was asked for. It never counts toward
+     * the deal value and never closes the deal; when it is paid the KDV is
+     * recorded as settled on the payment it belongs to.
+     *
+     * @return array<string, mixed>
+     */
+    public function createVatRequest(Deal $deal, Payment $parent, User $user, ?string $providerKey): array
+    {
+        $vat = $this->assertVatCollectable($deal, $parent);
+
+        if ($this->findOpenRequest($deal) !== null) {
+            throw new HttpException(409, 'An active payment request already exists for this deal.');
+        }
+
+        $parent->loadMissing('currency');
+        $currency = $parent->currency;
+        if ($currency === null) {
+            throw new HttpException(422, 'This payment has no currency to request the KDV in.');
+        }
+
+        $companyCurrency = $this->companyCurrency($deal);
+        $exchange = (float) ($parent->exchange_rate ?? 0);
+        $rate = $exchange > 0 ? 1 / $exchange : 1.0;
+        $baseAmount = round($vat['amount'] / $rate, 2);
+
+        return $this->issueRequest(
+            $deal, $user, $currency, $companyCurrency, $baseAmount, $vat['amount'], $rate,
+            $providerKey !== null && $providerKey !== '' ? $providerKey : null,
+            (int) $parent->id,
+        );
+    }
+
+    /**
+     * Records that the KDV was received in cash or settled outside the CRM.
+     *
+     * @return array<string, mixed>
+     */
+    public function settleVat(Deal $deal, Payment $parent, User $user, string $method): array
+    {
+        if (! in_array($method, ['cash', 'external'], true)) {
+            throw new HttpException(422, 'Choose cash or outside the CRM.');
+        }
+
+        $this->assertVatCollectable($deal, $parent);
+
+        $open = $this->vatRequestOf($parent);
+        if ($open !== null && self::vatRequestIsLive($open)) {
+            throw new HttpException(409, 'A KDV payment request is still open. Cancel it first.');
+        }
+
+        $this->recordVatSettled($parent, $method, (int) $user->id);
+
+        return $this->serializeDealPayment($parent->fresh(['currency']));
+    }
+
+    /**
+     * @return array{amount: float, rate: float}
+     */
+    private function assertVatCollectable(Deal $deal, Payment $parent): array
+    {
+        if ((int) $parent->deal_id !== (int) $deal->id || blank($parent->external_reference) || $parent->vat_for_payment_id !== null) {
+            throw new NotFoundHttpException('No payment request found for this deal.');
+        }
+
+        if (! $this->documents->vatRequested($parent)) {
+            throw new HttpException(409, 'KDV is collected once the customer has asked for an invoice or a receipt.');
+        }
+
+        if (! in_array(self::uiStateOf($parent), ['confirmed', 'paid_online'], true)) {
+            throw new HttpException(409, 'KDV is collected once the payment has been collected.');
+        }
+
+        if ($parent->vat_settled_at !== null) {
+            throw new HttpException(409, 'The KDV on this payment is already collected.');
+        }
+
+        $vat = $this->documents->vatDue($parent);
+        if ($vat === null) {
+            throw new HttpException(409, 'There is no KDV to collect on this payment.');
+        }
+
+        return $vat;
+    }
+
+    private function recordVatSettled(Payment $parent, string $method, ?int $userId): void
+    {
+        $recorded = Payment::withoutGlobalScopes()
+            ->whereKey($parent->id)
+            ->whereNull('vat_settled_at')
+            ->update([
+                'vat_settled_at' => now(),
+                'vat_settlement_method' => $method,
+                'vat_settled_by_user_id' => $userId,
+            ]);
+
+        if ($recorded > 0) {
+            $parent->refresh();
+        }
+    }
+
+    /** The newest KDV request raised for a payment, whatever its state. */
+    private function vatRequestOf(Payment $parent): ?Payment
+    {
+        return Payment::withoutGlobalScope(CompanyScope::class)
+            ->without(['order', 'currency'])
+            ->where('vat_for_payment_id', $parent->id)
+            ->orderByDesc('id')
+            ->first();
+    }
+
+    /** A KDV request that is still waiting on the customer or on review. */
+    private static function vatRequestIsLive(Payment $request): bool
+    {
+        return ! in_array(self::uiStateOf($request), ['failed', 'invalidated', 'confirmed', 'paid_online'], true);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function issueRequest(
+        Deal $deal,
+        User $user,
+        Currency $currency,
+        ?Currency $companyCurrency,
+        float $baseAmount,
+        float $amount,
+        float $rate,
+        ?string $providerKey,
+        ?int $vatForPaymentId = null,
+    ): array {
         if ($providerKey === 'cash') {
             return $this->createCashRequest(
                 $deal,
@@ -142,12 +279,13 @@ class DealPaymentService
                 $baseAmount,
                 $amount,
                 $rate,
+                $vatForPaymentId,
             );
         }
 
         $olPayload = $this->olProxy->createForDeal($deal, array_filter([
             'amount' => $amount,
-            'currency' => $currencyCode,
+            'currency' => strtoupper((string) $currency->currency_code),
             'provider_key' => $providerKey,
         ], static fn ($value) => $value !== null && $value !== ''));
 
@@ -188,6 +326,7 @@ class DealPaymentService
         $payment->ol_status = strtolower((string) ($olPayload['status'] ?? 'pending'));
         $payment->ol_payment_type = $resolvedPaymentType !== '' ? $resolvedPaymentType : null;
         $payment->added_by = $user->id;
+        $payment->vat_for_payment_id = $vatForPaymentId;
 
         $payment->save();
         $payment->loadMissing('currency');
@@ -317,6 +456,32 @@ class DealPaymentService
     }
 
     /**
+     * Deletes a cancelled request. Payments are soft-deleted, so the row drops out of the list, the status counts, and every total on the
+     * payment-requests page, and out of the deal's request history,
+     * while the row itself stays for audit.
+     *
+     * Only a request the CRM cancelled (ol_status "cancelled") qualifies. Anything
+     * else is, or may become, a record of money, and stays.
+     */
+    public function deleteCancelled(Deal $deal, Payment $payment, ?User $user = null): void
+    {
+        if ((int) $payment->deal_id !== (int) $deal->id) {
+            throw new HttpException(404, 'Payment request not found.');
+        }
+
+        if (self::uiStateOf($payment) !== 'invalidated') {
+            throw new HttpException(409, __('messages.paymentRequestDeleteOnlyCancelled'));
+        }
+
+        // Soft delete: the row stays as a trace (who and when), and the
+        // SoftDeletes scope on Payment keeps it out of every list and total.
+        // The author is written straight to the row so the payment observers
+        // (built for invoice payments) do not run an update for it.
+        Payment::withoutGlobalScopes()->whereKey($payment->id)->update(['deleted_by_user_id' => $user?->id]);
+        $payment->delete();
+    }
+
+    /**
      * @return array<string, mixed>
      */
     private function markInvalidated(Payment $payment, ?User $user, string $reason): array
@@ -356,6 +521,15 @@ class DealPaymentService
 
         if ($active !== null && self::uiStateOf($payment) === 'pending_payment') {
             $this->invalidatePending($deal, $user, 'Checkout link expired');
+        }
+
+        if ($payment->vat_for_payment_id !== null) {
+            $parent = Payment::withoutGlobalScope(CompanyScope::class)->find($payment->vat_for_payment_id);
+            if ($parent === null) {
+                throw new NotFoundHttpException('No payment request found for this deal.');
+            }
+
+            return $this->createVatRequest($deal, $parent, $user, in_array($payment->gateway, ['manual-bank-transfer', 'nowpayments'], true) ? $payment->gateway : null);
         }
 
         $payment->loadMissing('currency');
@@ -426,6 +600,7 @@ class DealPaymentService
     public function confirmedBaseTotal(Deal $deal): float
     {
         $total = $this->dealRequestsQuery($deal)
+            ->whereNull('vat_for_payment_id')
             ->get()
             ->sum(function (Payment $payment) {
                 $state = self::uiStateOf($payment);
@@ -486,6 +661,17 @@ class DealPaymentService
             return;
         }
 
+        // A KDV request settles the KDV on its own payment. It is no part of
+        // the deal value, so it never closes the deal or reports a purchase.
+        if ($payment->vat_for_payment_id !== null) {
+            $parent = Payment::withoutGlobalScope(CompanyScope::class)->find($payment->vat_for_payment_id);
+            if ($parent !== null) {
+                $this->recordVatSettled($parent, 'request', $payment->verified_by_user_id ? (int) $payment->verified_by_user_id : null);
+            }
+
+            return;
+        }
+
         try {
             $deal = Deal::withoutGlobalScope(CompanyScope::class)->find($payment->deal_id);
 
@@ -517,7 +703,7 @@ class DealPaymentService
         $total = 0.0;
         $included = false;
 
-        foreach ($this->dealRequestsQuery($deal)->get() as $payment) {
+        foreach ($this->dealRequestsQuery($deal)->whereNull('vat_for_payment_id')->get() as $payment) {
             $isThisPayment = (int) $payment->id === (int) $including->id;
             if ($isThisPayment) {
                 $payment = $including;
@@ -646,6 +832,20 @@ class DealPaymentService
             'invalidated_at' => $payment->invalidated_at?->toIso8601String(),
             'invalidated_by' => $people['invalidated_by'],
             'invalidation_reason' => $payment->invalidation_reason,
+            'documents_requested' => $payment->documents_requested_at !== null,
+            // List queries load invoice_document_exists in bulk; a single payment asks once.
+            'invoice_issued' => $payment->documents_requested_at !== null
+                && (($payment->getAttribute('invoice_document_exists') !== null)
+                    ? (bool) $payment->getAttribute('invoice_document_exists')
+                    : $payment->invoiceDocuments()->exists()),
+            'documents_requested_at' => $payment->documents_requested_at?->toIso8601String(),
+            'vat_for_payment_id' => $payment->vat_for_payment_id,
+            'vat' => $this->vatState($payment, $mapped['ui_state']),
+            // A KDV request carries its payment, so a page that receives it
+            // can refresh the payment's KDV state at the same time.
+            'vat_parent' => $payment->vat_for_payment_id !== null
+                ? $this->serializeVatParent((int) $payment->vat_for_payment_id)
+                : null,
             'added_by' => $people['added_by'],
             'last_updated_by' => $people['last_updated_by'],
             'remarks' => $payment->remarks,
@@ -653,6 +853,61 @@ class DealPaymentService
             'proof_url' => $payment->bill ? $payment->file_url : null,
             'updated_at' => $payment->updated_at?->toIso8601String(),
             'created_at' => $payment->created_at?->toIso8601String(),
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    private function serializeVatParent(int $parentId): ?array
+    {
+        $parent = Payment::withoutGlobalScope(CompanyScope::class)
+            ->without(['order'])
+            ->with('currency')
+            ->find($parentId);
+
+        return $parent !== null ? $this->serializeDealPayment($parent) : null;
+    }
+
+    /**
+     * Where the KDV on a collected payment stands. Null while there is
+     * nothing to collect: no invoice or receipt asked for, payment not yet collected,
+     * or the row is itself a KDV request.
+     *
+     * @return array<string, mixed>|null
+     */
+    private function vatState(Payment $payment, string $uiState): ?array
+    {
+        if ($payment->vat_for_payment_id !== null
+            || ! in_array($uiState, ['confirmed', 'paid_online'], true)
+            || ! $this->documents->vatRequested($payment)
+        ) {
+            return null;
+        }
+
+        $request = $this->vatRequestOf($payment);
+        $live = $request !== null && self::vatRequestIsLive($request);
+
+        if ($payment->vat_settled_at !== null) {
+            $status = 'settled';
+        } elseif ($live) {
+            $status = 'requested';
+        } else {
+            $status = 'due';
+        }
+
+        $due = $this->documents->vatDue($payment);
+        if ($status === 'due' && $due === null) {
+            return null;
+        }
+
+        return [
+            'status' => $status,
+            'amount' => $due['amount'] ?? null,
+            'rate' => $due['rate'] ?? null,
+            'method' => $payment->vat_settlement_method,
+            'settled_at' => $payment->vat_settled_at?->toIso8601String(),
+            'request_id' => $live ? $request->id : null,
         ];
     }
 
@@ -744,6 +999,7 @@ class DealPaymentService
         float $baseAmount,
         float $amount,
         float $rate,
+        ?int $vatForPaymentId = null,
     ): array {
         $payment = new Payment;
         $payment->company_id = $deal->company_id;
@@ -760,6 +1016,7 @@ class DealPaymentService
         $payment->ol_status = 'pending';
         $payment->ol_payment_type = 'cash';
         $payment->added_by = $user->id;
+        $payment->vat_for_payment_id = $vatForPaymentId;
         $payment->save();
         $payment->loadMissing('currency');
 

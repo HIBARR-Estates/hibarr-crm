@@ -35,14 +35,14 @@
             ]) id="sandbox_paypal_details">
             <div  class="row">
                 <div class="col-lg-6">
-                    <x-forms.text class="mr-0 mr-lg-2 mr-md-2" fieldLabel="Client ID"
+                    <x-forms.text class="mr-0 mr-lg-2 mr-md-2" :fieldLabel="td('Client ID')"
                         fieldName="sandbox_client_id" fieldId="sandbox_client_id"
                         :fieldValue="$quickbookSetting->sandbox_client_id" fieldRequired="true"
                         fieldPlaceholder="">
                     </x-forms.text>
                 </div>
                 <div class="col-lg-6">
-                    <x-forms.label class="mt-3" fieldId="sandbox_client_secret" fieldLabel="Client Secret"
+                    <x-forms.label class="mt-3" fieldId="sandbox_client_secret" :fieldLabel="td('Client Secret')"
                         fieldRequired="true">
                     </x-forms.label>
                     <x-forms.input-group>
@@ -65,13 +65,13 @@
             ]) id="live_paypal_details">
             <div class="row">
                 <div class="col-lg-6">
-                    <x-forms.text class="mr-0 mr-lg-2 mr-md-2" fieldLabel="Client ID"
+                    <x-forms.text class="mr-0 mr-lg-2 mr-md-2" :fieldLabel="td('Client ID')"
                         fieldName="client_id" fieldId="client_id"
                         :fieldValue="$quickbookSetting->client_id" fieldRequired="true" >
                     </x-forms.text>
                 </div>
                 <div class="col-lg-6">
-                    <x-forms.label class="mt-3" fieldId="client_secret" fieldLabel="Client Secret"
+                    <x-forms.label class="mt-3" fieldId="client_secret" :fieldLabel="td('Client Secret')"
                         fieldRequired="true">
                     </x-forms.label>
                     <x-forms.input-group>

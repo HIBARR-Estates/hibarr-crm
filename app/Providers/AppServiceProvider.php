@@ -31,6 +31,15 @@ class AppServiceProvider extends ServiceProvider
         Cashier::ignoreMigrations();
         Sanctum::ignoreMigrations();
 
+        if (config('services.dynamic_translation.legacy_lang_fallback')) {
+            $this->app->extend('translator', function ($translator, $app) {
+                $extended = new \App\Support\FallbackDynamicTranslator($app['translation.loader'], $app->getLocale());
+                $extended->setFallback($app->getFallbackLocale());
+
+                return $extended;
+            });
+        }
+
         if (config('app.redirect_https')) {
             $this->app['request']->server->set('HTTPS', true);
         }

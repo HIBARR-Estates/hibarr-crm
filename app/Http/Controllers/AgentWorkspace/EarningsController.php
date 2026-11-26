@@ -380,6 +380,8 @@ class EarningsController extends AccountBaseController
             'id' => $agent->id,
             'name' => $agent->user?->name,
             'kind' => $kind,
+            // The tree view hangs each agent under this id; null for the top of what the agent may see.
+            'parent_id' => $kind === 'upline' ? null : $agent->parent_agent_id,
             'depth' => $depth,
             // 1 for someone the agent brought in directly, 2 for their recruits, and so on; 0 for the agent and the upline.
             'generation' => $generation,

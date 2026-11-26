@@ -118,7 +118,7 @@ export default function CurrencyRangeInput({ value, onChange }: CurrencyRangeInp
                         className="block text-[10px] font-semibold uppercase tracking-wider mb-1"
                         style={{ color: T.TEXT_MUTED }}
                     >
-                        Min
+                        {td("Min", { source: "en" })}
                     </label>
                     <div className="flex">
                         <span
@@ -144,7 +144,7 @@ export default function CurrencyRangeInput({ value, onChange }: CurrencyRangeInp
                         className="block text-[10px] font-semibold uppercase tracking-wider mb-1"
                         style={{ color: T.TEXT_MUTED }}
                     >
-                        Max
+                        {td("Max", { source: "en" })}
                     </label>
                     <div className="flex">
                         <span

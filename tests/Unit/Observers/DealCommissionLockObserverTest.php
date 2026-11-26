@@ -57,6 +57,27 @@ class DealCommissionLockObserverTest extends TestCase
         $this->assertSame(2, (int) $deal->agent_id);
     }
 
+    public function test_updating_reverts_the_referral_terms(): void
+    {
+        $deal = new Deal([
+            'commission_locked' => true,
+            'referral_commission_type' => 'percentage',
+            'referral_commission_value' => 2,
+            'name' => 'Old name',
+        ]);
+        $deal->syncOriginal();
+
+        $deal->referral_commission_type = 'fixed';
+        $deal->referral_commission_value = 500;
+        $deal->name = 'New name';
+
+        $this->observer()->updating($deal);
+
+        $this->assertSame('percentage', $deal->referral_commission_type->value);
+        $this->assertSame(2.0, (float) $deal->referral_commission_value);
+        $this->assertSame('New name', $deal->name);
+    }
+
     private function observer(): DealObserver
     {
         return new DealObserver(

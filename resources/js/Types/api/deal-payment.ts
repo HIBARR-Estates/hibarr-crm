@@ -14,6 +14,19 @@ export interface DealPaymentVerifiedBy {
     email: string | null;
 }
 
+/** Where the KDV on a collected payment stands (null while nothing is due). */
+export interface DealPaymentVat {
+    status: "due" | "requested" | "settled";
+    /** In the payment's own currency. */
+    amount: number | null;
+    rate: number | null;
+    /** How it was collected, once settled. */
+    method: "request" | "cash" | "external" | null;
+    settled_at: string | null;
+    /** The open KDV payment request, while one is waiting on the customer. */
+    request_id: number | null;
+}
+
 export interface DealPaymentRequest {
     id: number;
     deal_id: number;
@@ -48,6 +61,16 @@ export interface DealPaymentRequest {
     invalidated_at: string | null;
     invalidated_by: DealPaymentVerifiedBy | null;
     invalidation_reason: string | null;
+    /** True once an invoice has been requested; documents exist only after that. */
+    documents_requested: boolean;
+    documents_requested_at: string | null;
+    /** True once the invoice has been generated; a receipt needs it. */
+    invoice_issued: boolean;
+    /** Set on a KDV payment request: the payment its KDV belongs to. */
+    vat_for_payment_id?: number | null;
+    vat?: DealPaymentVat | null;
+    /** On a KDV payment request: its payment, so pages can refresh both. */
+    vat_parent?: DealPaymentRequest | null;
     added_by: DealPaymentVerifiedBy | null;
     last_updated_by: DealPaymentVerifiedBy | null;
     remarks: string | null;

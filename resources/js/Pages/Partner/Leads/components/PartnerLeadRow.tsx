@@ -12,6 +12,8 @@ import StatusPill from "./StatusPill";
  * at a breakpoint has to drop out of the header at the same one.
  */
 export const PARTNER_LEAD_COLUMNS = {
+    added: { width: 112, className: "hidden sm:block" },
+    source: { width: 160, className: "hidden md:block" },
     status: { width: 168, className: "hidden sm:block" },
     deals: { width: 280, className: "" },
     /** The open-detail chevron. */
@@ -24,8 +26,8 @@ interface Props {
 }
 
 /**
- * One referred lead as a table row: who, where it stands, and how its deals
- * have turned out. No contact fields exist on the row — see PartnerLeadService.
+ * One referred lead as a table row: who, where they came from, where it stands,
+ * and how its deals have turned out. Email and phone are not on the row.
  */
 export default function PartnerLeadRow({ lead, onOpen }: Props) {
     const { td } = useTd();
@@ -52,9 +54,39 @@ export default function PartnerLeadRow({ lead, onOpen }: Props) {
                 >
                     {lead.name ?? "—"}
                 </div>
-                <div style={{ fontSize: 11, color: T.TEXT_HINT }}>
-                    {td("Referred")} {formatDate(lead.created_at)}
+                <div className="truncate sm:hidden" style={{ fontSize: 11, color: T.TEXT_HINT }}>
+                    {formatDate(lead.created_at)}
                 </div>
+                {lead.source && (
+                    <div
+                        className="truncate md:hidden"
+                        style={{ fontSize: 12, color: T.TEXT_MUTED, marginTop: 2 }}
+                    >
+                        {lead.source}
+                        {lead.lead_source ? ` · ${lead.lead_source}` : ""}
+                    </div>
+                )}
+            </div>
+
+            <div
+                className={`shrink-0 ${PARTNER_LEAD_COLUMNS.added.className}`}
+                style={{ width: PARTNER_LEAD_COLUMNS.added.width, fontSize: 13, color: T.TEXT }}
+            >
+                {formatDate(lead.created_at)}
+            </div>
+
+            <div
+                className={`min-w-0 shrink-0 ${PARTNER_LEAD_COLUMNS.source.className}`}
+                style={{ width: PARTNER_LEAD_COLUMNS.source.width }}
+            >
+                <div className="truncate" style={{ fontSize: 13, color: T.TEXT }}>
+                    {lead.source ?? "—"}
+                </div>
+                {lead.lead_source && (
+                    <div className="truncate" style={{ fontSize: 11, color: T.TEXT_HINT }}>
+                        {lead.lead_source}
+                    </div>
+                )}
             </div>
 
             <div

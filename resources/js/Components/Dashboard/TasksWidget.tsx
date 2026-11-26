@@ -9,6 +9,7 @@ import {
     formatTaskDateWithCompanyTime,
     taskDateTimeToDayjs,
 } from "@/lib/taskDateTime";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 interface Task {
     id: number;
@@ -31,6 +32,7 @@ interface TasksWidgetProps {
 }
 
 export default function TasksWidget({ tasks }: TasksWidgetProps) {
+    const { td } = useTd();
     const getPriorityColor = (priority: string) => {
         const colors: Record<string, string> = {
             urgent: "red",
@@ -71,10 +73,10 @@ export default function TasksWidget({ tasks }: TasksWidgetProps) {
                     <div className="flex justify-between items-center p-6 pb-0">
                         <div>
                             <h3 className="text-lg font-semibold text-gray-900 mb-1">
-                                Upcoming Tasks
+                                {td("Upcoming Tasks", { source: "en" })}
                             </h3>
                             <p className="text-sm text-gray-500">
-                                Your priority tasks for today
+                                {td("Your priority tasks for today", { source: "en" })}
                             </p>
                         </div>
                         <Link href={route("tasks.index")}>
@@ -83,7 +85,7 @@ export default function TasksWidget({ tasks }: TasksWidgetProps) {
                                 size="small"
                                 className="flex items-center gap-1 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
                             >
-                                View All
+                                {td("View All", { source: "en" })}
                                 <ArrowRight size={14} />
                             </Button>
                         </Link>
@@ -96,7 +98,7 @@ export default function TasksWidget({ tasks }: TasksWidgetProps) {
                         locale={{
                             emptyText: (
                                 <Empty
-                                    description="No tasks found"
+                                    description={td("No tasks found", { source: "en" })}
                                     image={Empty.PRESENTED_IMAGE_SIMPLE}
                                     className="py-8"
                                 />
@@ -125,7 +127,7 @@ export default function TasksWidget({ tasks }: TasksWidgetProps) {
                                                 icon={<EyeOutlined />}
                                                 className="text-gray-500 hover:text-blue-600 hover:bg-blue-50"
                                             >
-                                                View
+                                                {td("View", { source: "en" })}
                                             </Button>
                                         </Link>,
                                     ]}
@@ -176,7 +178,7 @@ export default function TasksWidget({ tasks }: TasksWidgetProps) {
                                                             color="red"
                                                             className="!m-0 text-xs"
                                                         >
-                                                            Overdue
+                                                            {td("Overdue", { source: "en" })}
                                                         </Tag>
                                                     )}
                                                 </div>

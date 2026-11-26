@@ -17,6 +17,15 @@ class LeadUtmTouch extends BaseModel
         'utm_audience',
     ];
 
+    /**
+     * ApiModel hides created_at/updated_at by default. The Marketing tab's
+     * touch history renders created_at next to the First touch / Latest badge,
+     * so it must stay in the Inertia payload (otherwise the UI shows "--").
+     *
+     * @var list<string>
+     */
+    protected $hidden = ['pivot'];
+
     protected $fillable = [
         'lead_id',
         ...self::UTM_FIELDS,

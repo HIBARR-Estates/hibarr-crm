@@ -8,6 +8,7 @@ import type { EligibleResponse, PoolAgent, PoolResponse, TierScope } from "../ty
 import { findLowestAvailablePriority, POOL_GRID_STYLE } from "../utils";
 import AgentPoolTable from "./AgentPoolTable";
 import AddAgentInlineForm from "./AddAgentInlineForm";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 interface FallbackTierPoolProps {
     tierScope: TierScope;
@@ -31,6 +32,7 @@ export default function FallbackTierPool({
     addLabel,
     placeholder,
 }: FallbackTierPoolProps) {
+    const { td } = useTd();
     const { message } = App.useApp();
     const [isOpen, setIsOpen] = useState(true);
     const [selectedUserId, setSelectedUserId] = useState<number | null>(null);
@@ -148,12 +150,12 @@ export default function FallbackTierPool({
                     role="row"
                     style={POOL_GRID_STYLE}
                 >
-                    <span>User</span>
-                    <span title="Order in which calls ring users in this tier (1 rings first, 2 rings second, etc.)">
-                        Routing Order
+                    <span>{td("User", { source: "en" })}</span>
+                    <span title={td("Order in which calls ring users in this tier (1 rings first, 2 rings second, etc.)", { source: "en" })}>
+                        {td("Routing Order", { source: "en" })}
                     </span>
-                    <span title="Admins and managers can toggle this to pause calls routing to them">
-                        Route Calls to Me
+                    <span title={td("Admins and managers can toggle this to pause calls routing to them", { source: "en" })}>
+                        {td("Route Calls to Me", { source: "en" })}
                     </span>
                     <span aria-hidden="true" style={{ textAlign: "right" }} />
                 </div>
@@ -189,8 +191,8 @@ export default function FallbackTierPool({
                 open={deleteTarget !== null}
                 title={`Remove user from ${title.toLowerCase()}?`}
                 message={deleteTarget ? `${deleteTarget.name ?? "This user"} will no longer receive fallback calls in this tier.` : ""}
-                confirmLabel="Remove"
-                cancelLabel="Cancel"
+                confirmLabel={td("Remove", { source: "en" })}
+                cancelLabel={td("Cancel", { source: "en" })}
                 danger
                 onConfirm={() => void handleConfirmDelete()}
                 onCancel={() => setDeleteTarget(null)}

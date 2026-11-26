@@ -1,6 +1,6 @@
 <?php
 
-return array(
+return [
     'importStarted' => 'Import gestartet. Sie werden benachrichtigt, sobald er abgeschlossen ist.',
     'availabilityRequestSent' => 'Verfügbarkeitsanfrage erfolgreich gesendet.',
     'availabilityRequestApproved' => 'Verfügbarkeitsanfrage erfolgreich genehmigt.',
@@ -22,6 +22,9 @@ return array(
     'updateSuccess' => 'Erfolgreich aktualisiert.',
     'dealUpdateSuccess' => 'Angebot erfolgreich aktualisiert.',
     'dealLocked' => 'Dieses Angebot ist gesperrt und kann nicht geändert werden.',
+    'dealReferralLockedByCommission' => 'Die Provision für dieses Angebot wurde bereits berechnet, daher kann der Empfehlungsanteil nicht mehr geändert werden.',
+    'dealReferralAmountTooHigh' => 'Die Empfehlungsprovision darf die für dieses Angebot mögliche Provision (:max) nicht übersteigen.',
+    'packageOverrideNeedsTerms' => 'Legen Sie fest, was dieser Agent als Abschließender, als Empfehler oder in beiden Rollen verdient.',
     'leadUpdateSuccess' => 'Kontakt erfolgreich aktualisiert.',
     'leadReferrerImmutable' => 'Der Empfehlungsgeber ist bereits gesetzt und kann nicht geändert werden.',
     'propertyUpdateSuccess' => 'Immobilie erfolgreich aktualisiert.',
@@ -147,4 +150,14 @@ return array(
     'resyncUserPermissionsAlreadyRunning' => 'Für dieses Unternehmen läuft bereits eine Neusynchronisierung der Benutzerberechtigungen.',
     'resyncUserPermissionsSuccess' => 'Berechtigungen für :synced Benutzer neu synchronisiert. :skipped ohne Rolle übersprungen.',
     'resyncUserPermissionsFailed' => 'Die Neusynchronisierung der Benutzerberechtigungen ist fehlgeschlagen. Prüfen Sie die Anwendungsprotokolle und versuchen Sie es erneut.',
-);
+    'paymentRequestDeleteOnlyCancelled' => 'Nur eine stornierte Zahlungsanforderung kann gelöscht werden.',
+    'deleteTaskCategory' => 'Die gelöschte Aufgabenkategorie kann nicht wiederhergestellt werden!',
+    'noLeadSourceAdded' => 'Keine Lead-Quelle hinzugefügt.',
+    'somethingWentWrong' => 'Etwas ist schiefgelaufen. Bitte versuchen Sie es erneut.',
+    'calendlyLinkMustBeCalendly' => 'Geben Sie einen sicheren Link von calendly.com ein, zum Beispiel https://calendly.com/your-team/intro-call.',
+
+    'meetingContactNoEmail' => ':name hat keine E-Mail-Adresse, daher kann kein Online-Meeting eingerichtet werden. Tragen Sie beim Lead eine ein oder wählen Sie eine andere Art des Treffens.',
+    'meetingContactNoPhone' => ':name hat keine Telefonnummer, daher kann kein Telefonat eingerichtet werden. Tragen Sie beim Lead eine ein oder wählen Sie eine andere Art des Treffens.',
+    'meetingContactNoWay' => ':name hat weder eine E-Mail-Adresse noch eine Telefonnummer, es gibt also keine Möglichkeit, die Person zu erreichen. Tragen Sie beim Lead eine ein, bevor Sie ein Meeting planen.',
+
+];

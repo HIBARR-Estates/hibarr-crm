@@ -368,7 +368,7 @@ export default function NotificationSettings({
                                                                 }
                                                             />
                                                         )}
-                                                        {channel.label}
+                                                        {td(channel.label, { source: "en" })}
                                                     </span>
                                                     <Switch
                                                         checked={state.checked}

@@ -49,6 +49,7 @@ import MeetingsWorkspaceRedesign from "./Redesign/MeetingsWorkspaceRedesign";
 import type {
     MeetingsTab,
     MeetingsTabCounts,
+    MeetingsViewMode,
 } from "./Redesign/adapters/meetingViewModel";
 import type { CalendarPayload } from "./Redesign/components/MeetingsCalendarView";
 
@@ -84,9 +85,20 @@ interface MeetingsPageProps extends MeetingsSharedProps {
  * absent until the calendar view asks for it.
  */
 export interface MeetingsRedesignPageProps extends MeetingsSharedProps {
-    meetings: PaginatedFollowupResponse;
-    tabCounts: MeetingsTabCounts;
+    /**
+     * Null on the calendar view: the list, its tallies and the "has any
+     * meetings" probe are only computed for the list, which the page asks for
+     * when it is switched to.
+     */
+    meetings: PaginatedFollowupResponse | null;
+    tabCounts: MeetingsTabCounts | null;
     activeTab: MeetingsTab;
+    /**
+     * The view the server opened the page on (calendar unless this browser
+     * remembered the list, or the link is about the list). The server only
+     * prepares the month grid for the calendar, so the page follows it.
+     */
+    initialView: MeetingsViewMode;
     calendarMeetings?: CalendarPayload;
     /** Month this render registered the deferred calendar for, else null. */
     calendarRequestedMonth: string | null;
@@ -95,7 +107,7 @@ export interface MeetingsRedesignPageProps extends MeetingsSharedProps {
     /** The next few meetings for the cards above the list; deferred. */
     upcomingSoon?: DealFollowup[];
     /** False only for someone who has never had a meeting at all. */
-    hasAnyMeetings: boolean;
+    hasAnyMeetings: boolean | null;
     /**
      * Filter-modal chrome, both deferred. `EntityFilterModal` reads them off
      * the page itself rather than through props, so these are declared for
@@ -682,7 +694,7 @@ function LegacyMeetingsIndex() {
                             disabled={isRefreshing}
                             type="text"
                         >
-                            {td("Refresh", { source: "en" })}
+                            {t("pages.meetings.ui.refresh")}
                         </Button>
                         {canAdd && (
                             <Button

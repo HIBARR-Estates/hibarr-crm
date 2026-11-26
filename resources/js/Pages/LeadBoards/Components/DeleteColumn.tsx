@@ -7,12 +7,14 @@ import { DeleteOutlined } from "@ant-design/icons";
 import { ApiResponse } from "@/lib/api/types";
 import { useApiMutate } from "@/lib/api/client";
 import { isLoading } from "@/lib/utils";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 interface Props extends IModalProps {
     stage?: PipelineStage;
 }
 
 const DeleteColumn: React.FC<Props> = ({ stage, onClose, open }) => {
+    const { td } = useTd();
     const handleCancel = () => {
         onClose();
     };
@@ -44,15 +46,15 @@ const DeleteColumn: React.FC<Props> = ({ stage, onClose, open }) => {
                 fn: onSubmit,
                 loading: isLoading({ status }),
             }}
-            title="Delete Stage"
+            title={td("Delete Stage", { source: "en" })}
             description={
                 stage
                     ? `Are you sure you want to delete the stage "${stage?.name}"? This action cannot be undone and will affect all deals in this stage.`
                     : "Are you sure you want to delete this stage? This action cannot be undone and will affect all deals in this stage."
             }
             icon={<DeleteOutlined className="text-red-500 text-3xl" />}
-            confirmText="Yes, Delete Stage"
-            cancelText="Cancel"
+            confirmText={td("Yes, Delete Stage", { source: "en" })}
+            cancelText={td("Cancel", { source: "en" })}
             confirmType="primary"
             confirmDanger={true}
         />

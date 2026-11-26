@@ -68,7 +68,8 @@ class PaymentRequestController extends AccountBaseController
             'deal:id,name,agent_id,value,lead_id',
             'deal.leadAgent.user:id,name',
             'deal.contact:id,client_name,company_name',
-        ])->orderByDesc('created_at')->orderByDesc('id');
+        ])->withExists('invoiceDocuments as invoice_document_exists')
+            ->orderByDesc('created_at')->orderByDesc('id');
 
         $paginated = $query->paginate((int) ($filters['per_page'] ?? 15));
         $paginated->through(fn (Payment $payment) => $this->serializeRow($payment));

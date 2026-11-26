@@ -1,7 +1,7 @@
 <x-form id="createCurrencyKey">
     <div class="modal-header">
         <h5 class="modal-title" id="modelHeading">@lang('modules.accountSettings.currencyConverterKey')</h5>
-        <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span
+        <button type="button" class="close" data-dismiss="modal" aria-label="{{ td('Close') }}"><span
                 aria-hidden="true">×</span></button>
     </div>
     <div class="modal-body">
@@ -36,21 +36,21 @@
             </div>
 
             <div class="col-sm-12 col-lg-6">
-                <x-forms.select fieldId="currency_key_version" fieldLabel="Version" fieldName="currency_key_version">
+                <x-forms.select fieldId="currency_key_version" :fieldLabel="td('Version')" fieldName="currency_key_version">
                     <option {{ (global_setting()->currency_key_version == 'free' ? 'selected' : '')  }} value="free">
-                        Free
+                        {{ td('Free') }}
                     </option>
                     <option {{ (global_setting()->currency_key_version == 'paid' ? 'selected' : '')  }} value="paid">
-                        Paid
+                        {{ td('Paid') }}
                     </option>
                     <option {{ (global_setting()->currency_key_version == 'prepaid' ? 'selected' : '')  }} value="prepaid">
-                        Prepaid
+                        {{ td('Prepaid') }}
                     </option>
                     <option {{ (global_setting()->currency_key_version == 'premium' ? 'selected' : '')  }} value="premium">
-                        Premium
+                        {{ td('Premium') }}
                     </option>
                     <option {{ (global_setting()->currency_key_version == 'dedicated' ? 'selected' : '')  }} value="dedicated">
-                        Dedicated
+                        {{ td('Dedicated') }}
                     </option>
                 </x-forms.select>
             </div>

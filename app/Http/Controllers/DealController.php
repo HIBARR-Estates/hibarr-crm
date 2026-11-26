@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Actions\Deals\UpdateDealReferralTerms;
 use App\DataTables\DealNotesDataTable;
 use App\DataTables\DealsDataTable;
 use App\DataTables\LeadFollowupDataTable;
@@ -9,6 +10,7 @@ use App\DataTables\LeadGDPRDataTable;
 use App\DataTables\ProposalDataTable;
 use App\Email\EmailFeature;
 use App\Email\FollowUps\AttachesSourceEmail;
+use App\Enums\AgeRange;
 use App\Enums\MlmCommissionStatus;
 use App\Enums\OutcomeStatus;
 use App\Enums\Salutation;
@@ -62,6 +64,7 @@ use App\Services\DealAgentAssignmentService;
 use App\Services\DealFilters;
 use App\Services\DealOfferService;
 use App\Services\DealValueResolver;
+use App\Services\MeetingContactability;
 use App\Services\MeetingVisibilityService;
 use App\Services\PackagePipelineRouterService;
 use App\Services\PackageRoutingFieldCatalog;
@@ -70,6 +73,7 @@ use App\Services\PipelineScopeResolverService;
 use App\Services\Reminders\MeetingReminderSync;
 use App\Services\SallyMeetingInsightService;
 use App\Services\SallySuggestionLogService;
+use App\Support\CommissionTerms;
 use App\Support\FeatureFlags;
 use App\Support\UserTimezone;
 use App\Traits\DealAutomationTrait;
@@ -174,13 +178,16 @@ class DealController extends AccountBaseController
         $isKanbanView = $view === 'kanban';
 
         // A board always renders one pipeline's columns, so a multi-pipeline
-        // filter ("1,2") or "all" falls back to the first/default pipeline.
-        $requestedPipelines = app(DealFilters::class)->values($request, 'lead_pipeline_id');
+        // filter ("1,2") or "all" falls back to the first/default pipeline, and
+        // an exclusion ("not 2") to the first one it has not ruled out.
+        $requestedPipelines = app(DealFilters::class)->includedValues($request, 'lead_pipeline_id');
         $pipelineId = count($requestedPipelines) === 1
             ? $requestedPipelines[0]
-            : optional($this->defaultPipeline)->id;
+            : $this->pipelineOutsideExclusion($request);
 
-        $boardColumns = $isKanbanView
+        // With every pipeline excluded there is no pipeline left to show: the
+        // board stays empty, like the table, instead of showing the default one.
+        $boardColumns = $isKanbanView && ! app(DealFilters::class)->pipelineExcluded($request, $pipelineId)
             ? $this->getBoardColumns($request, $pipelineId)
             : [];
 
@@ -202,11 +209,19 @@ class DealController extends AccountBaseController
             'stats' => $stats,
             'filters' => $request->only([
                 'lead_pipeline_id',
+                'lead_pipeline_id_mode',
                 'pipeline_stage_id',
+                'pipeline_stage_id_mode',
                 'category_id',
+                'category_id_mode',
                 'source_id',
+                'source_id_mode',
                 'package_id',
+                'package_id_mode',
                 'agent_id',
+                'agent_id_mode',
+                'close_start_mode',
+                'value_range_mode',
                 'outcome_status',
                 'is_locked',
                 'search',
@@ -275,12 +290,10 @@ class DealController extends AccountBaseController
         // other filter is shared with the kanban columns (DealFilters).
         $dealFilters = app(DealFilters::class);
 
-        if ($pipelines = $dealFilters->values($request, 'lead_pipeline_id')) {
-            $dealsQuery->whereIn('deals.lead_pipeline_id', $pipelines);
-        }
+        $dealFilters->applyColumn($dealsQuery, $request, 'lead_pipeline_id', 'deals.lead_pipeline_id');
 
-        if (! $pipelineStageId && $stages = $dealFilters->values($request, 'pipeline_stage_id')) {
-            $dealsQuery->whereIn('deals.pipeline_stage_id', $stages);
+        if (! $pipelineStageId) {
+            $dealFilters->applyColumn($dealsQuery, $request, 'pipeline_stage_id', 'deals.pipeline_stage_id');
         }
 
         $dealFilters->apply($dealsQuery, $request);
@@ -328,6 +341,20 @@ class DealController extends AccountBaseController
     }
 
     /**
+     * The pipeline a board opens on when the filter does not name exactly one:
+     * the default pipeline, unless the filter excludes it, then the first that
+     * it does not. With every pipeline excluded it keeps the default, and the
+     * callers then show nothing for it (see pipelineExcluded()).
+     */
+    private function pipelineOutsideExclusion(Request $request): ?int
+    {
+        $candidates = [optional($this->defaultPipeline)->id, ...collect($this->pipelines)->pluck('id')->all()];
+
+        return app(DealFilters::class)->firstPipelineNotExcluded($request, $candidates)
+            ?? optional($this->defaultPipeline)->id;
+    }
+
+    /**
      * Get board columns with deal counts for kanban view
      */
     protected function getBoardColumns(Request $request, $pipelineId)
@@ -360,7 +387,10 @@ class DealController extends AccountBaseController
             ->where('lead_pipeline_id', $pipelineId)
             ->with('userSetting')
             ->orderBy('priority', 'asc')
-            ->get();
+            ->get()
+            // A stage the filter excludes is not a column of the board.
+            ->reject(fn (PipelineStage $stage) => app(DealFilters::class)->stageExcluded($request, $stage->id))
+            ->values();
 
         // Calculate total value per column
         foreach ($boardColumns as $column) {
@@ -438,7 +468,7 @@ class DealController extends AccountBaseController
      */
     protected function loadDataForInertiaIndex(): void
     {
-        $this->pipelines = LeadPipeline::all();
+        $this->pipelines = LeadPipeline::visibleInSystem()->get();
         $this->defaultPipeline = LeadPipeline::where('default', 1)->first();
     }
 
@@ -459,7 +489,7 @@ class DealController extends AccountBaseController
 
     protected function loadPipelineData()
     {
-        $this->pipelines = LeadPipeline::all();
+        $this->pipelines = LeadPipeline::visibleInSystem()->get();
         $defaultPipeline = LeadPipeline::where('default', 1)->first();
         $this->defaultPipeline = $defaultPipeline;
         $this->stages = PipelineStage::where('lead_pipeline_id', optional($defaultPipeline)->id)->get();
@@ -575,9 +605,30 @@ class DealController extends AccountBaseController
             $siblings = array_values(array_filter($siblings, fn (array $summary) => (int) $summary['id'] === (int) $deal));
         }
 
+        // The person's details stay editable once they have a deal (canvas
+        // L8-06): the same permission and options the lead page edits with,
+        // the options loaded after first paint.
+        $contactEdit = $restricted ? [] : [
+            'editLeadPermission' => user()->permission('edit_lead'),
+            'contactEditOptions' => Inertia::defer(fn () => [
+                'salutations' => collect(Salutation::cases())->map(fn (Salutation $salutation) => [
+                    'value' => $salutation->value,
+                    'label' => $salutation->label(),
+                ])->values(),
+                'ageRanges' => collect(AgeRange::cases())->map(fn (AgeRange $ageRange) => [
+                    'value' => $ageRange->value,
+                    'label' => $ageRange->label(),
+                ])->values(),
+                'countries' => countries(),
+                'sources' => LeadSource::all(),
+                'categories' => LeadCategory::all(),
+            ]),
+        ];
+
         return Inertia::render('AgentWorkspace/ContactDeal', array_merge(
             Arr::except($props, self::AGENT_CONTACT_UNUSED_PROPS),
             ['contactDeals' => $siblings],
+            $contactEdit,
         ));
     }
 
@@ -620,22 +671,24 @@ class DealController extends AccountBaseController
         $this->loadDataForInertiaIndex();
         $filters = app(DealFilters::class);
 
-        $requested = $filters->values($request, 'lead_pipeline_id');
+        $requested = $filters->includedValues($request, 'lead_pipeline_id');
         $pipelineId = count($requested) === 1
             ? (int) $requested[0]
-            : (int) (optional($this->defaultPipeline)->id ?? optional($this->pipelines->first())->id);
+            : (int) $this->pipelineOutsideExclusion($request);
 
         // The page is one pipeline's open deals; the outcome filter, the page
         // and the in-list search (done in the browser) are not part of it.
-        $query = $request->except(['outcome_status', 'lead_pipeline_id', 'page', 'view', 'search']);
+        $query = $request->except(['outcome_status', 'lead_pipeline_id', 'lead_pipeline_id_mode', 'page', 'view', 'search']);
         $filterRequest = Request::create('/', 'GET', array_merge($query, ['lead_pipeline_id' => $pipelineId]));
+        // Every pipeline excluded: the one kept for the page is itself ruled out.
+        $nothingToShow = $filters->pipelineExcluded($request, $pipelineId);
 
         $stages = PipelineStage::query()
             ->where('lead_pipeline_id', $pipelineId)
             ->orderBy('priority')
             ->get(['id', 'name', 'label_color', 'priority']);
 
-        $totals = $this->agentDealsBase($filterRequest, $pipelineId)
+        $totals = $this->agentDealsBase($filterRequest, $pipelineId, $nothingToShow)
             ->whereNull('deals.outcome_status')
             ->toBase()
             ->selectRaw('deals.pipeline_stage_id as stage_id, COUNT(*) as deals_count, COALESCE(SUM(deals.value), 0) as total_value')
@@ -644,7 +697,7 @@ class DealController extends AccountBaseController
             ->keyBy('stage_id');
 
         $monthStart = now()->startOfMonth();
-        $outcome = fn (OutcomeStatus $status, string $dateExpression) => (array) $this->agentDealsBase($filterRequest, $pipelineId)
+        $outcome = fn (OutcomeStatus $status, string $dateExpression) => (array) $this->agentDealsBase($filterRequest, $pipelineId, $nothingToShow)
             ->where('deals.outcome_status', $status->value)
             ->whereRaw($dateExpression.' >= ?', [$monthStart])
             ->toBase()
@@ -654,7 +707,7 @@ class DealController extends AccountBaseController
         $won = $outcome(OutcomeStatus::Won, 'COALESCE(deals.won_at, deals.updated_at)');
         $lost = $outcome(OutcomeStatus::Lost, 'deals.updated_at');
 
-        $mapDeals = fn () => $this->agentDealsBase($filterRequest, $pipelineId)
+        $mapDeals = fn () => $this->agentDealsBase($filterRequest, $pipelineId, $nothingToShow)
             ->whereNull('deals.outcome_status')
             ->with(['leadAgent.user:id,name', 'contact:id,client_name', 'currency:id,currency_symbol,currency_code'])
             ->select('deals.id', 'deals.name', 'deals.lead_id', 'deals.lead_pipeline_id', 'deals.pipeline_stage_id', 'deals.agent_id', 'deals.added_by', 'deals.value', 'deals.currency_id', 'deals.is_locked', 'deals.created_at')
@@ -674,11 +727,12 @@ class DealController extends AccountBaseController
         return Inertia::render('AgentWorkspace/Deals', [
             'pageTitle' => __('pages.agent_workspace.deals.title'),
             'userId' => (int) user()->id,
-            // `visible` is the pipeline's nav-visibility setting; the default pipeline is always visible.
+            // `visible` combines nav-visibility + system-visibility; the default pipeline is always visible.
             'pipelines' => $this->pipelines->map(fn ($pipeline) => [
                 'id' => (int) $pipeline->id,
                 'name' => $pipeline->name,
-                'visible' => ! $navVisibility || (bool) $pipeline->default || ! $pipeline->hidden_from_nav,
+                'visible' => ((bool) $pipeline->default || ! $pipeline->hidden_from_system)
+                    && (! $navVisibility || (bool) $pipeline->default || ! $pipeline->hidden_from_nav),
             ])->values(),
             'pipelineId' => $pipelineId,
             'filters' => $request->only([
@@ -727,14 +781,16 @@ class DealController extends AccountBaseController
      * filters (the same ones as the Deals index), before any deal columns
      * are chosen.
      */
-    private function agentDealsBase(Request $filterRequest, int $pipelineId)
+    private function agentDealsBase(Request $filterRequest, int $pipelineId, bool $nothingToShow = false)
     {
         $filters = app(DealFilters::class);
         $query = Deal::query()->where('deals.lead_pipeline_id', $pipelineId);
 
-        if ($stages = $filters->values($filterRequest, 'pipeline_stage_id')) {
-            $query->whereIn('deals.pipeline_stage_id', $stages);
+        if ($nothingToShow) {
+            $query->whereRaw('1 = 0');
         }
+
+        $filters->applyColumn($query, $filterRequest, 'pipeline_stage_id', 'deals.pipeline_stage_id');
 
         $filters->apply($query, $filterRequest);
 
@@ -799,7 +855,8 @@ class DealController extends AccountBaseController
                     ->select('users.id', 'users.name', 'users.image', 'users.email', 'users.status')
                     ->with('employeeDetail.designation:id,name')
                     ->where('users.status', '!=', 'deactive')
-                    ->orderBy('users.name');
+                    ->orderBy('users.name')
+                    ->orderBy('users.id');
             },
             'dealParticipants' => function ($query) {
                 $query->withoutGlobalScope(ActiveScope::class)
@@ -957,11 +1014,11 @@ class DealController extends AccountBaseController
             // Quick action / composer follow in E-29.
             'emailQuickAction' => EmailFeature::quickActionFor(user()),
 
-            // A pipeline that sells packages does not sell individual properties,
-            // so properties / recommendations / offers are hidden for its deals.
-            'pipelineHasPackages' => $deal->lead_pipeline_id
-                ? \App\Models\PackagePipeline::where('pipeline_id', $deal->lead_pipeline_id)->exists()
-                : false,
+            // Explicit pipeline offering_type: package-only hides properties /
+            // recommendations / offers; property-only hides packages; both shows either.
+            'pipelineHasPackages' => (bool) optional($deal->pipeline)->isPackageOffering(),
+            'pipelineOfferingType' => optional($deal->pipeline)?->offeringType()
+                ?? \App\Models\LeadPipeline::OFFERING_PROPERTY,
 
             // ---- C1 deferred (queries run only when Inertia resolves these) ----
             // notes / dealFollowUps / files / tasks are no longer deferred props —
@@ -1306,6 +1363,7 @@ class DealController extends AccountBaseController
         $dealFollowUps = DealFollowUp::with([
             'addedBy:id,name,image',
             'host:id,name,image',
+            'outcomeLoggedBy:id,name,image',
             'meetingType',
             'meetingSummary',
             'lead:id,client_name,mobile,cell,office',
@@ -1640,7 +1698,7 @@ class DealController extends AccountBaseController
 
         $this->categories = $this->categories->get();
 
-        $this->leadPipelines = LeadPipeline::orderBy('default', 'DESC')->get();
+        $this->leadPipelines = LeadPipeline::visibleInSystem()->orderBy('default', 'DESC')->get();
         $this->leadStages = PipelineStage::all();
         $this->countries = countries();
 
@@ -1931,7 +1989,7 @@ class DealController extends AccountBaseController
         $this->categories = $this->categories->get();
         $this->leadContacts = Lead::all();
         $this->products = Product::all();
-        $this->leadPipelines = LeadPipeline::all();
+        $this->leadPipelines = LeadPipeline::visibleInSystem()->get();
 
         $this->stages = PipelineStage::all();
 
@@ -2436,6 +2494,85 @@ class DealController extends AccountBaseController
         ));
 
         return $deal;
+    }
+
+    /**
+     * Set this deal's own referral terms: a percentage of the deal value, an
+     * agreed amount, or "not paid". With no type the override is cleared and the
+     * referrer's package or partner terms apply.
+     *
+     * Frozen once commission has been calculated, and never more than the
+     * commission the deal can carry.
+     */
+    public function updateReferralCommission(Request $request, $id)
+    {
+        abort_if(! FeatureFlags::enabled('crm.partner-referral-commission'), 404);
+
+        $deal = Deal::findOrFail($id);
+
+        if ($deal->isLocked()) {
+            return response()->json([
+                'success' => false,
+                'message' => __('messages.dealLocked'),
+            ], 403);
+        }
+
+        $hasTeamAccess = $deal->hasTeamMemberAccess(user()->id);
+        $editPermission = user()->permission('edit_deals');
+
+        abort_403(! (
+            $editPermission == 'all'
+            || ($editPermission == 'added' && $deal->added_by == user()->id)
+            || ($editPermission == 'owned' && $hasTeamAccess)
+            || ($editPermission == 'both' && ($deal->added_by == user()->id || $hasTeamAccess))
+        ));
+
+        $type = $request->input('referral_commission_type');
+        $valueRules = in_array($type, ['percentage', 'fixed'], true)
+            ? ['required', 'numeric', 'min:0', 'decimal:0,2', $type === 'percentage' ? 'max:100' : 'max:9999999999999.99']
+            : ['nullable'];
+
+        $validated = $request->validate([
+            'referral_commission_type' => ['nullable', \Illuminate\Validation\Rule::enum(\App\Enums\PackageCommissionType::class)],
+            'referral_commission_value' => $valueRules,
+        ]);
+
+        // Null type clears the override and the deal goes back to the referrer's
+        // package or partner terms. "None" has no value to keep.
+        $terms = CommissionTerms::make(
+            $validated['referral_commission_type'] ?? null,
+            $validated['referral_commission_value'] ?? null,
+        );
+
+        $result = app(UpdateDealReferralTerms::class)->handle($deal->id, $terms);
+
+        if ($result['outcome'] === UpdateDealReferralTerms::EXCEEDS) {
+            return response()->json([
+                'success' => false,
+                'message' => __('messages.dealReferralAmountTooHigh', [
+                    'max' => number_format((float) $result['max'], 2),
+                ]),
+            ], 422);
+        }
+
+        if ($result['outcome'] === UpdateDealReferralTerms::DEAL_LOCKED) {
+            return response()->json([
+                'success' => false,
+                'message' => __('messages.dealLocked'),
+            ], 403);
+        }
+
+        if ($result['outcome'] === UpdateDealReferralTerms::COMMISSION_LOCKED) {
+            return response()->json([
+                'success' => false,
+                'message' => __('messages.dealReferralLockedByCommission'),
+            ], 403);
+        }
+
+        return response()->json([
+            'status' => 'success',
+            'data' => $this->loadFullDeal($deal->id),
+        ]);
     }
 
     /**
@@ -3289,6 +3426,23 @@ class DealController extends AccountBaseController
             }
         }
 
+        // With the Meetings page improvements, a meeting is not created for a
+        // person who cannot be reached the way it is set up to run: an online
+        // meeting needs an email, a phone meeting a number, an in-person one
+        // either. Checked here as well as in the dialog, which only explains it.
+        if ($lead && FeatureFlags::enabled('crm.meetings-page-redesign') && FeatureFlags::enabled('crm.meetings-page-improvements')) {
+            $lead->loadMissing('contactMethods:id,lead_id,type,identifier');
+            $missing = MeetingContactability::shortfall($request->input('location'), MeetingContactability::forLead($lead));
+
+            if ($missing !== null) {
+                return Reply::error(__(match ($missing) {
+                    MeetingContactability::NEEDS_EMAIL => 'messages.meetingContactNoEmail',
+                    MeetingContactability::NEEDS_PHONE => 'messages.meetingContactNoPhone',
+                    default => 'messages.meetingContactNoWay',
+                }, ['name' => $lead->client_name]));
+            }
+        }
+
         // The form's timezone picker (creator's own by default, or the host's)
         // decides what the entered wall-clock time means.
         $timezone = UserTimezone::forWrite(user(), company(), $request->input('timezone'));
@@ -3397,6 +3551,7 @@ class DealController extends AccountBaseController
         $followUp = DealFollowUp::with([
             'addedBy:id,name,image',
             'host:id,name,image',
+            'outcomeLoggedBy:id,name,image',
             'meetingType',
             'meetingSummary',
             'lead:id,client_name,mobile,cell,office',
@@ -3582,29 +3737,57 @@ class DealController extends AccountBaseController
      */
     public function applyFollowUpQuickAction(Request $request)
     {
+        // The redesigned Meetings page posts here with axios and patches its
+        // own list from the answer. Answering it with `back()` made Inertia
+        // send the whole page's props again — every schedulable lead and
+        // deal included — only for the caller to reload the list on top.
+        $wantsJson = $request->expectsJson();
+
+        $ids = array_values(array_filter(
+            array_map('intval', explode(',', (string) $request->row_ids))
+        ));
+
         switch ($request->action_type) {
             case 'delete':
                 $this->deleteFollowUpRecords($request);
-
-                return back()->with([
-                    'status' => 'success',
-                    'message' => __('messages.deleteSuccess'),
-                ]);
+                $message = __('messages.deleteSuccess');
+                break;
 
             case 'change-status':
                 $this->changeBulkFollowUpStatus($request);
-
-                return back()->with([
-                    'status' => 'success',
-                    'message' => __('messages.updateSuccess'),
-                ]);
+                $message = __('messages.updateSuccess');
+                break;
 
             default:
+                // An unknown action is a failed request, not a success the
+                // caller should patch its list for.
+                if ($wantsJson) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => __('messages.selectAction'),
+                    ], 422);
+                }
+
                 return back()->with([
                     'status' => 'error',
                     'message' => __('messages.selectAction'),
                 ]);
         }
+
+        if ($wantsJson) {
+            return response()->json([
+                'success' => true,
+                'message' => $message,
+                'action' => $request->action_type,
+                'ids' => $ids,
+                'status' => $request->action_type === 'change-status' ? $request->status : null,
+            ]);
+        }
+
+        return back()->with([
+            'status' => 'success',
+            'message' => $message,
+        ]);
     }
 
     /**
@@ -3763,6 +3946,7 @@ class DealController extends AccountBaseController
 
         // Get all pipelines for the dropdown
         $this->pipelines = \App\Models\LeadPipeline::where('company_id', company()->id)
+            ->visibleInSystem()
             ->orderBy('id')
             ->get();
 
@@ -4175,7 +4359,11 @@ class DealController extends AccountBaseController
         }
 
         $this->editPermission = user()->permission('edit_lead_follow_up');
-        abort_403(! ($this->editPermission == 'all' || ($this->editPermission == 'added' && $followUp->added_by == user()->id)));
+        // The deal's own agent gets the "link failed" alert, so they may retry the link
+        // on any meeting of their deal, even one someone else booked.
+        abort_403(! ($this->editPermission == 'all'
+            || ($this->editPermission == 'added' && $followUp->added_by == user()->id)
+            || $this->isResponsibleAgentForFollowUp($followUp, (int) user()->id)));
 
         try {
             Log::info('Calling triggerFollowUpAutomation', [
@@ -4209,37 +4397,51 @@ class DealController extends AccountBaseController
     }
 
     /**
-     * Notify agent when meeting link generation fails
+     * Who is alerted when a meeting link fails: the deal's agent, else the lead's
+     * owner, else the deal watcher, else the follow-up's creator. That person may
+     * also ask for the link again, so the alert always has a way to be resolved.
+     */
+    private function meetingLinkAlertRecipientId(DealFollowUp $followUp): ?int
+    {
+        $deal = $followUp->deal;
+        $leadId = $followUp->lead_id ?: $deal?->lead_id;
+
+        $candidates = [
+            $deal?->agent_id ? \App\Models\LeadAgent::query()->whereKey($deal->agent_id)->value('user_id') : null,
+            $leadId ? Lead::query()->whereKey($leadId)->value('lead_owner') : null,
+            // Same first watcher the deal page shows (active, by name), so the
+            // alerted watcher is the one who sees Generate link.
+            $deal?->dealWatchers()
+                ->withoutGlobalScope(ActiveScope::class)
+                ->where('users.status', '!=', 'deactive')
+                ->orderBy('users.name')
+                ->orderBy('users.id')
+                ->value('users.id'),
+            $followUp->added_by,
+        ];
+
+        foreach ($candidates as $userId) {
+            if ($userId && \App\Models\User::query()->whereKey($userId)->exists()) {
+                return (int) $userId;
+            }
+        }
+
+        return null;
+    }
+
+    private function isResponsibleAgentForFollowUp(DealFollowUp $followUp, int $userId): bool
+    {
+        return $this->meetingLinkAlertRecipientId($followUp) === $userId;
+    }
+
+    /**
+     * Notify the alert recipient when meeting link generation fails
      */
     private function notifyAgentOfMeetingLinkFailure(DealFollowUp $followUp, string $errorMessage)
     {
         try {
-            // Get the responsible agent
-            $agent = null;
-
-            if ($followUp->deal && $followUp->deal->agent_id) {
-                $leadAgent = \App\Models\LeadAgent::find($followUp->deal->agent_id);
-                if ($leadAgent) {
-                    $agent = \App\Models\User::find($leadAgent->user_id);
-                }
-            }
-
-            if (! $agent && $followUp->lead_id) {
-                $lead = Lead::find($followUp->lead_id);
-                if ($lead?->lead_owner) {
-                    $agent = \App\Models\User::find($lead->lead_owner);
-                }
-            }
-
-            // If no agent found, try to get the deal watcher
-            if (! $agent && $followUp->deal && $followUp->deal->deal_watcher) {
-                $agent = \App\Models\User::find($followUp->deal->deal_watcher);
-            }
-
-            // If still no agent, get the user who created the follow-up
-            if (! $agent) {
-                $agent = \App\Models\User::find($followUp->added_by);
-            }
+            $recipientId = $this->meetingLinkAlertRecipientId($followUp);
+            $agent = $recipientId ? \App\Models\User::find($recipientId) : null;
 
             if ($agent) {
                 $agent->notify(new MeetingLinkGenerationFailed($followUp, $agent, $errorMessage));

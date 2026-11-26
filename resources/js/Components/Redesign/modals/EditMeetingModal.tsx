@@ -1,5 +1,6 @@
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import { useTd } from "@/Hooks/useDynamicTranslation";
+import useTranslation from "@/Hooks/useTranslation";
 import Button from "@/Components/Redesign/primitives/Button";
 import { Modal } from "@/Components/Redesign/primitives/Modal";
 import Segmented from "@/Components/Redesign/primitives/Segmented";
@@ -37,6 +38,8 @@ interface EditMeetingModalProps {
      * already in hand (the Meetings index' edit dialog).
      */
     confirmationPanel?: ReactNode;
+    /** Forwarded to the form: retries a failed automatic meeting link. */
+    onGenerateLink?: () => Promise<string | null>;
 }
 
 export default function EditMeetingModal({
@@ -53,8 +56,10 @@ export default function EditMeetingModal({
     hostLocked = true,
     participantDirectory = [],
     confirmationPanel,
+    onGenerateLink,
 }: EditMeetingModalProps) {
     const { td } = useTd();
+    const { t } = useTranslation();
     const [form, setForm] = useState<MeetingFormState | null>(null);
     const [panel, setPanel] = useState<"details" | "confirmation">("details");
     const seededForOpenRef = useRef(false);
@@ -123,10 +128,10 @@ export default function EditMeetingModal({
                         onChange={setPanel}
                         fullWidth
                         variant="raised"
-                        ariaLabel={td("Edit views")}
+                        ariaLabel={t("pages.meetings.ui.edit_views")}
                         options={[
-                            { value: "details", label: td("Meeting details") },
-                            { value: "confirmation", label: td("Meeting outcome") },
+                            { value: "details", label: t("pages.meetings.ui.meeting_details") },
+                            { value: "confirmation", label: t("pages.meetings.ui.meeting_outcome") },
                         ]}
                     />
                 </div>
@@ -153,6 +158,7 @@ export default function EditMeetingModal({
                     hostLocked={hostLocked}
                     participantDirectory={participantDirectory}
                     showTimezone={false}
+                    onGenerateLink={onGenerateLink}
                 />
             </div>
         </Modal>

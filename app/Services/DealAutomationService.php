@@ -27,6 +27,9 @@ use Illuminate\Support\Str;
 
 class DealAutomationService
 {
+    /** Deal columns for the manual value adjustments — setting one recomputes the deal's value. */
+    private const DEAL_ADJUSTMENT_FIELDS = ['discount_value', 'deduction_amount', 'deduction_note'];
+
     use RecordsCrmEvents;
 
     protected FieldResolverService $fieldResolver;
@@ -794,7 +797,65 @@ class DealAutomationService
             return;
         }
 
+        $isAdjustment = $subject instanceof Deal && in_array($fieldName, self::DEAL_ADJUSTMENT_FIELDS, true);
+
+        if ($isAdjustment) {
+            // saveQuietly() below skips DealObserver::updating, which is the
+            // guard that reverts value-affecting changes on a locked deal — so
+            // the lock has to be honoured here. The entry points already skip
+            // locked deals, but an earlier lock_deal action in this same run
+            // can lock the subject before this action executes.
+            if ($subject->isLocked()) {
+                $this->logAction($subject, $automation, "Skipped {$fieldName}: deal is locked", DealAutomationLog::STATUS_SKIPPED, 'field');
+
+                return;
+            }
+
+            if ($subject->isCommissionLocked()) {
+                $this->logAction($subject, $automation, "Skipped {$fieldName}: commission is locked", DealAutomationLog::STATUS_SKIPPED, 'field');
+
+                return;
+            }
+
+            if ($fieldName === 'discount_value') {
+                // "10%" → percent of the base; "500" → flat amount in the
+                // deal's own currency (same pair the value card edits).
+                $raw = trim((string) $fieldValue);
+                $isPercent = str_ends_with($raw, '%');
+                $number = trim($isPercent ? substr($raw, 0, -1) : $raw);
+                $valid = is_numeric($number) && (float) $number >= 0 && (! $isPercent || (float) $number <= 100);
+
+                if (! $valid) {
+                    $this->skipInvalidAdjustment($subject, $automation, $fieldName, $fieldValue);
+
+                    return;
+                }
+
+                $subject->discount_type = $isPercent ? 'percent' : 'fixed';
+                $fieldValue = round((float) $number, 2);
+            } elseif ($fieldName === 'deduction_amount') {
+                if (! is_numeric($fieldValue) || (float) $fieldValue < 0) {
+                    $this->skipInvalidAdjustment($subject, $automation, $fieldName, $fieldValue);
+
+                    return;
+                }
+
+                $fieldValue = round((float) $fieldValue, 2);
+            } else {
+                $fieldValue = trim((string) $fieldValue) ?: null;
+            }
+        }
+
         $subject->{$fieldName} = $fieldValue;
+
+        if ($isAdjustment) {
+            // The deal's stored value is derived from these adjustments, so
+            // recompute it alongside — quietly, like the rest of this action.
+            $breakdown = app(\App\Services\DealValueResolver::class)->getBreakdown($subject);
+            $subject->calculated_value = $breakdown['calculated_value'];
+            $subject->value = $breakdown['computed_value'];
+        }
+
         $subject->saveQuietly(); // Bypass observer to prevent cascading
 
         $description = "Set {$fieldName} = {$fieldValue}";
@@ -811,6 +872,17 @@ class DealAutomationService
                 'automation_name' => $automation?->name,
             ],
         ]);
+    }
+
+    /**
+     * An out-of-range or non-numeric adjustment is skipped, never applied as
+     * "empty" — that would silently wipe the deal's existing discount/deduction.
+     */
+    private function skipInvalidAdjustment(Deal $deal, ?DealAutomation $automation, string $fieldName, mixed $value): void
+    {
+        $shown = is_scalar($value) ? (string) $value : '';
+        Log::warning("SetFieldValue skipped invalid {$fieldName} '{$shown}' for Deal ID: {$deal->id}");
+        $this->logAction($deal, $automation, "Skipped {$fieldName}: invalid value '{$shown}'", DealAutomationLog::STATUS_SKIPPED, 'field');
     }
 
     /**

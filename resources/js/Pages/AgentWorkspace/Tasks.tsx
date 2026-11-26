@@ -13,10 +13,15 @@ import TasksTable, { TasksTableSkeleton } from "./tasks/TasksTable";
 import { countViews, taskViews } from "./tasks/format";
 import type { TaskChip, TaskScope, TasksPayload } from "./tasks/types";
 import useTaskListWork from "./tasks/useTaskListWork";
+import useAgentTaskCreate from "./tasks/useAgentTaskCreate";
+import { taskDoneLabel } from "./donext/doNext";
+import useDoNext, { DoNext } from "./donext/useDoNext";
+import { isTaskDone } from "./today/useTodayWork";
 import "./tasks/tasks.css";
 
 // Opened on demand, so their code stays out of the first load.
 const TasksFilterModal = lazy(() => import("./tasks/TasksFilterModal"));
+const AgentTaskModal = lazy(() => import("./tasks/AgentTaskModal"));
 const QueueTaskModal = lazy(() => import("@/Components/Redesign/modals/QueueTaskModal"));
 const TaskSnoozeModal = lazy(() => import("@/Components/Redesign/modals/TaskSnoozeModal"));
 
@@ -74,7 +79,18 @@ export default function Tasks({
     const clock = useMinuteClock();
     // The server's clock for the first paint, the browser's once it ticks.
     const nowMs = Math.max(clock, Date.parse(now) || 0);
-    const { url } = usePage<PageProps>();
+    const { url, props: pageProps } = usePage<PageProps>();
+    const addScope = (pageProps.auth?.permissions as Record<string, string> | undefined)?.add_tasks;
+    const canAddTask = addScope === "all" || addScope === "added";
+
+    // + New task (L7-17): the agent task form, then the list re-reads its rows.
+    const [newTaskOpen, setNewTaskOpen] = useState(false);
+    const taskCreate = useAgentTaskCreate({
+        onCreated: () => {
+            setNewTaskOpen(false);
+            router.reload({ only: ["tasks"] });
+        },
+    });
     const { openDrawer } = useFilter();
 
     const [chip, setChip] = useState<TaskChip | null>(null);
@@ -97,9 +113,34 @@ export default function Tasks({
         [filters, shownScope],
     );
 
-    const work = useTaskListWork(tasks?.items);
+    // Do next (L7-43): after a tick, the next step for the same person or deal.
+    const doNext = useDoNext();
+    const [keepId, setKeepId] = useState<number | null>(null);
+    const work = useTaskListWork(tasks?.items, undefined, keepId);
+    const offerNext = useCallback(
+        (task: QueueTask, row: HTMLElement | null) => {
+            if (!task.related) return;
+            const opened = doNext.offer({ record: task.related, done: { kind: "task", label: taskDoneLabel(task) }, anchor: row });
+            setKeepId(opened && row ? task.id : null);
+        },
+        [doNext],
+    );
+    const closeNext = useCallback(() => {
+        doNext.close();
+        setKeepId(null);
+    }, [doNext]);
+    const completeTask = useCallback(
+        (task: QueueTask, row: HTMLElement | null) => {
+            work.complete(task);
+            offerNext(task, row);
+        },
+        [work.complete, offerNext],
+    );
+
     const views = useMemo(() => (work.rows ? taskViews(work.rows, nowMs, timezone) : undefined), [work.rows, nowMs, timezone]);
-    const counts = useMemo(() => (views ? countViews(views) : undefined), [views]);
+    // The ticked row kept under Do next is done: it no longer counts.
+    const liveViews = useMemo(() => views?.filter((view) => !isTaskDone(view.task)), [views]);
+    const counts = useMemo(() => (liveViews ? countViews(liveViews) : undefined), [liveViews]);
     const needle = search.trim().toLowerCase();
     const shown = useMemo(() => {
         if (!views) return views;
@@ -119,7 +160,7 @@ export default function Tasks({
     }, [chip, counts]);
 
     // Open tasks in this scope: the server's total, less what has been ticked since.
-    const open = tasks && work.rows ? tasks.total - (tasks.items.length - work.rows.length) : undefined;
+    const open = tasks && liveViews ? tasks.total - (tasks.items.length - liveViews.length) : undefined;
     const subtitle = open === undefined ? "" : open === 1 ? t("pages.agent_workspace.tasks.subtitle_one") : t("pages.agent_workspace.tasks.subtitle", { count: open });
 
     const [filtersMounted, setFiltersMounted] = useState(false);
@@ -139,13 +180,13 @@ export default function Tasks({
             timeZone: timezone,
             userId,
             onOpen: setOpenTask,
-            onComplete: work.complete,
+            onComplete: completeTask,
             onReschedule: setSnoozeTask,
             isCompleting: (taskId: number) => work.isStatusPending(taskId),
             isRescheduling: (taskId: number) => work.isReschedulePending(taskId),
         }),
         // eslint-disable-next-line react-hooks/exhaustive-deps
-        [nowMs, timezone, userId, work.complete, work.isStatusPending, work.isReschedulePending],
+        [nowMs, timezone, userId, completeTask, work.isStatusPending, work.isReschedulePending],
     );
 
     const truncated = tasks !== undefined && tasks.total > tasks.items.length;
@@ -154,7 +195,14 @@ export default function Tasks({
         <>
             <Head title={pageTitle} />
             <AgentSecondRow>
-                <TaskScopePills scope={shownScope} canSeeTeam={canSeeTeam} onScope={changeScope} filterCount={filterCount(filters)} onFilters={openFilters} />
+                <TaskScopePills
+                    scope={shownScope}
+                    canSeeTeam={canSeeTeam}
+                    onScope={changeScope}
+                    filterCount={filterCount(filters)}
+                    onFilters={openFilters}
+                    onNewTask={canAddTask ? () => setNewTaskOpen(true) : undefined}
+                />
             </AgentSecondRow>
 
             <div className="agent-tk">
@@ -170,6 +218,21 @@ export default function Tasks({
             </div>
 
             <Suspense fallback={null}>
+                {newTaskOpen ? (
+                    <AgentTaskModal
+                        open
+                        onClose={() => {
+                            if (taskCreate.saving) return;
+                            taskCreate.clearErrors();
+                            setNewTaskOpen(false);
+                        }}
+                        onSubmit={taskCreate.submit}
+                        saving={taskCreate.saving}
+                        errors={taskCreate.errors}
+                        columns={taskBoardColumns ?? []}
+                        categories={categories ?? []}
+                    />
+                ) : null}
                 {filtersMounted ? (
                     <TasksFilterModal
                         categories={categories}
@@ -194,6 +257,7 @@ export default function Tasks({
                         onComplete={(task) => {
                             work.complete(task);
                             setOpenTask(null);
+                            offerNext(task as QueueTask, null);
                         }}
                         onChanged={() => router.reload({ only: ["tasks"] })}
                     />
@@ -211,6 +275,14 @@ export default function Tasks({
                     />
                 ) : null}
             </Suspense>
+            <DoNext
+                request={doNext.request}
+                onClose={closeNext}
+                onSaved={() => {
+                    closeNext();
+                    router.reload({ only: ["tasks"] });
+                }}
+            />
         </>
     );
 }

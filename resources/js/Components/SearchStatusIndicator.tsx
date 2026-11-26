@@ -2,6 +2,7 @@ import React from "react";
 import { Badge, Button, Spin } from "antd";
 import { SearchOutlined, ClearOutlined } from "@ant-design/icons";
 import { useSearch } from "@/contexts/SearchContext";
+import { useTranslation } from "@/Hooks/useTranslation";
 
 interface SearchStatusIndicatorProps {
     showClearButton?: boolean;
@@ -14,6 +15,7 @@ const SearchStatusIndicator: React.FC<SearchStatusIndicatorProps> = ({
     onClearSearch,
     className = "",
 }) => {
+    const { t } = useTranslation();
     const { query, isSearching, hasActiveSearch, clearSearch } = useSearch();
 
     const handleClearSearch = () => {
@@ -32,7 +34,7 @@ const SearchStatusIndicator: React.FC<SearchStatusIndicatorProps> = ({
             <div className="flex items-center gap-1 px-3 py-1 bg-blue-50 border border-blue-200 rounded-md">
                 <SearchOutlined className="text-blue-600" />
                 <span className="text-sm text-blue-700">
-                    Searching: "{query}"
+                    {t("pages.filters.searching", { query })}
                 </span>
                 {isSearching && <Spin size="small" className="ml-1" />}
             </div>
@@ -44,9 +46,9 @@ const SearchStatusIndicator: React.FC<SearchStatusIndicatorProps> = ({
                     size="small"
                     type="text"
                     danger
-                    title="Clear search"
+                    title={t("pages.filters.clear_search")}
                 >
-                    Clear
+                    {t("pages.filters.clear")}
                 </Button>
             )}
         </div>

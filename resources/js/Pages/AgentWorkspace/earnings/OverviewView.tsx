@@ -17,7 +17,7 @@ interface OverviewViewProps {
 
 function TableSkeleton() {
     return (
-        <div className="agent-ea__table" aria-busy="true">
+        <div className="agent-table agent-ea__table" aria-busy="true">
             {Array.from({ length: 5 }).map((_, index) => (
                 <div key={index} className="agent-ea__row agent-ea__row--skeleton">
                     <div className="dr-skeleton" style={{ height: 32, borderRadius: 16 }} />

@@ -4,24 +4,24 @@
                 data-toggle="tooltip"
                 data-original-title="This will fetch the latest support date from codecanyon. Click on this button only when you have renewed the support and the new support date is not reflecting"
                 data-module-name="{{ $module }}">
-            <i class="fa fa-sync-alt mr-1"></i>Refresh
+            <i class="fa fa-sync-alt mr-1"></i>{{ td('Refresh') }}
         </button>
         <a target="_blank"
            href="{{ Froiden\Envato\Helpers\FroidenApp::renewSupportUrl(config(strtolower($module) . '.envato_item_id')) }}"
            class="ml-1 btn btn-primary btn-sm px-2 py-1 f-11" data-module-name="{{ $module }}">
-            <i class="fa fa-shopping-cart mr-1"></i>Renew support now
+            <i class="fa fa-shopping-cart mr-1"></i>{{ td('Renew support now') }}
         </a>
 {{--    Show only for universal Bundle       --}}
     @elseif(str_contains('UniversalBundle',$module))
         @if (\Carbon\Carbon::parse($fetchSetting->supported_until)->diffInDays() < 60)
             <button type="button" class="btn btn-outline-secondary btn-sm refreshModule f-11"
                     data-module-name="{{ $module }}">
-                <i class="fa fa-sync-alt mr-1"></i>Refresh Support
+                <i class="fa fa-sync-alt mr-1"></i>{{ td('Refresh Support') }}
             </button>
             <a target="_blank"
                href="{{ Froiden\Envato\Helpers\FroidenApp::extendSupportUrl(config(strtolower($module) . '.envato_item_id')) }}"
                class="ml-1 btn btn-primary btn-sm px-2 py-1 f-11" data-module-name="{{ $module }}">
-                <i class="fa fa-shopping-cart mr-1"></i>Extend Support
+                <i class="fa fa-shopping-cart mr-1"></i>{{ td('Extend Support') }}
             </a>
         @endif
     @endif

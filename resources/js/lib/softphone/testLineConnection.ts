@@ -1,5 +1,12 @@
 import { Registerer, RegistererState, UserAgent } from "sip.js";
 import type { SoftphoneConfig } from "@/Types/api/softphone";
+import {
+    PreSignedDigestStore,
+    bindServerSignedAuth,
+    createDeviceChallengeSigner,
+    createServerSignedTransportClass,
+} from "./ServerSignedSipAuth";
+import { providerMessage, resolveProviderProfile } from "./providerProfile";
 
 /** Where a connection test stopped. `registered` is the only success. */
 export type LineTestStage =
@@ -41,22 +48,59 @@ export async function testLineConnection(
         latencyMs: null,
     });
 
+    const profile = resolveProviderProfile(config);
     const uri = UserAgent.makeURI(config.uri);
     if (!uri) {
-        return fail("config", "The SIP URI is not valid (expected e.g. sip:12345@sipgate.de).");
+        return fail("config", "The SIP URI is not valid (expected e.g. sip:12345@domain.com).");
     }
     if (!/^wss:\/\//i.test(config.wss_url.trim())) {
         return fail("config", "The WSS URL must start with wss://.");
     }
 
+    const useChallengeSigning =
+        config.auth_mode === "challenge" ||
+        (!config.authorization_password &&
+            !config.authorization_ha1 &&
+            typeof config.id === "number");
+
+    const digestStore = useChallengeSigning
+        ? new PreSignedDigestStore()
+        : null;
+    const transportConstructor =
+        useChallengeSigning && digestStore && typeof config.id === "number"
+            ? createServerSignedTransportClass(
+                  createDeviceChallengeSigner(config.id),
+                  digestStore,
+                  profile.digest_algorithms,
+              )
+            : undefined;
+
     const userAgent = new UserAgent({
         uri,
+        ...(transportConstructor ? { transportConstructor } : {}),
         transportOptions: { server: config.wss_url.trim() },
         authorizationUsername: config.authorization_username || undefined,
-        authorizationPassword: config.authorization_password || undefined,
+        // Saved lines authenticate via server-side challenge signing; unsaved
+        // form tests use the password the admin just typed locally.
+        ...(useChallengeSigning
+            ? {}
+            : config.authorization_ha1
+              ? { authorizationHa1: config.authorization_ha1 }
+              : {
+                    authorizationPassword:
+                        config.authorization_password || undefined,
+                }),
         displayName: config.display_name || undefined,
         logLevel: "error",
     });
+
+    if (useChallengeSigning && digestStore) {
+        bindServerSignedAuth(
+            userAgent,
+            digestStore,
+            config.authorization_username || uri.user || "",
+        );
+    }
 
     let registerer: Registerer | null = null;
 
@@ -66,10 +110,7 @@ export async function testLineConnection(
         } catch (error) {
             return isTimeout(error)
                 ? fail("timeout", "The WSS server did not answer in time.")
-                : fail(
-                      "transport",
-                      "Could not connect to the WSS URL. Check the address and that the server is reachable.",
-                  );
+                : fail("transport", providerMessage(profile, "transport_failed"));
         }
 
         // Short expiry so a test that cannot unregister cleanly lapses quickly.
@@ -79,7 +120,7 @@ export async function testLineConnection(
             const timer = window.setTimeout(
                 () =>
                     resolve(
-                        fail("timeout", "The line did not answer the registration in time."),
+                        fail("timeout", providerMessage(profile, "registration_timeout")),
                     ),
                 TEST_TIMEOUT_MS,
             );
@@ -106,10 +147,10 @@ export async function testLineConnection(
                             const status = response.message.statusCode;
                             done(
                                 status === 401 || status === 403
-                                    ? fail("auth", "The line rejected the username or password.")
+                                    ? fail("auth", providerMessage(profile, "registration_auth_failed"))
                                     : fail(
                                           "rejected",
-                                          `The line rejected the registration (${status ?? "unknown"}).`,
+                                          providerMessage(profile, "registration_rejected", { status }),
                                       ),
                             );
                         },

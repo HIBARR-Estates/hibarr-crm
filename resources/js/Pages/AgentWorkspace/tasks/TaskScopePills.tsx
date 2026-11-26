@@ -9,14 +9,16 @@ interface TaskScopePillsProps {
     /** Filters applied besides the scope, shown on the Filters pill. */
     filterCount: number;
     onFilters: () => void;
+    /** Opens Add task; left out when the agent may not add tasks. */
+    onNewTask?: () => void;
 }
 
 /**
  * The second row under the dock: My tasks, Assigned by me and Team (the
  * Tasks index's own mine, by-me and all views), and Filters. Changing the
- * scope re-reads the list without leaving the page.
+ * scope re-reads the list without leaving the page. + New task opens Add task.
  */
-export default function TaskScopePills({ scope, canSeeTeam, onScope, filterCount, onFilters }: TaskScopePillsProps) {
+export default function TaskScopePills({ scope, canSeeTeam, onScope, filterCount, onFilters, onNewTask }: TaskScopePillsProps) {
     const { t } = useTranslation();
     const scopes: TaskScope[] = canSeeTeam ? ["mine", "byme", "team"] : ["mine", "byme"];
 
@@ -30,6 +32,11 @@ export default function TaskScopePills({ scope, canSeeTeam, onScope, filterCount
             <button type="button" className="agent-pills__pill" aria-pressed={filterCount > 0} onClick={onFilters}>
                 {filterCount > 0 ? t("pages.agent_workspace.tasks.filters_count", { count: filterCount }) : t("pages.agent_workspace.tasks.filters")}
             </button>
+            {onNewTask ? (
+                <button type="button" className="agent-pills__pill agent-pills__pill--action" onClick={onNewTask}>
+                    {t("pages.agent_workspace.tasks.new_task")}
+                </button>
+            ) : null}
         </nav>
     );
 }

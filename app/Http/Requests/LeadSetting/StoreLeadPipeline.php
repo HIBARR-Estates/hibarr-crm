@@ -26,7 +26,8 @@ class StoreLeadPipeline extends CoreRequest
     {
         return [
             'name' => 'required|unique:lead_pipelines,name,null,id,company_id,' . company()->id,
-            'label_color' => 'required'
+            'label_color' => 'required',
+            'offering_type' => 'nullable|in:property,package,both',
         ];
     }
 

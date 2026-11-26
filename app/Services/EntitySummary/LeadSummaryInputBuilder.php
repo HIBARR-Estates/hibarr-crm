@@ -4,27 +4,34 @@ namespace App\Services\EntitySummary;
 
 use App\Enums\PreferredContactTime;
 use App\Enums\QualificationStatus;
+use App\Models\CrmEvent;
 use App\Models\Deal;
 use App\Models\DealFollowUp;
 use App\Models\HibarrDealFields;
 use App\Models\Lead;
+use App\Models\LeadFlightItinerary;
+use App\Models\LeadMarketing;
 use App\Models\LeadNote;
 use App\Models\LeadQualification;
 use App\Models\LeadQualificationAnswer;
+use App\Models\MeetingSummary;
+use App\Services\CallLog\CallKey;
 use Carbon\Carbon;
 use Carbon\CarbonInterface;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 /**
  * Builds the JSON the lead-summary agent reads (see lead-summary-agent-prompt.md,
  * "INPUT YOU WILL RECEIVE" — the two are a contract; change them together).
  *
  * The payload is designed around one question: what do we actually know about
- * this lead? So it carries substance (qualification answers, lead details,
- * notes, buying intent from linked deals) and deliberately carries NO personal
- * identifiers — no name, email, phone, date of birth, address or company. Free
- * text is passed through LeadSummaryRedactor because people type contact
- * details into notes and answers.
+ * this lead? So it carries substance (qualification answers, call logs, lead
+ * details, notes, meeting summaries, flight itinerary, buying intent from
+ * linked deals) and deliberately carries NO personal identifiers — no name,
+ * email, phone, date of birth, address or company. Free text is passed through
+ * LeadSummaryRedactor because people type contact details into notes and answers.
  */
 class LeadSummaryInputBuilder
 {
@@ -37,6 +44,27 @@ class LeadSummaryInputBuilder
     private const MAX_ANSWERS_PER_CALL = 40;
 
     private const MAX_LEAD_DETAILS = 25;
+
+    private const MAX_CALL_LOGS = 10;
+
+    private const MAX_FLIGHTS = 10;
+
+    private const SUMMARY_SECTION_CHARS = 600;
+
+    /**
+     * Same ranking as CallLogService: the lowest rank wins for a multi-leg call.
+     *
+     * @var array<string, int>
+     */
+    private const CALL_OUTCOME_RANK = [
+        'call_ended' => 1,
+        'call_voicemail' => 2,
+        'call_missed' => 3,
+        'call_busy' => 4,
+        'call_declined' => 5,
+        'call_failed' => 6,
+        'call_started' => 7,
+    ];
 
     /** Custom-field labels that hold identifiers or contact data rather than context. */
     private const SENSITIVE_FIELD_LABEL = '/passport|national\s*id|identity|\bid\s*(number|no)\b|\btax|iban|bank|account\s*n|\bssn\b|social\s*security|address|phone|mobile|e-?mail|whatsapp|telegram|birth|\bdob\b|licen[cs]e|full\s*name|surname/i';
@@ -53,6 +81,7 @@ class LeadSummaryInputBuilder
         $lead->loadMissing([
             'leadOwner',
             'leadSource',
+            'categories',
             'category',
             'lifecycleStatus',
             'marketing',
@@ -93,9 +122,19 @@ class LeadSummaryInputBuilder
             $sections['meetings'] = $meetings;
         }
 
+        $callLogs = $this->buildCallLogs($lead, $nowCarbon);
+        if ($callLogs !== []) {
+            $sections['call_logs'] = $callLogs;
+        }
+
         $tasks = $this->buildTasks($lead, $nowCarbon, $redactor);
         if ($tasks !== []) {
             $sections['tasks'] = $tasks;
+        }
+
+        $flights = $this->buildFlightItinerary($lead, $nowCarbon, $redactor);
+        if ($flights !== []) {
+            $sections['flight_itinerary'] = $flights;
         }
 
         $marketing = $this->buildMarketingSection($lead, $nowCarbon, $redactor);
@@ -110,17 +149,19 @@ class LeadSummaryInputBuilder
 
         $temperature = $lead->temperature;
 
+        $categories = $this->categoryNames($lead);
+
         $leadBlock = array_filter([
             'type' => $this->resolveLeadType($lead),
             'source' => $lead->leadSource?->type ?? null,
-            'category' => $lead->category?->category_name ?? null,
+            'categories' => $categories !== [] ? $categories : null,
             'temperature' => $temperature instanceof \BackedEnum ? $temperature->value : $temperature,
             'created_at' => $lead->created_at?->toIso8601String(),
             'updated_at' => $lead->updated_at?->toIso8601String(),
             'days_since_created' => $this->daysAgo($lead->created_at, $nowCarbon),
             'days_since_updated' => $this->daysAgo($lead->updated_at, $nowCarbon),
             'owner_assigned' => (bool) $lead->lead_owner,
-            'last_logged_activity_days_ago' => $this->lastLoggedActivityDaysAgo($notes, $calls, $meetings),
+            'last_logged_activity_days_ago' => $this->lastLoggedActivityDaysAgo($notes, $calls, $meetings, $callLogs),
         ], fn ($value) => $value !== null && $value !== '');
 
         return [
@@ -132,18 +173,46 @@ class LeadSummaryInputBuilder
         ];
     }
 
+    /**
+     * The lead's own side for a meeting's talking points: who they are, what they
+     * first wrote, what the qualification calls answered and the lead's fields.
+     * Leaves out the lead's deals, so it never triggers a deal summary.
+     *
+     * @return array<string, mixed>
+     */
+    public function buildMeetingContext(Lead $lead): array
+    {
+        $lead->loadMissing(['lifecycleStatus']);
+
+        $redactor = LeadSummaryRedactor::forLead($lead);
+
+        return array_filter([
+            'qualification' => $this->buildQualification($lead),
+            'profile' => $this->buildProfile($lead, $redactor),
+            'initial_message' => $redactor->clean($lead->note, self::NOTE_CHARS),
+            'qualification_calls' => $this->buildQualificationCalls($lead, Carbon::now(), $redactor),
+            'lead_details' => $this->buildLeadDetails($lead, $redactor),
+        ], fn ($value) => $value !== null && $value !== '' && $value !== []);
+    }
+
     public function inputHash(Lead $lead): string
     {
         $dealIds = Deal::where('lead_id', $lead->id)->select('id');
         $qualificationIds = LeadQualification::where('lead_id', $lead->id)->select('id');
+        $summaryIds = DealFollowUp::where('lead_id', $lead->id)
+            ->whereNotNull('summary_id')
+            ->select('summary_id');
 
         $fingerprint = [
             'id' => $lead->id,
             'updated_at' => $lead->updated_at?->toIso8601String(),
+            'gender' => $lead->gender instanceof \BackedEnum ? $lead->gender->value : $lead->gender,
+            'salutation' => $lead->salutation instanceof \BackedEnum ? $lead->salutation->value : $lead->salutation,
             'lifecycle' => $lead->lead_lifecycle_status_id,
             'lead_owner' => $lead->lead_owner,
             'source_id' => $lead->source_id,
-            'category_id' => $lead->category_id,
+            // Full taxonomy list — primary category_id alone misses secondary picks.
+            'category_ids' => $this->categoryIdsForHash($lead),
             'deals_count' => Deal::where('lead_id', $lead->id)->count(),
             'deals_max_updated_at' => Deal::where('lead_id', $lead->id)->max('updated_at'),
             'hibarr_max_updated_at' => HibarrDealFields::whereIn('deal_id', $dealIds)->max('updated_at'),
@@ -153,6 +222,17 @@ class LeadSummaryInputBuilder
             'tasks_max_updated_at' => $lead->tasks()->max('tasks.updated_at'),
             'followups_count' => DealFollowUp::where('lead_id', $lead->id)->count(),
             'followups_max_updated_at' => DealFollowUp::where('lead_id', $lead->id)->max('updated_at'),
+            'meeting_summaries_max_updated_at' => Schema::hasTable('meeting_summary')
+                ? MeetingSummary::whereIn('id', $summaryIds)->max('updated_at')
+                : null,
+            'flights_count' => Schema::hasTable('lead_flight_itineraries')
+                ? LeadFlightItinerary::where('lead_id', $lead->id)->count()
+                : 0,
+            'flights_max_updated_at' => Schema::hasTable('lead_flight_itineraries')
+                ? LeadFlightItinerary::where('lead_id', $lead->id)->max('updated_at')
+                : null,
+            'calls_fingerprint' => $this->callLogsFingerprint($lead),
+            'marketing_fingerprint' => $this->marketingFingerprint($lead),
             'qualifications_count' => LeadQualification::where('lead_id', $lead->id)->count(),
             'qualifications_max_updated_at' => LeadQualification::where('lead_id', $lead->id)->max('updated_at'),
             'answers_max_updated_at' => LeadQualificationAnswer::whereIn('lead_qualification_id', $qualificationIds)->max('updated_at'),
@@ -207,7 +287,12 @@ class LeadSummaryInputBuilder
 
         $ageRange = $lead->age_range;
 
+        $gender = $lead->gender;
+        $salutation = $lead->salutation;
+
         return array_filter([
+            'salutation' => $salutation instanceof \BackedEnum ? $salutation->value : $salutation,
+            'gender' => $gender instanceof \BackedEnum ? $gender->value : $gender,
             'nationality' => $lead->nationality,
             'country' => $lead->country,
             'city' => $lead->city,
@@ -358,19 +443,222 @@ class LeadSummaryInputBuilder
      */
     private function buildMeetings(Lead $lead, Carbon $now, LeadSummaryRedactor $redactor): array
     {
-        return DealFollowUp::where('lead_id', $lead->id)
+        $query = DealFollowUp::where('lead_id', $lead->id)
             ->orderByDesc('next_follow_up_date')
-            ->limit(10)
+            ->limit(10);
+
+        if (Schema::hasTable('meeting_summary')) {
+            $query->with('meetingSummary');
+        }
+
+        return $query
             ->get()
-            ->map(fn ($followUp) => array_filter([
-                'title' => $redactor->clean($followUp->remark, 200) ?: 'Follow-up',
-                'scheduled_at' => $followUp->next_follow_up_date?->toIso8601String(),
+            ->map(function ($followUp) use ($now, $redactor) {
+                $row = array_filter([
+                    'title' => $redactor->clean($followUp->remark, 200) ?: 'Follow-up',
+                    'scheduled_at' => $followUp->next_follow_up_date?->toIso8601String(),
+                    // Negative = in the past, positive = upcoming.
+                    'days_from_now' => $followUp->next_follow_up_date
+                        ? -1 * $this->daysAgo($followUp->next_follow_up_date, $now)
+                        : null,
+                    'status' => $followUp->status ?? 'scheduled',
+                ], fn ($value) => $value !== null);
+
+                $summary = $followUp->relationLoaded('meetingSummary')
+                    ? $this->mapMeetingSummary($followUp->meetingSummary, $redactor)
+                    : null;
+                if ($summary !== null) {
+                    $row['summary'] = $summary;
+                }
+
+                return $row;
+            })
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @return array<string, string>|null
+     */
+    private function mapMeetingSummary(?MeetingSummary $summary, LeadSummaryRedactor $redactor): ?array
+    {
+        $object = $summary?->summary_object;
+
+        if (! is_array($object) || $object === []) {
+            return null;
+        }
+
+        $sections = [];
+
+        foreach ($object as $key => $value) {
+            if (! is_string($key) || $key === '') {
+                continue;
+            }
+
+            $text = is_string($value)
+                ? $value
+                : (is_scalar($value) ? (string) $value : '');
+            $cleaned = $redactor->clean($text, self::SUMMARY_SECTION_CHARS);
+
+            if ($cleaned !== '') {
+                $sections[$key] = $cleaned;
+            }
+        }
+
+        return $sections === [] ? null : $sections;
+    }
+
+    /**
+     * Telephony call log for this lead (and its deals): outcome and timing only —
+     * never phone numbers or recordings.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function buildCallLogs(Lead $lead, Carbon $now): array
+    {
+        if (! $lead->id || ! $lead->company_id) {
+            return [];
+        }
+
+        if (! Schema::hasTable('crm_events') || ! Schema::hasTable('crm_event_types')) {
+            return [];
+        }
+
+        $types = app(CallKey::class)->callTypes((int) $lead->company_id);
+
+        if ($types->isEmpty()) {
+            return [];
+        }
+
+        $eventsQuery = $this->leadCallEventsQuery($lead, $types->values()->all());
+
+        if (Schema::hasColumn('crm_events', 'call_key')) {
+            $rows = (clone $eventsQuery)->toBase()
+                ->whereNotNull('crm_events.call_key')
+                ->selectRaw('crm_events.call_key as call_key, MIN(crm_events.occurred_at) as started_at')
+                ->groupBy('crm_events.call_key')
+                ->orderByDesc('started_at')
+                ->limit(self::MAX_CALL_LOGS)
+                ->get();
+
+            $keys = $rows->pluck('call_key')->filter()->map(fn ($key) => (string) $key)->values()->all();
+
+            if ($keys === []) {
+                return [];
+            }
+
+            $grouped = (clone $eventsQuery)
+                ->whereIn('crm_events.call_key', $keys)
+                ->with('eventType:id,slug')
+                ->orderBy('crm_events.occurred_at')
+                ->orderBy('crm_events.id')
+                ->get()
+                ->groupBy(fn (CrmEvent $event) => (string) $event->getAttribute('call_key'));
+
+            $result = [];
+
+            foreach ($rows as $row) {
+                $group = $grouped->get((string) $row->call_key);
+
+                if (! $group instanceof Collection || $group->isEmpty()) {
+                    continue;
+                }
+
+                $result[] = $this->mapCallGroup($group, $now);
+            }
+
+            return $result;
+        }
+
+        // Legacy rows without call_key: one event ≈ one call.
+        return (clone $eventsQuery)
+            ->with('eventType:id,slug')
+            ->orderByDesc('crm_events.occurred_at')
+            ->limit(self::MAX_CALL_LOGS)
+            ->get()
+            ->map(fn (CrmEvent $event) => $this->mapCallGroup(collect([$event]), $now))
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @param  list<int>  $typeIds
+     */
+    private function leadCallEventsQuery(Lead $lead, array $typeIds)
+    {
+        $dealIds = Deal::where('lead_id', $lead->id)->pluck('id')->all();
+
+        return CrmEvent::withoutGlobalScopes()
+            ->where('crm_events.company_id', $lead->company_id)
+            ->whereIn('crm_events.event_type_id', $typeIds)
+            ->where(function ($query) use ($lead, $dealIds) {
+                $query->where(function ($leadScope) use ($lead) {
+                    $leadScope->whereIn('crm_events.model_type', [Lead::class, 'lead'])
+                        ->where('crm_events.model_id', $lead->id);
+                });
+
+                if ($dealIds !== []) {
+                    $query->orWhere(function ($dealScope) use ($dealIds) {
+                        $dealScope->whereIn('crm_events.model_type', [Deal::class, 'deal'])
+                            ->whereIn('crm_events.model_id', $dealIds);
+                    });
+                }
+            });
+    }
+
+    /**
+     * @param  Collection<int, CrmEvent>  $events
+     * @return array<string, mixed>
+     */
+    private function mapCallGroup(Collection $events, Carbon $now): array
+    {
+        $rankOf = fn (CrmEvent $event) => self::CALL_OUTCOME_RANK[(string) $event->eventType?->slug] ?? 99;
+
+        $primary = $events->reduce(
+            fn (?CrmEvent $best, CrmEvent $event) => $best === null || $rankOf($event) <= $rankOf($best)
+                ? $event
+                : $best
+        );
+
+        $first = $events->sortBy(fn (CrmEvent $event) => $event->occurred_at?->getTimestamp() ?? 0)->first();
+        $outcome = str_replace('call_', '', (string) ($primary?->eventType?->slug ?? ''));
+        $direction = $primary?->direction;
+        $meta = (array) ($primary?->metadata ?? []);
+
+        return array_filter([
+            'days_ago' => $this->daysAgo($first?->occurred_at, $now),
+            'direction' => $direction instanceof \BackedEnum ? $direction->value : $direction,
+            'outcome' => $outcome !== '' ? $outcome : null,
+            'answered' => $outcome === 'ended',
+            'duration_seconds' => isset($meta['duration']) ? (int) $meta['duration'] : null,
+        ], fn ($value) => $value !== null && $value !== '');
+    }
+
+    /**
+     * @return list<array<string, mixed>>
+     */
+    private function buildFlightItinerary(Lead $lead, Carbon $now, LeadSummaryRedactor $redactor): array
+    {
+        if (! $lead->id || ! Schema::hasTable('lead_flight_itineraries')) {
+            return [];
+        }
+
+        return LeadFlightItinerary::where('lead_id', $lead->id)
+            ->orderBy('flight_date')
+            ->limit(self::MAX_FLIGHTS)
+            ->get()
+            ->map(fn (LeadFlightItinerary $leg) => array_filter([
+                'direction' => $leg->direction,
+                'airport' => $redactor->clean((string) $leg->airport_name, 120),
+                'flight_number' => $redactor->clean((string) $leg->flight_number, 40),
+                'flight_date' => $leg->flight_date?->toIso8601String(),
                 // Negative = in the past, positive = upcoming.
-                'days_from_now' => $followUp->next_follow_up_date
-                    ? -1 * $this->daysAgo($followUp->next_follow_up_date, $now)
+                'days_from_now' => $leg->flight_date
+                    ? -1 * $this->daysAgo($leg->flight_date, $now)
                     : null,
-                'status' => $followUp->status ?? 'scheduled',
-            ], fn ($value) => $value !== null))
+                'status' => $leg->status,
+                'transfer_required' => $leg->is_transfer_required ? true : null,
+            ], fn ($value) => $value !== null && $value !== ''))
             ->values()
             ->all();
     }
@@ -427,6 +715,9 @@ class LeadSummaryInputBuilder
             'medium' => $redactor->clean($marketing->utm_medium, 60),
             'ad_content' => $redactor->clean($marketing->utm_content, 120),
             'search_term' => $redactor->clean($marketing->utm_term, 120),
+            // First-class webinar flags (also listed in engagement when true).
+            'registered_for_webinar' => $marketing->has_registered_for_the_webinar ? true : null,
+            'attended_webinar' => $marketing->has_attended_the_webinar ? true : null,
             'engagement' => $engagement,
             'last_webinar_days_ago' => $marketing->last_webinar_date
                 ? $this->daysAgo(Carbon::parse($marketing->last_webinar_date), $now)
@@ -499,12 +790,14 @@ class LeadSummaryInputBuilder
      * @param  list<array<string, mixed>>  $notes
      * @param  list<array<string, mixed>>  $calls
      * @param  list<array<string, mixed>>  $meetings
+     * @param  list<array<string, mixed>>  $callLogs
      */
-    private function lastLoggedActivityDaysAgo(array $notes, array $calls, array $meetings): ?int
+    private function lastLoggedActivityDaysAgo(array $notes, array $calls, array $meetings, array $callLogs = []): ?int
     {
         $candidates = array_merge(
             array_column($notes, 'days_ago'),
             array_column($calls, 'days_ago'),
+            array_column($callLogs, 'days_ago'),
             // Only meetings that already happened (days_from_now <= 0).
             array_map(
                 fn (array $meeting) => -1 * $meeting['days_from_now'],
@@ -515,6 +808,60 @@ class LeadSummaryInputBuilder
         $candidates = array_filter($candidates, fn ($days) => $days !== null);
 
         return $candidates === [] ? null : max(0, (int) min($candidates));
+    }
+
+    private function marketingFingerprint(Lead $lead): ?string
+    {
+        if (! $lead->id || ! Schema::hasTable('lead_marketing')) {
+            return null;
+        }
+
+        $row = LeadMarketing::where('lead_id', $lead->id)->first();
+
+        if (! $row) {
+            return null;
+        }
+
+        return hash('sha256', json_encode([
+            'updated_at' => $row->updated_at?->toIso8601String(),
+            'utm_campaign' => $row->utm_campaign,
+            'utm_source' => $row->utm_source,
+            'utm_medium' => $row->utm_medium,
+            'utm_content' => $row->utm_content,
+            'utm_term' => $row->utm_term,
+            'registered_for_webinar' => (bool) $row->has_registered_for_the_webinar,
+            'attended_webinar' => (bool) $row->has_attended_the_webinar,
+            'registered_for_zoom' => (bool) $row->registered_for_zoom_meeting,
+            'downloaded_ebook' => (bool) $row->has_downloaded_the_ebook,
+            'joined_whatsapp' => (bool) $row->has_joined_the_whatsapp_group,
+            'joined_facebook' => (bool) $row->has_joined_the_facebook_group,
+            'last_webinar_date' => $row->last_webinar_date,
+            'contact_score' => $row->contact_score,
+        ]));
+    }
+
+    private function callLogsFingerprint(Lead $lead): ?string
+    {
+        if (! $lead->id || ! $lead->company_id) {
+            return null;
+        }
+
+        if (! Schema::hasTable('crm_events') || ! Schema::hasTable('crm_event_types')) {
+            return null;
+        }
+
+        $types = app(CallKey::class)->callTypes((int) $lead->company_id);
+
+        if ($types->isEmpty()) {
+            return null;
+        }
+
+        $query = $this->leadCallEventsQuery($lead, $types->values()->all());
+
+        return hash('sha256', json_encode([
+            'count' => (clone $query)->count(),
+            'max_occurred_at' => (clone $query)->max('crm_events.occurred_at'),
+        ]));
     }
 
     /**
@@ -530,19 +877,65 @@ class LeadSummaryInputBuilder
         return intdiv($now->getTimestamp() - $at->getTimestamp(), 86400);
     }
 
+    /**
+     * Team taxonomy of the lead's intent/purpose (multi-select). Falls back to
+     * the legacy scalar category when the pivot has not been populated yet.
+     *
+     * @return list<string>
+     */
+    private function categoryNames(Lead $lead): array
+    {
+        $names = $lead->categories
+            ->pluck('category_name')
+            ->filter(fn ($name) => is_string($name) && $name !== '')
+            ->values()
+            ->all();
+
+        if ($names === [] && is_string($lead->category?->category_name) && $lead->category->category_name !== '') {
+            return [$lead->category->category_name];
+        }
+
+        return $names;
+    }
+
+    /**
+     * @return list<int>
+     */
+    private function categoryIdsForHash(Lead $lead): array
+    {
+        $ids = [];
+
+        if (Schema::hasTable('lead_lead_category')) {
+            $ids = DB::table('lead_lead_category')
+                ->where('lead_id', $lead->id)
+                ->orderBy('lead_category_id')
+                ->pluck('lead_category_id')
+                ->map(fn ($id) => (int) $id)
+                ->all();
+        }
+
+        if ($ids === []) {
+            $primary = (int) ($lead->category_id ?? 0);
+
+            return $primary > 0 ? [$primary] : [];
+        }
+
+        return $ids;
+    }
+
     private function resolveLeadType(Lead $lead): string
     {
-        $category = strtolower((string) ($lead->category?->category_name ?? ''));
+        $haystack = strtolower(implode(' ', $this->categoryNames($lead)));
 
-        if (str_contains($category, 'seller')) {
+        if (str_contains($haystack, 'seller')) {
             return 'seller';
         }
 
-        if (str_contains($category, 'partner')) {
+        if (str_contains($haystack, 'partner')) {
             return 'partner';
         }
 
-        if (str_contains($category, 'agent')) {
+        if (str_contains($haystack, 'agent')) {
             return 'agent';
         }
 
