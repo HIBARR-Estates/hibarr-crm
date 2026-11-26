@@ -20,7 +20,7 @@ class LeadEntryFieldResolver
     public function resolve(Lead $lead, string $field): mixed
     {
         if ($field === 'entry_count_30d') {
-            return LeadEntry::query()
+            return LeadEntry::withoutGlobalScopes()
                 ->where('lead_id', $lead->id)
                 ->where('occurred_at', '>=', now()->subDays(30))
                 ->count();
@@ -49,15 +49,18 @@ class LeadEntryFieldResolver
         };
     }
 
+    // The lead already bounds these queries to its company; like the rest of the entry code they skip the request-
+    // user scope, which is absent on a token-authenticated intake and in console workers.
+
     /** The entry that triggered this run, else the lead's latest one. */
     private function currentEntry(Lead $lead): ?LeadEntry
     {
         return LeadEntryContext::triggeringEntryFor($lead)
-            ?? LeadEntry::query()->where('lead_id', $lead->id)->orderByDesc('occurred_at')->orderByDesc('id')->first();
+            ?? LeadEntry::withoutGlobalScopes()->where('lead_id', $lead->id)->orderByDesc('occurred_at')->orderByDesc('id')->first();
     }
 
     private function firstEntry(Lead $lead): ?LeadEntry
     {
-        return LeadEntry::query()->where('lead_id', $lead->id)->orderBy('occurred_at')->orderBy('id')->first();
+        return LeadEntry::withoutGlobalScopes()->where('lead_id', $lead->id)->orderBy('occurred_at')->orderBy('id')->first();
     }
 }

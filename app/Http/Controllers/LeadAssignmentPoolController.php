@@ -24,7 +24,10 @@ class LeadAssignmentPoolController extends AccountBaseController
         $this->middleware(function ($request, $next) {
             abort_403(! AutomationV2Feature::enabled());
 
-            return user()->permission('manage_company_setting') !== 'all' ? redirect()->route('profile-settings.index') : $next($request);
+            // JSON only: a refusal is a 403 the client can show, not a redirect it would follow to an HTML page.
+            abort_403(user()->permission('manage_company_setting') !== 'all');
+
+            return $next($request);
         });
     }
 
