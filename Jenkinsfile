@@ -9,6 +9,8 @@ pipeline {
         SSH_PORT = "${BRANCH_NAME == 'main' || BRANCH_NAME == 'master' ? '22' : '2244'}"
         SSH_CREDS = "${BRANCH_NAME == 'main' || BRANCH_NAME == 'master' ? 'PRODUCTION_SSH_PRIVATE_KEY' : 'STAGIN_SSH_PRIVATE_KEY'}"
         INFISICAL_CLI_VERSION = '0.43.78'
+        // Node used for the Mix build on the Jenkins agent (matches docker/Dockerfile's node:20 assets stage)
+        NODE_VERSION = '20.19.5'
         INFISICAL_DOMAIN = 'https://infisical.hibarr.org'
         // Must match workspaceId in .infisical.json (machine identity is org-scoped, not project-scoped)
         INFISICAL_PROJECT_ID = '5f972011-7743-4ff2-aa39-9ee0ac8b14a8'
@@ -32,7 +34,10 @@ pipeline {
             }
         }
 
-        stage('Remote Atomic Build & Deploy') {
+        // The Mix production build needs ~6GB+ of RAM, which the deploy host (7.8GB, no swap, shared with the
+        // live app) cannot spare: it was OOM-killed (exit 137) there. So the frontend is built here, on the
+        // Jenkins agent, and only the finished assets are shipped to the server.
+        stage('Build Frontend Assets') {
             when {
                 beforeAgent true
                 allOf {
@@ -42,29 +47,80 @@ pipeline {
             }
             steps {
                 withCredentials([
-                    sshUserPrivateKey(credentialsId: env.SSH_CREDS, keyFileVariable: 'SSH_KEY_FILE'),
                     string(credentialsId: 'infisical-crm-client-id', variable: 'INFISICAL_CLIENT_ID'),
                     string(credentialsId: 'infisical-crm-client-secret', variable: 'INFISICAL_CLIENT_SECRET')
                 ]) {
+                    dir('frontend-src') {
+                        checkout scm
+                    }
+                    script {
+                        // Pin the deploy host to exactly the commit built here (not whatever the branch tip is by then).
+                        env.BUILD_COMMIT = sh(returnStdout: true, script: 'git -C frontend-src rev-parse HEAD').trim()
+                    }
                     sh '''
                         set -e
-                        chmod 400 "$SSH_KEY_FILE"
-                        BUILD_PATH="/home/$TARGET_USER/deployments/${ENV_NAME}_build_${BUILD_ID}"
+                        SRC="${WORKSPACE}/frontend-src"
                         INFISICAL_BIN="${WORKSPACE}/.tools/infisical"
                         ENV_FILE_LOCAL="${WORKSPACE}/.env.deploy"
-                        REMOTE_ENV_TMP="/tmp/hibarr-crm.env.${BUILD_ID}"
+                        ASSETS_TGZ="${WORKSPACE}/frontend-assets.tar.gz"
+
+                        echo "Step F1: Memory preflight for the Mix build..."
+                        # Mix runs with --max-old-space-size=8192 and Terser/Sass workers on top. If the agent cannot
+                        # give it the memory, fail here rather than let the kernel OOM-killer pick a victim (which
+                        # could be Jenkins itself).
+                        MIN_MB="${FRONTEND_BUILD_MIN_MEM_MB:-6144}"
+                        EFFECTIVE_MB="$(awk '/^MemAvailable:/ {print int($2/1024)}' /proc/meminfo)"
+                        for f in /sys/fs/cgroup/memory.max /sys/fs/cgroup/memory/memory.limit_in_bytes; do
+                            if [ -r "$f" ]; then
+                                LIMIT_B="$(cat "$f")"
+                                case "$LIMIT_B" in
+                                    ''|*[!0-9]*) ;;
+                                    *)
+                                        LIMIT_MB=$((LIMIT_B / 1048576))
+                                        if [ "$LIMIT_MB" -lt "$EFFECTIVE_MB" ]; then EFFECTIVE_MB="$LIMIT_MB"; fi
+                                        ;;
+                                esac
+                            fi
+                        done
+                        echo "Memory usable by this build: ${EFFECTIVE_MB}MB (required: ${MIN_MB}MB)"
+                        if [ "$EFFECTIVE_MB" -lt "$MIN_MB" ]; then
+                            echo "ERROR: the Jenkins agent has too little free memory for the Mix production build."
+                            echo "Give the agent more RAM/swap, or lower FRONTEND_BUILD_MIN_MEM_MB if you know the build fits."
+                            exit 1
+                        fi
+                        # If something is going to be OOM-killed, make it this build and not the Jenkins JVM.
+                        echo 1000 > /proc/self/oom_score_adj 2>/dev/null || true
+
+                        echo "Step F2: Bootstrapping Node ${NODE_VERSION}..."
+                        mkdir -p "${WORKSPACE}/.tools"
+                        ARCH="$(uname -m)"
+                        case "$ARCH" in
+                            x86_64) NODE_ARCH="x64" ;;
+                            aarch64|arm64) NODE_ARCH="arm64" ;;
+                            *)
+                                echo "Unsupported Jenkins agent architecture: $ARCH"
+                                exit 1
+                                ;;
+                        esac
+                        NODE_BASENAME="node-v${NODE_VERSION}-linux-${NODE_ARCH}"
+                        NODE_HOME_DIR="${WORKSPACE}/.tools/${NODE_BASENAME}"
+                        if [ ! -x "$NODE_HOME_DIR/bin/node" ]; then
+                            NODE_BASE_URL="https://nodejs.org/dist/v${NODE_VERSION}"
+                            curl -fsSL -o "${WORKSPACE}/.tools/${NODE_BASENAME}.tar.gz" "${NODE_BASE_URL}/${NODE_BASENAME}.tar.gz"
+                            curl -fsSL -o "${WORKSPACE}/.tools/SHASUMS256.txt" "${NODE_BASE_URL}/SHASUMS256.txt"
+                            (cd "${WORKSPACE}/.tools" && grep -F " ${NODE_BASENAME}.tar.gz" SHASUMS256.txt | sha256sum -c -)
+                            tar -xzf "${WORKSPACE}/.tools/${NODE_BASENAME}.tar.gz" -C "${WORKSPACE}/.tools"
+                            rm -f "${WORKSPACE}/.tools/${NODE_BASENAME}.tar.gz" "${WORKSPACE}/.tools/SHASUMS256.txt"
+                        fi
+                        export PATH="$NODE_HOME_DIR/bin:$PATH"
+                        node --version
+                        npm --version
 
                         echo "Step 0: Bootstrapping Infisical CLI on Jenkins workspace..."
-                        mkdir -p "${WORKSPACE}/.tools"
                         if [ ! -x "$INFISICAL_BIN" ]; then
-                            ARCH="$(uname -m)"
                             case "$ARCH" in
                                 x86_64) INFISICAL_ARCH="amd64" ;;
                                 aarch64|arm64) INFISICAL_ARCH="arm64" ;;
-                                *)
-                                    echo "Unsupported Jenkins agent architecture: $ARCH"
-                                    exit 1
-                                    ;;
                             esac
 
                             curl -fsSL -o /tmp/infisical-cli.tar.gz \
@@ -102,10 +158,61 @@ pipeline {
                         fi
                         echo "Exported $NONEMPTY_LINES secret line(s) for env='$INFISICAL_ENV_NAME'"
 
-                        echo "Step 0d: Transferring .env to target server..."
+                        echo "Step F3: Building frontend assets (same as 'make build-artifact-frontend')..."
+                        cd "$SRC"
+                        git clean -ffdx -q
+                        # Laravel Mix inlines MIX_* values from .env into the bundles at build time, so the build
+                        # needs the same env the deploy host used to have. Removed again as soon as the build ends.
+                        trap 'rm -f "$SRC/.env"' EXIT
+                        cp "$ENV_FILE_LOCAL" .env
+                        npm ci --no-audit --fund=false
+                        npm run production
+                        rm -f .env
+
+                        echo "Step F4: Packaging build output..."
+                        test -s public/mix-manifest.json
+                        test -s public/js/inertia.js
+                        git ls-files -z --others --ignored --exclude-standard -- public > "${WORKSPACE}/.assets.list"
+                        tar --null -czf "$ASSETS_TGZ" -T "${WORKSPACE}/.assets.list"
+                        rm -f "${WORKSPACE}/.assets.list"
+                        ls -lh "$ASSETS_TGZ"
+                        echo "Frontend assets built from commit ${BUILD_COMMIT}"
+                    '''
+                }
+            }
+        }
+
+        stage('Remote Atomic Build & Deploy') {
+            when {
+                beforeAgent true
+                allOf {
+                    not { changeRequest() }
+                    anyOf { branch 'main'; branch 'develop' }
+                }
+            }
+            steps {
+                withCredentials([
+                    sshUserPrivateKey(credentialsId: env.SSH_CREDS, keyFileVariable: 'SSH_KEY_FILE')
+                ]) {
+                    sh '''
+                        set -e
+                        chmod 400 "$SSH_KEY_FILE"
+                        BUILD_PATH="/home/$TARGET_USER/deployments/${ENV_NAME}_build_${BUILD_ID}"
+                        ENV_FILE_LOCAL="${WORKSPACE}/.env.deploy"
+                        ASSETS_TGZ="${WORKSPACE}/frontend-assets.tar.gz"
+                        REMOTE_ENV_TMP="/tmp/hibarr-crm.env.${BUILD_ID}"
+                        REMOTE_ASSETS_TMP="/tmp/hibarr-crm.assets.${BUILD_ID}.tar.gz"
+
+                        test -s "$ENV_FILE_LOCAL"
+                        test -s "$ASSETS_TGZ"
+
+                        echo "Step 0d: Transferring .env and prebuilt frontend assets to target server..."
                         scp -i "$SSH_KEY_FILE" -P "$SSH_PORT" -o StrictHostKeyChecking=no \
                             "$ENV_FILE_LOCAL" "$TARGET_USER@$TARGET_HOST:$REMOTE_ENV_TMP"
                         rm -f "$ENV_FILE_LOCAL"
+                        scp -i "$SSH_KEY_FILE" -P "$SSH_PORT" -o StrictHostKeyChecking=no \
+                            "$ASSETS_TGZ" "$TARGET_USER@$TARGET_HOST:$REMOTE_ASSETS_TMP"
+                        rm -f "$ASSETS_TGZ"
 
                         ssh -i $SSH_KEY_FILE -p $SSH_PORT -o StrictHostKeyChecking=no $TARGET_USER@$TARGET_HOST "
                             set -e
@@ -114,17 +221,27 @@ pipeline {
                             cp -f /home/$TARGET_USER/shared/.env /home/$TARGET_USER/shared/.env.bak 2>/dev/null || true
 
                             echo 'Step 0f: Safeguard - verifying transferred .env is non-empty before it can ever replace shared secrets...'
-                            REMOTE_NONEMPTY_LINES=\$(grep -vE '^[[:space:]]*(#|\$)' '$REMOTE_ENV_TMP' 2>/dev/null | wc -l || echo 0)
-                            if [ ! -s '$REMOTE_ENV_TMP' ] || [ \"\$REMOTE_NONEMPTY_LINES\" -eq 0 ]; then
+                            # (No backslashes or nested quotes on purpose: Groovy eats backslashes inside sh '''...''',
+                            # which is what silently broke the old non-empty check.)
+                            if ! grep -qE '^[[:space:]]*[^[:space:]#]' '$REMOTE_ENV_TMP'; then
                                 echo 'ERROR: transferred .env is empty or invalid. Refusing to overwrite shared/.env. Aborting deploy before clone/build.'
-                                rm -f '$REMOTE_ENV_TMP'
+                                rm -f '$REMOTE_ENV_TMP' '$REMOTE_ASSETS_TMP'
                                 exit 1
                             fi
 
-                            echo 'Step 1: Cloning and Building...'
+                            echo 'Step 1: Cloning and Building (backend; frontend assets were prebuilt on Jenkins)...'
                             mkdir -p $BUILD_PATH
                             cd $BUILD_PATH
                             git clone --depth 1 --branch $BRANCH_NAME https://github.com/HIBARR-Estates/hibarr-crm.git .
+                            # Deploy exactly the commit Jenkins built the assets from, even if the branch moved meanwhile.
+                            git fetch --depth 1 origin $BUILD_COMMIT
+                            git checkout -q $BUILD_COMMIT
+
+                            echo 'Step 1a: Installing prebuilt frontend assets...'
+                            tar -xzf $REMOTE_ASSETS_TMP -C $BUILD_PATH
+                            rm -f $REMOTE_ASSETS_TMP
+                            test -s $BUILD_PATH/public/mix-manifest.json
+                            test -s $BUILD_PATH/public/js/inertia.js
 
                             mv $REMOTE_ENV_TMP $BUILD_PATH/.env
 
@@ -133,9 +250,10 @@ pipeline {
                             chmod -R 775 bootstrap/cache || true
                             # ----------------------------
 
-                            # Run Build via Makefile (BUILD_ID is expanded by the Jenkins agent)
+                            # Backend build via Makefile: composer, proto, ziggy, build-version (no Node needed here).
+                            # BUILD_ID is expanded by the Jenkins agent.
                             export BUILD_ID=$BUILD_ID
-                            make build-artifact
+                            make build-artifact-backend
 
                             echo 'Step 1b: gRPC binary setup...'
                             # Proto classes already generated in build-artifact (make proto + autoload refresh)
@@ -228,6 +346,13 @@ pipeline {
                     '''
                 }
             }
+        }
+    }
+
+    post {
+        always {
+            // Secrets and bulky artifacts must not linger in the Jenkins workspace, whichever stage failed.
+            sh 'rm -f "$WORKSPACE/.env.deploy" "$WORKSPACE/frontend-assets.tar.gz" "$WORKSPACE/.assets.list" "$WORKSPACE/frontend-src/.env"'
         }
     }
 }
