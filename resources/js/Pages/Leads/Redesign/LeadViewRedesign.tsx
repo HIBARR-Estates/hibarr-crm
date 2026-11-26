@@ -76,6 +76,7 @@ import FilesTab from "./components/workspace/tabs/FilesTab";
 import MarketingTab from "./components/workspace/tabs/MarketingTab";
 import ExposesTab from "./components/workspace/tabs/ExposesTab";
 import QualificationTab from "./components/workspace/tabs/QualificationTab";
+import FinancialsTab from "./components/financials/FinancialsTab";
 import type { DealFollowup } from "@/Types/api/deal-followup";
 import type { Task } from "@/Types/api/tasks";
 import LeadMissionModals from "./components/qualification/LeadMissionModals";
@@ -102,6 +103,9 @@ export default function LeadViewRedesign(props: LeadRedesignProps) {
             deals={props.deals}
             sallyInsightsEnabled={
                 featureFlags?.["crm.sally-insights-tab"] === true
+            }
+            financialsEnabled={
+                featureFlags?.["crm.lead-financial-assessments"] === true
             }
         >
             <LeadViewRedesignInner {...props} />
@@ -164,6 +168,7 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
         sallyInsightsSettled,
         sallyInsightsError,
         refetchSallyInsights,
+        financials,
     } = useLeadWorkspace();
     const callPhones = leadCallPhones(lead);
     // Unlike the other gated tabs, Sally visibility depends on an async client
@@ -209,7 +214,10 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
         if (!showCalls && nav.tab === "calls") {
             nav.setTab("overview");
         }
-    }, [nav.setTab, nav.tab, showQualification, showExposes, showSally, showCalls]);
+        if (!financials.enabled && nav.tab === "financials") {
+            nav.setTab("overview");
+        }
+    }, [nav.setTab, nav.tab, showQualification, showExposes, showSally, showCalls, financials.enabled]);
 
     const leadTourSteps = useMemo(
         () => buildLeadTourSteps(nav.setTab),
@@ -636,6 +644,10 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
                         onCountChange={setExposesCount}
                     />
                 ) : null;
+            case "financials":
+                return financials.enabled ? (
+                    <FinancialsTab financials={financials} files={files} />
+                ) : null;
             case "qualification":
                 return showQualification ? (
                     <QualificationTab
@@ -850,6 +862,7 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
                                 showExposes={showExposes}
                                 showCalls={showCalls}
                                 showSally={showSally}
+                                showFinancials={financials.enabled}
                             >
                                 {renderTabBody()}
                             </WorkspaceCard>

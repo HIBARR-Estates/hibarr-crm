@@ -27,6 +27,8 @@ export const RECORD_TABS: WorkspaceTabDef[] = [
     { id: "sally", label: "Sally", countable: true },
     { id: "qualification", label: "Qualification", countable: true },
     { id: "marketing", label: "Marketing" },
+    // Shown only while crm.lead-financial-assessments is on (LeadViewRedesign passes showFinancials).
+    { id: "financials", label: "Financials" },
 ];
 
 export const META_TABS: Array<WorkspaceTabDef & { id: LeadMetaTab }> = [

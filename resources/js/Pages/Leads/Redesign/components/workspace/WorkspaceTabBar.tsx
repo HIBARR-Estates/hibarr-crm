@@ -27,6 +27,8 @@ interface WorkspaceTabBarProps {
     showSally?: boolean;
     /** When false, hide the Calls record tab (crm.softphone off). */
     showCalls?: boolean;
+    /** When false, hide the Financials record tab (crm.lead-financial-assessments off). */
+    showFinancials?: boolean;
 }
 
 /**
@@ -41,6 +43,7 @@ export default function WorkspaceTabBar({
     showExposes = false,
     showSally = false,
     showCalls = false,
+    showFinancials = false,
 }: WorkspaceTabBarProps) {
     const { td } = useTd();
     const { t } = useTranslation();
@@ -52,6 +55,7 @@ export default function WorkspaceTabBar({
         if (tab.id === "exposes") return showExposes;
         if (tab.id === "sally") return showSally;
         if (tab.id === "calls") return showCalls;
+        if (tab.id === "financials") return showFinancials;
         return true;
     });
 
@@ -138,7 +142,9 @@ export default function WorkspaceTabBar({
                         tab.id,
                         tab.id === "sally"
                             ? t("pages.leads.tabs.sally")
-                            : tab.id === "calls"
+                            : tab.id === "financials"
+                              ? t("pages.leads.tabs.financials")
+                              : tab.id === "calls"
                               ? t("pages.calls.lead_tab_label")
                               : tab.label,
                         tab.countable,

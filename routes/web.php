@@ -67,6 +67,7 @@ use App\Http\Controllers\LeadBoardController;
 use App\Http\Controllers\LeadCategoryController;
 use App\Http\Controllers\LeadContactController;
 use App\Http\Controllers\LeadContactFileController;
+use App\Http\Controllers\LeadFinancialAssessmentController;
 use App\Http\Controllers\LeadContactMethodController;
 use App\Http\Controllers\LeadCustomFormController;
 use App\Http\Controllers\LeadFileController;
@@ -544,6 +545,17 @@ Route::group(['middleware' => ['auth', 'partner.restrict'], 'prefix' => 'account
     Route::get('lead-contact/{leadId}/files', [LeadContactFileController::class, 'index'])->name('lead-contact.files.index');
     Route::get('lead-contact/{leadId}/sally-insights', [LeadContactController::class, 'leadSallyInsights'])->name('lead-contact.sally-insights.index');
     Route::patch('sally-insights/{insight}', [LeadContactController::class, 'updateSallyInsight'])->name('sally-insights.update');
+
+    // Lead financial assessments (Financials tab; feature flag crm.lead-financial-assessments)
+    Route::get('lead-contact/{leadId}/financial', [LeadFinancialAssessmentController::class, 'show'])->whereNumber('leadId')->name('lead-contact.financial.show');
+    Route::post('lead-contact/{leadId}/financial/draft', [LeadFinancialAssessmentController::class, 'startDraft'])->whereNumber('leadId')->name('lead-contact.financial.draft.start');
+    Route::put('lead-contact/{leadId}/financial/draft', [LeadFinancialAssessmentController::class, 'updateDraft'])->whereNumber('leadId')->name('lead-contact.financial.draft.update');
+    Route::delete('lead-contact/{leadId}/financial/draft', [LeadFinancialAssessmentController::class, 'discardDraft'])->whereNumber('leadId')->name('lead-contact.financial.draft.discard');
+    Route::post('lead-contact/{leadId}/financial/draft/lines', [LeadFinancialAssessmentController::class, 'addLine'])->whereNumber('leadId')->name('lead-contact.financial.lines.store');
+    Route::put('lead-contact/{leadId}/financial/draft/lines/{line}', [LeadFinancialAssessmentController::class, 'updateLine'])->whereNumber(['leadId', 'line'])->name('lead-contact.financial.lines.update');
+    Route::delete('lead-contact/{leadId}/financial/draft/lines/{line}', [LeadFinancialAssessmentController::class, 'removeLine'])->whereNumber(['leadId', 'line'])->name('lead-contact.financial.lines.destroy');
+    Route::post('lead-contact/{leadId}/financial/draft/finalise', [LeadFinancialAssessmentController::class, 'finalise'])->whereNumber('leadId')->name('lead-contact.financial.draft.finalise');
+    Route::post('lead-contact/{leadId}/financial/assessments/{assessment}/verify', [LeadFinancialAssessmentController::class, 'verify'])->whereNumber(['leadId', 'assessment'])->name('lead-contact.financial.verify');
     Route::patch('sally-insights/{insight}/suggestions/{suggestionId}', [LeadContactController::class, 'updateSallySuggestion'])->name('sally-insights.suggestions.update');
     Route::post('sally-insights/{insight}/suggestions/{suggestionId}/log', [LeadContactController::class, 'logSallySuggestion'])->name('sally-insights.suggestions.log');
 

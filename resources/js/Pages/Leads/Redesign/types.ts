@@ -20,7 +20,8 @@ export type LeadRecordTab =
     | "itinerary"
     | "sally"
     | "marketing"
-    | "qualification";
+    | "qualification"
+    | "financials";
 
 /** Meta tabs — match Deals' dealinfo/timeline split (past the divider). */
 export type LeadMetaTab = "leadinfo" | "timeline";

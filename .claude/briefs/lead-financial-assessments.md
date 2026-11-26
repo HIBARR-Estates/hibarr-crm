@@ -1,6 +1,6 @@
 # Lead financial assessments — plan of action
 
-Status: **Mockup approved. Phase 1 built (see §12); Phases 2-6 not started.**
+Status: **Mockup approved. Phases 1-2 built (see §12, §13); Phases 3-6 not started.**
 Feature flag (proposed): `crm.lead-financial-assessments`
 
 ## 1. Intent (as understood)
@@ -187,3 +187,20 @@ Deviations from the plan and mockup, all small:
 - A 3-letter currency code is accepted when a line is entered and, if it has no ECB rate (or is a disabled crypto ticker), finalise stops with the missing currency named. Longer tickers (e.g. USDT) must be an enabled crypto asset.
 
 Environment note: crypto rates need `COINGECKO_API_KEY` (or `COINMARKETCAP_API_KEY` with `CRYPTO_RATE_PROVIDER=coinmarketcap`) in each environment. The settings tab shows whether the key is set and has a "Test rate fetch" button.
+
+## 13. Phase 2 as built (Financials tab on the lead page)
+
+Delivered behind `crm.lead-financial-assessments`: the Financials record tab (view, empty and draft-banner states, history and compare), the guided collection drawer, review-and-finalise, verify, and a snapshot card on Overview.
+
+How it works:
+- **One payload, one source of truth.** `AssessmentPresenter::workspace()` builds everything the tab needs (summary, current final, open draft with carried/edited/new markers and indicative totals, history, vocabulary, settings). `GET lead-contact/{lead}/financial` returns it, and every mutation returns the same payload, so the page swaps local state (`useLeadFinancials`, held in `LeadWorkspaceContext`) with no Inertia reload. The first load is a background request and never blocks first paint.
+- **Actions are queued, not dropped.** A field saved on blur followed straight away by another edit both reach the server, in order.
+- **Drafts show live indicative totals and rates** (`AssessmentService::preview()`); nothing is frozen or saved until finalise. A missing crypto rate blocks finalising and the modal offers Retry or a manual rate, as designed.
+- **Shared layer:** a new `Drawer` primitive in `Components/Redesign/primitives`, built on `ModalShell` (same overlay, scroll lock, Escape and focus handling) with a small block in `redesign.css`.
+
+Deviations and limits to know about:
+- **Permissions:** reading needs `view_lead`, every change (including finalise and verify) needs `edit_lead`. The finer financial permissions (view / edit / finalise-verify-override) are still Phase 6.
+- **Proof documents** are chosen from the lead's existing files; uploading from inside the drawer is not built (the drawer says so).
+- **Compare** is a wide dialog rather than a full page board; the trend chart is a small inline SVG.
+- **Not claimed yet:** the empty state no longer lists capture by qualification answers or website form (Phase 3), and the finalise dialog does not say filters/automations/API use the figures (Phases 4-5). Add that copy when those ship.
+- Reordering and an in-drawer "manage kinds and types" link are not built.

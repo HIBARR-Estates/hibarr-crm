@@ -10,6 +10,7 @@ interface WorkspaceCardProps {
     showExposes?: boolean;
     showSally?: boolean;
     showCalls?: boolean;
+    showFinancials?: boolean;
     children: ReactNode;
 }
 
@@ -21,6 +22,7 @@ export default function WorkspaceCard({
     showExposes = false,
     showSally = false,
     showCalls = false,
+    showFinancials = false,
     children,
 }: WorkspaceCardProps) {
     return (
@@ -41,6 +43,7 @@ export default function WorkspaceCard({
                 showExposes={showExposes}
                 showSally={showSally}
                 showCalls={showCalls}
+                showFinancials={showFinancials}
             />
             <div className="dr-workspace-tab-body" style={{ padding: 16 }}>
                 {children}

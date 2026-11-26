@@ -356,6 +356,38 @@ class AssessmentService
         return $final;
     }
 
+    /**
+     * Indicative totals for an assessment as it stands, with live rates and nothing frozen or
+     * saved. Used while a draft is being edited. When a rate is unavailable `totals` is null and
+     * the currencies without a rate are listed, so the caller can say so instead of guessing.
+     *
+     * @return array{totals: array<string, mixed>|null, rates: array<string, array{rate: float, source: string, fetched_at: string|null}>, missing: list<string>}
+     */
+    public function preview(FinancialAssessment $assessment): array
+    {
+        $lines = $this->loadLines($assessment);
+
+        if ($lines->isEmpty()) {
+            return ['totals' => null, 'rates' => [], 'missing' => []];
+        }
+
+        $resolved = $this->rates->resolve((int) $assessment->company_id, $lines->pluck('currency')->all(), $assessment->currency);
+        $rates = array_map(fn ($quote) => $quote->toArray(), $resolved['rates']);
+
+        if ($resolved['missing'] !== []) {
+            return ['totals' => null, 'rates' => $rates, 'missing' => $resolved['missing']];
+        }
+
+        $totals = $this->calculator->calculate(
+            $this->toInputs($lines),
+            array_map(fn ($quote) => $quote->rate, $resolved['rates']),
+            $assessment->currency,
+            $assessment->as_of_date,
+        );
+
+        return ['totals' => $totals, 'rates' => $rates, 'missing' => []];
+    }
+
     /** Record that the current final assessment was verified. Verifying twice keeps the first record. */
     public function verify(FinancialAssessment $assessment, int $userId, ?CarbonInterface $at = null): FinancialAssessment
     {

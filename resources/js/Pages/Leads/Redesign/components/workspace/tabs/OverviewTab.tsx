@@ -1,3 +1,4 @@
+import FinancialSnapshotCard from "../../financials/FinancialSnapshotCard";
 import { useState } from "react";
 import type { DealFollowup } from "@/Types/api/deal-followup";
 import type { LeadNote } from "@/Types/api/lead-note";
@@ -53,7 +54,7 @@ export default function OverviewTab({
     onAddMeeting,
 }: OverviewTabProps) {
     const { t } = useTranslation();
-    const { notes, tasks, leadFollowUps } = useLeadWorkspace();
+    const { notes, tasks, leadFollowUps, financials } = useLeadWorkspace();
     const { setStatus, isPending } = useLeadTaskStatus();
     const [selectedNote, setSelectedNote] = useState<LeadNote | null>(null);
     const [selectedTask, setSelectedTask] = useState<Task | null>(null);
@@ -95,6 +96,15 @@ export default function OverviewTab({
         leadFollowUps.find((meeting) => meeting.id === id) ?? null;
 
     return (
+        <>
+            {financials.enabled && (
+                <div style={{ marginBottom: 16 }}>
+                    <FinancialSnapshotCard
+                        financials={financials}
+                        onOpen={() => onNavigateTab("financials")}
+                    />
+                </div>
+            )}
         <div className="dr-overview">
             {canViewNotes && (
                 <OverviewColumn
@@ -342,5 +352,6 @@ export default function OverviewTab({
                 onClose={() => setSelectedMeeting(null)}
             />
         </div>
+        </>
     );
 }

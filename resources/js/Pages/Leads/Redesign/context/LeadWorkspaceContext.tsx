@@ -11,6 +11,7 @@ import {
     type SetStateAction,
 } from "react";
 import { useApiQuery } from "@/lib/api/client";
+import useLeadFinancials, { type LeadFinancials } from "../hooks/useLeadFinancials";
 import type { Deal } from "@/Types/api/deals";
 import type { DealFollowup } from "@/Types/api/deal-followup";
 import type { LeadContactFile } from "@/Types/api/file";
@@ -51,6 +52,8 @@ interface LeadWorkspaceValue {
     addNote: (note: LeadNote) => void;
     addTask: (task: Task) => void;
     addLeadFollowUp: (followUp: DealFollowup) => void;
+    /** Financial assessments (crm.lead-financial-assessments): background-loaded, local state. */
+    financials: LeadFinancials;
 }
 
 const LeadWorkspaceContext = createContext<LeadWorkspaceValue | null>(null);
@@ -64,6 +67,8 @@ interface LeadWorkspaceProviderProps {
     children: ReactNode;
     /** Mirrors the crm.sally-insights-tab flag: off means no request at all. */
     sallyInsightsEnabled?: boolean;
+    /** Mirrors crm.lead-financial-assessments: off means no request at all. */
+    financialsEnabled?: boolean;
 }
 
 /**
@@ -82,6 +87,7 @@ export function LeadWorkspaceProvider({
     deals: dealsProp,
     children,
     sallyInsightsEnabled = false,
+    financialsEnabled = false,
 }: LeadWorkspaceProviderProps) {
     const [lead, setLead] = useState<Lead>(initialLead);
     useEffect(() => {
@@ -121,6 +127,7 @@ export function LeadWorkspaceProvider({
         path: route("lead-contact.files.index", lead.id),
         options: { staleTime: 30_000 },
     });
+    const financials = useLeadFinancials(lead.id, financialsEnabled);
     const sallyInsightsQuery = useApiQuery<EntityResponse<SallyMeetingInsight[]>>({
         path: route("lead-contact.sally-insights.index", lead.id),
         options: { staleTime: 30_000, enabled: sallyInsightsEnabled },
@@ -248,9 +255,11 @@ export function LeadWorkspaceProvider({
             addNote,
             addTask,
             addLeadFollowUp,
+            financials,
         }),
         [
             addLeadFollowUp,
+            financials,
             addNote,
             addTask,
             deals,
