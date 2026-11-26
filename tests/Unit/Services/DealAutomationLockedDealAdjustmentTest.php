@@ -4,7 +4,9 @@ namespace Tests\Unit\Services;
 
 use App\Models\Deal;
 use App\Models\DealAutomationAction;
+use App\Services\CrmEventService;
 use App\Services\DealAutomationService;
+use App\Services\DealValueResolver;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\DB;
 use ReflectionMethod;
@@ -59,6 +61,18 @@ class DealAutomationLockedDealAdjustmentTest extends TestCase
     public function test_adjustment_fields_are_written_to_an_unlocked_deal(): void
     {
         $deal = $this->partialDeal([]);
+
+        // The unlocked path recomputes the value and records a CRM event, both
+        // of which query tables this unit test doesn't create.
+        $this->mock(DealValueResolver::class, function ($mock) {
+            $mock->shouldReceive('getBreakdown')->andReturn([
+                'calculated_value' => 1000.0,
+                'computed_value' => 1000.0,
+            ]);
+        });
+        $this->mock(CrmEventService::class, function ($mock) {
+            $mock->shouldReceive('record')->andReturnNull();
+        });
 
         $this->setFieldValue($deal, 'deduction_note', 'Agreed on call');
 
