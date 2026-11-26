@@ -86,6 +86,9 @@ export default function MeetingsDetailDialog({
             userId={userId}
             onClose={onClose}
             includeSummary
+            // A summary written or asked for again changes the row behind
+            // the dialog (its "Generating…" pill, its "Summary" link).
+            onSummaryChanged={onChanged}
             onEditRequested={() => {
                 if (meeting) onEdit(meeting);
             }}

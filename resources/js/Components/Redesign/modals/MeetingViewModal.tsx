@@ -5,8 +5,11 @@ import { useUserDateTime } from "@/Hooks/useUserDateTime";
 import { Modal } from "@/Components/Redesign/primitives/Modal";
 import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
 import { useTd } from "@/Hooks/useDynamicTranslation";
+import useTranslation from "@/Hooks/useTranslation";
 import MeetingDetailCompact from "@/Components/Redesign/modals/MeetingDetailCompact";
 import MeetingSummaryPanel from "@/Components/Redesign/meeting/MeetingSummaryPanel";
+import MeetingSummaryPanelLegacy from "@/Components/Redesign/meeting/MeetingSummaryPanelLegacy";
+import useMeetingsImprovementsFlag from "@/Hooks/useMeetingsImprovementsFlag";
 import { meetingSummaryState } from "@/Components/Redesign/meeting/meetingSummaryState";
 import {
     meetingBucket,
@@ -52,6 +55,8 @@ export interface MeetingViewModalProps {
      * false/omitted, the Summary tab is hidden.
      */
     includeSummary?: boolean;
+    /** Called after the summary is written, corrected or asked for again. */
+    onSummaryChanged?: () => void;
     /** Open on the Summary tab (e.g. list "View summary" pills). */
     initialPanel?: "info" | "summary";
     /**
@@ -93,6 +98,7 @@ export default function MeetingViewModal({
     onEditRequested,
     renderNestedModals,
     includeSummary = true,
+    onSummaryChanged,
     initialPanel = "info",
     loading = false,
     error = null,
@@ -104,8 +110,10 @@ export default function MeetingViewModal({
     fallback,
 }: MeetingViewModalProps) {
     const redesignEnabled = useMeetingsPageRedesignFlag();
+    const improved = useMeetingsImprovementsFlag();
     const { timezone } = useUserDateTime();
     const { td } = useTd();
+    const { t } = useTranslation();
     const [editOpen, setEditOpen] = useState(false);
     const [rescheduleOpen, setRescheduleOpen] = useState(false);
     const [deleteOpen, setDeleteOpen] = useState(false);
@@ -117,14 +125,14 @@ export default function MeetingViewModal({
     if (!meeting) {
         if (error) {
             return (
-                <Modal open title={td("Meeting")} onClose={onClose}>
+                <Modal open title={t("pages.meetings.ui.meeting")} onClose={onClose}>
                     <p style={{ color: T.RED, fontSize: 14 }}>{td(error)}</p>
                 </Modal>
             );
         }
         if (!loading) return null;
         return (
-            <Modal open title={td("Loading meeting…")} onClose={onClose}>
+            <Modal open title={t("pages.meetings.ui.loading_meeting")} onClose={onClose}>
                 <div className="space-y-3" aria-hidden>
                     {[64, 40, 40, 96].map((height, index) => (
                         <div
@@ -147,15 +155,21 @@ export default function MeetingViewModal({
         setDeleteOpen,
     };
 
-    const summaryPanel = includeSummary ? (
+    const summaryState = meetingSummaryState(
+        meeting,
+        meetingBucket(meeting, timezone),
+        { improved },
+    );
+    const summaryPanel = !includeSummary ? undefined : improved ? (
         <MeetingSummaryPanel
             meeting={meeting}
-            state={meetingSummaryState(
-                meeting,
-                meetingBucket(meeting, timezone),
-            )}
+            canEdit={canEdit}
+            onChanged={onSummaryChanged}
+            state={summaryState}
         />
-    ) : undefined;
+    ) : (
+        <MeetingSummaryPanelLegacy meeting={meeting} state={summaryState} />
+    );
 
     return (
         <>

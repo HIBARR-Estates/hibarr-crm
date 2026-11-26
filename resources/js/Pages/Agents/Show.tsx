@@ -21,6 +21,8 @@ import {
 import { Link, router } from "@inertiajs/react";
 import useTranslation from "@/Hooks/useTranslation";
 import usePartnerReferralCommissionFlag from "@/Hooks/usePartnerReferralCommissionFlag";
+import { useCompanyCurrency } from "@/Pages/Leads/Redesign/adapters/currencyAdapter";
+import { describeReferralTerms } from "@/lib/referralTerms";
 import dayjs from "dayjs";
 import { formatCompanyDate } from "@/lib/companyDateTime";
 import { useGenericEntityAction } from "@/Hooks/useGenericEntityAction";
@@ -39,6 +41,13 @@ const Show = ({
     const { t } = useTranslation();
     const { td } = useTd();
     const referralCommissionEnabled = usePartnerReferralCommissionFlag();
+    const currency = useCompanyCurrency();
+    const referralTerms = describeReferralTerms(
+        t,
+        agent.referral_commission_type,
+        agent.referral_commission_value,
+        currency.symbol || currency.code || "",
+    );
     const { handleAction, handleClose, action, selected } =
         useGenericEntityAction<Agent>();
 
@@ -118,28 +127,11 @@ const Show = ({
                                 {agent.id}
                             </Descriptions.Item>
                             {referralCommissionEnabled && agent.is_partner && (
-                                <Descriptions.Item label={t("pages.agents.referral_share")}>
+                                <Descriptions.Item label={t("pages.agents.referral_commission")}>
                                     {permissions.manage_partner_network ? (
-                                        <Link
-                                            href={route(
-                                                "mlm.agent_dashboard",
-                                                agent.id,
-                                            )}
-                                        >
-                                            {agent.referral_pool_rate != null
-                                                ? t("pages.agents.referral_share_of_pool", {
-                                                      rate: agent.referral_pool_rate,
-                                                  })
-                                                : t("pages.agents.referral_share_none")}
-                                        </Link>
+                                        <Link href={route("mlm.agent_dashboard", agent.id)}>{referralTerms}</Link>
                                     ) : (
-                                        <span>
-                                            {agent.referral_pool_rate != null
-                                                ? t("pages.agents.referral_share_of_pool", {
-                                                      rate: agent.referral_pool_rate,
-                                                  })
-                                                : t("pages.agents.referral_share_none")}
-                                        </span>
+                                        <span>{referralTerms}</span>
                                     )}
                                 </Descriptions.Item>
                             )}

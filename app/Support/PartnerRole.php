@@ -44,8 +44,9 @@ class PartnerRole
     }
 
     /**
-     * "Sarah Al-Rashid" → "S. Al-Rashid". A partner may recognise a client by
-     * this but cannot use it to reach them.
+     * "Sarah Al-Rashid" → "S. Al-Rashid". Still used where a partner sees a
+     * client outside the referral book (their deal list). The dashboard and
+     * referred-leads pages show fullName() instead.
      */
     public static function abbreviateName(?string $name): ?string
     {
@@ -56,6 +57,38 @@ class PartnerRole
         }
 
         return mb_substr($parts[0], 0, 1).'. '.implode(' ', array_slice($parts, 1));
+    }
+
+    /** The client's name as stored, or null when there is nothing to show. */
+    public static function fullName(?string $name): ?string
+    {
+        $name = trim((string) $name);
+
+        return $name === '' ? null : $name;
+    }
+
+    /**
+     * What a partner table shows for where a lead came from.
+     *
+     * First-touch UTM source is the label. The lead source is returned beside
+     * it only when it says something different, so both can be shown without
+     * repeating the same word.
+     *
+     * @return array{source: string|null, lead_source: string|null}
+     */
+    public static function sourceLabels(?string $utmSource, ?string $leadSource): array
+    {
+        $utm = trim((string) $utmSource);
+        $lead = trim((string) $leadSource);
+        $utm = $utm !== '' ? $utm : null;
+        $lead = $lead !== '' ? $lead : null;
+
+        return [
+            'source' => $utm ?? $lead,
+            'lead_source' => ($utm !== null && $lead !== null && mb_strtolower($utm) !== mb_strtolower($lead))
+                ? $lead
+                : null,
+        ];
     }
 
     /**

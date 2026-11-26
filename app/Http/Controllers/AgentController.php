@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Actions\Agents\SyncAgentCategories;
 use App\Helper\Reply;
 use App\Http\Requests\Admin\Employee\ImportProcessRequest;
 use App\Http\Requests\Admin\Employee\ImportRequest;
@@ -376,47 +377,13 @@ class AgentController extends AccountBaseController
 
             // Update categories if provided
             if ($request->has('category_id')) {
-                $categoryIds = $this->normalizeCategoryIds($request->input('category_id', []));
-                $addedBy = $agent->added_by ?? user()->id;
-
-                // Reconcile instead of delete-and-recreate: a row that stays
-                // selected keeps its identity and its partner settings
-                // (is_partner, referral_pool_rate, custom rates).
-                $existing = LeadAgent::where('user_id', $agent->user_id)
-                    ->where('company_id', company()->id)
-                    ->get();
-                $wanted = empty($categoryIds)
-                    ? [null]
-                    : array_map(fn ($id) => (int) $id, $categoryIds);
-
-                $existing
-                    ->reject(fn (LeadAgent $row) => in_array(
-                        $row->lead_category_id === null ? null : (int) $row->lead_category_id,
-                        $wanted,
-                        true
-                    ))
-                    ->each->delete();
-
-                // A category added to a partner is still that partner: follow the
-                // user's partner row if they have one, not whichever row sorts first.
-                $template = $existing->firstWhere('is_partner', true) ?? $existing->first();
-
-                foreach ($wanted as $categoryId) {
-                    LeadAgent::firstOrCreate(
-                        [
-                            'user_id' => $agent->user_id,
-                            'lead_category_id' => $categoryId,
-                            'company_id' => company()->id,
-                        ],
-                        [
-                            'added_by' => $addedBy,
-                            'last_updated_by' => user()->id,
-                            'status' => $request->input('status', 'enabled'),
-                            'is_partner' => (bool) $template?->is_partner,
-                            'referral_pool_rate' => $template?->referral_pool_rate,
-                        ]
-                    );
-                }
+                app(SyncAgentCategories::class)->handle(
+                    $agent,
+                    $this->normalizeCategoryIds($request->input('category_id', [])),
+                    company()->id,
+                    user()->id,
+                    (string) $request->input('status', 'enabled'),
+                );
             }
 
             // Update user details if provided

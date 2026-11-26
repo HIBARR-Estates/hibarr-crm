@@ -798,6 +798,7 @@ Route::group(['middleware' => ['auth', 'partner.restrict'], 'prefix' => 'account
     Route::get('meetings', [\App\Http\Controllers\MeetingsController::class, 'index'])->name('meetings.index');
     Route::get('meetings/deal/{deal}', [\App\Http\Controllers\MeetingsController::class, 'getDealForScheduling'])->name('meetings.deal_for_scheduling');
     Route::get('meetings/lead/{lead}', [\App\Http\Controllers\MeetingsController::class, 'getLeadForScheduling'])->name('meetings.lead_for_scheduling');
+    Route::get('meetings/leads/search', [\App\Http\Controllers\MeetingsController::class, 'searchLeads'])->name('meetings.leads.search');
     Route::post('meeting-saved-views', [MeetingSavedViewController::class, 'store'])->name('meeting-saved-views.store');
     Route::patch('meeting-saved-views/{id}', [MeetingSavedViewController::class, 'update'])->name('meeting-saved-views.update');
     Route::delete('meeting-saved-views/{id}', [MeetingSavedViewController::class, 'destroy'])->name('meeting-saved-views.destroy');
@@ -809,6 +810,11 @@ Route::group(['middleware' => ['auth', 'partner.restrict'], 'prefix' => 'account
     Route::get('meetings/{followUp}/detail', [\App\Http\Controllers\MeetingsController::class, 'show'])->name('meetings.detail')->whereNumber('followUp');
     Route::post('meetings/{followUp}/reschedule', [\App\Http\Controllers\MeetingsController::class, 'reschedule'])->name('meetings.reschedule');
     Route::post('meetings/{followUp}/report', [\App\Http\Controllers\MeetingsController::class, 'report'])->name('meetings.report');
+    // A summary written by hand, taken back from the automatic one, or asked
+    // for again. Same authorization as the report above.
+    Route::put('meetings/{followUp}/summary', [\App\Http\Controllers\MeetingsController::class, 'saveSummary'])->name('meetings.summary.save');
+    Route::post('meetings/{followUp}/summary/use-automatic', [\App\Http\Controllers\MeetingsController::class, 'useAutomaticSummary'])->name('meetings.summary.use_automatic');
+    Route::post('meetings/{followUp}/summary/retry', [\App\Http\Controllers\MeetingsController::class, 'retrySummary'])->name('meetings.summary.retry');
     Route::post('meetings/{followUp}/confirm-attendance', [\App\Http\Controllers\MeetingsController::class, 'confirmAttendance'])->name('meetings.confirm_attendance');
 
     // Meeting attendance confirmation (5-minutes-after-meeting-ends popup)
@@ -1470,6 +1476,10 @@ Route::group(['middleware' => ['auth', 'partner.restrict'], 'prefix' => 'account
     Route::post('deals/{deal}/payment-requests/{payment}/retry', [DealPaymentController::class, 'retry'])->name('deals.payment-requests.retry');
     Route::post('deals/{deal}/payment-requests/{payment}/documents/request', [DealPaymentController::class, 'requestDocuments'])
         ->name('deals.payment-requests.documents.request');
+    Route::post('deals/{deal}/payment-requests/{payment}/vat/request', [DealPaymentController::class, 'requestVat'])
+        ->name('deals.payment-requests.vat.request');
+    Route::post('deals/{deal}/payment-requests/{payment}/vat/settle', [DealPaymentController::class, 'settleVat'])
+        ->name('deals.payment-requests.vat.settle');
     Route::get('deals/{deal}/payment-requests/{payment}/documents-status', [DealPaymentController::class, 'documentStatus'])
         ->name('deals.payment-requests.documents.status');
     Route::get('deals/{deal}/payment-requests/{payment}/documents/{kind}', [DealPaymentController::class, 'document'])
@@ -1488,7 +1498,8 @@ Route::group(['middleware' => ['auth', 'partner.restrict'], 'prefix' => 'account
     Route::get('telephony/softphone/devices', [App\Http\Controllers\TelephonySoftphoneDeviceController::class, 'index'])->name('telephony.softphone.devices.index');
     Route::post('telephony/softphone/devices', [App\Http\Controllers\TelephonySoftphoneDeviceController::class, 'store'])->name('telephony.softphone.devices.store');
     Route::get('telephony/softphone/devices/{id}', [App\Http\Controllers\TelephonySoftphoneDeviceController::class, 'show'])->name('telephony.softphone.devices.show')->whereNumber('id');
-    Route::get('telephony/softphone/devices/{id}/credentials', [App\Http\Controllers\TelephonySoftphoneDeviceController::class, 'credentials'])->name('telephony.softphone.devices.credentials')->whereNumber('id');
+    Route::get('telephony/softphone/devices/{id}/credentials', [App\Http\Controllers\TelephonySoftphoneDeviceController::class, 'credentials'])->name('telephony.softphone.devices.credentials')->whereNumber('id')->middleware('throttle:30,1');
+    Route::post('telephony/softphone/devices/{id}/sign-challenge', [App\Http\Controllers\TelephonySoftphoneDeviceController::class, 'signChallenge'])->name('telephony.softphone.devices.sign-challenge')->whereNumber('id')->middleware('throttle:120,1');
     Route::post('telephony/softphone/devices/{id}/capacity/reserve', [App\Http\Controllers\TelephonySoftphoneDeviceController::class, 'reserveCapacity'])->name('telephony.softphone.devices.capacity.reserve')->whereNumber('id');
     Route::post('telephony/softphone/devices/{id}/capacity/release', [App\Http\Controllers\TelephonySoftphoneDeviceController::class, 'releaseCapacity'])->name('telephony.softphone.devices.capacity.release')->whereNumber('id');
 
@@ -1594,6 +1605,9 @@ Route::group(['middleware' => ['auth', 'partner.restrict'], 'prefix' => 'account
             Route::post('agents/{agentId}/assign-level', [App\Http\Controllers\MlmAdminApiController::class, 'assignAgentLevel'])->name('agent_assign_level');
             Route::get('agents/{agentId}/commission-profile', [App\Http\Controllers\MlmAdminApiController::class, 'getAgentCommissionProfile'])->name('agent_commission_profile.show');
             Route::patch('agents/{agentId}/commission-profile', [App\Http\Controllers\MlmAdminApiController::class, 'updateAgentCommissionProfile'])->name('agent_commission_profile.update');
+            Route::get('agents/{agentId}/package-terms', [App\Http\Controllers\MlmAdminApiController::class, 'getAgentPackageTerms'])->name('agent_package_terms.index');
+            Route::put('agents/{agentId}/package-terms/{packageId}', [App\Http\Controllers\MlmAdminApiController::class, 'upsertAgentPackageTerms'])->name('agent_package_terms.upsert');
+            Route::delete('agents/{agentId}/package-terms/{packageId}', [App\Http\Controllers\MlmAdminApiController::class, 'destroyAgentPackageTerms'])->name('agent_package_terms.destroy');
 
             // Level History
             Route::get('level-history', [App\Http\Controllers\MlmAdminApiController::class, 'getLevelHistory'])->name('level_history');

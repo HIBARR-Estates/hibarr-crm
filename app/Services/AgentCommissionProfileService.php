@@ -2,8 +2,10 @@
 
 namespace App\Services;
 
+use App\Enums\PackageCommissionType;
 use App\Models\AgentCommissionRateAuditLog;
 use App\Models\LeadAgent;
+use App\Support\CommissionTerms;
 use App\Support\FeatureFlags;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
@@ -33,8 +35,14 @@ class AgentCommissionProfileService
             // With per-agent overrides off, only the referral share is served: the
             // saved override rate and its history stay out of the payload.
             'custom_commission_rate' => $overrideEnabled ? $this->resolveUnifiedCustomRate($agent) : null,
-            'referral_pool_rate' => FeatureFlags::enabled('crm.partner-referral-commission') && $agent->referral_pool_rate !== null
-                ? (float) $agent->referral_pool_rate
+            // What the partner earns on a referred deal that has no package, taken
+            // from the deal value. Per-package terms are edited on the package.
+            'referral_commission_type' => FeatureFlags::enabled('crm.partner-referral-commission')
+                ? $agent->referral_commission_type?->value
+                : null,
+            'referral_commission_value' => FeatureFlags::enabled('crm.partner-referral-commission')
+                && $agent->referral_commission_value !== null
+                ? (float) $agent->referral_commission_value
                 : null,
             'is_partner' => (bool) $agent->is_partner && FeatureFlags::enabled('crm.partner-referral-commission'),
             'bounds' => [
@@ -54,7 +62,7 @@ class AgentCommissionProfileService
         $agent = LeadAgent::where('company_id', $companyId)->findOrFail($agentId);
 
         $hasCustom = array_key_exists('custom_commission_rate', $payload);
-        $hasReferral = array_key_exists('referral_pool_rate', $payload)
+        $hasReferral = array_key_exists('referral_commission_type', $payload)
             && FeatureFlags::enabled('crm.partner-referral-commission');
 
         if (! $hasCustom && ! $hasReferral) {
@@ -81,33 +89,51 @@ class AgentCommissionProfileService
             }
         }
 
-        $referralRate = null;
+        $referralTerms = null;
 
         if ($hasReferral) {
             if (! $agent->is_partner) {
                 return [
                     'profile' => [],
                     'errors' => [
-                        'referral_pool_rate' => ['Referral share can only be set on a partner.'],
+                        'referral_commission_type' => ['Referral commission can only be set on a partner.'],
                     ],
                 ];
             }
 
-            $referralRate = $payload['referral_pool_rate'] !== null
-                ? (float) $payload['referral_pool_rate']
-                : null;
+            $type = $payload['referral_commission_type'] ?: null;
+            $value = $payload['referral_commission_value'] ?? null;
 
-            if ($referralRate !== null && ($referralRate < 0 || $referralRate > 100)) {
+            if ($type !== null && ! in_array($type, PackageCommissionType::toArray(), true)) {
                 return [
                     'profile' => [],
-                    'errors' => [
-                        'referral_pool_rate' => ['Referral share must be between 0 and 100.'],
-                    ],
+                    'errors' => ['referral_commission_type' => ['Choose percentage, fixed or none.']],
                 ];
+            }
+
+            // "None" and no terms pay the same on a partner, so both are stored as no terms.
+            $referralTerms = CommissionTerms::make($type, $value);
+
+            if ($type !== null && $type !== PackageCommissionType::None->value && $referralTerms === null) {
+                return [
+                    'profile' => [],
+                    'errors' => ['referral_commission_value' => ['Enter the referral amount or percentage.']],
+                ];
+            }
+
+            if ($referralTerms !== null && $referralTerms->isPercentage() && ($referralTerms->value < 0 || $referralTerms->value > 100)) {
+                return [
+                    'profile' => [],
+                    'errors' => ['referral_commission_value' => ['Referral percentage must be between 0 and 100.']],
+                ];
+            }
+
+            if ($referralTerms !== null && $referralTerms->isNone()) {
+                $referralTerms = null;
             }
         }
 
-        DB::transaction(function () use ($agentId, $companyId, $userId, $payload, $hasCustom, $hasReferral, $directRate, $overrideRate, $referralRate) {
+        DB::transaction(function () use ($agentId, $companyId, $userId, $payload, $hasCustom, $hasReferral, $directRate, $overrideRate, $referralTerms) {
             // Read the previous rates under a row lock so two concurrent saves
             // cannot both audit the same "previous" value.
             $agent = LeadAgent::where('company_id', $companyId)->lockForUpdate()->findOrFail($agentId);
@@ -119,9 +145,7 @@ class AgentCommissionProfileService
                 ? (float) $agent->custom_override_rate
                 : null;
             $previousUnified = $this->resolveUnifiedCustomRate($agent);
-            $previousReferral = $agent->referral_pool_rate !== null
-                ? (float) $agent->referral_pool_rate
-                : null;
+            $previousReferral = CommissionTerms::make($agent->referral_commission_type, $agent->referral_commission_value);
 
             $updates = [];
 
@@ -131,7 +155,8 @@ class AgentCommissionProfileService
             }
 
             if ($hasReferral) {
-                $updates['referral_pool_rate'] = $referralRate;
+                $updates['referral_commission_type'] = $referralTerms?->type->value;
+                $updates['referral_commission_value'] = $referralTerms?->value;
             }
 
             if ($updates !== []) {
@@ -142,7 +167,8 @@ class AgentCommissionProfileService
                 $previousDirect !== $directRate
                 || $previousOverride !== $overrideRate
             );
-            $referralChanged = $hasReferral && $previousReferral !== $referralRate;
+            $referralChanged = $hasReferral
+                && ($previousReferral?->type !== $referralTerms?->type || $previousReferral?->value !== $referralTerms?->value);
 
             if ($customChanged || $referralChanged) {
                 AgentCommissionRateAuditLog::create([
@@ -153,8 +179,10 @@ class AgentCommissionProfileService
                     'new_direct_rate' => $customChanged ? $directRate : null,
                     'previous_override_rate' => $customChanged ? $previousOverride : null,
                     'new_override_rate' => $customChanged ? $overrideRate : null,
-                    'previous_referral_pool_rate' => $referralChanged ? $previousReferral : null,
-                    'new_referral_pool_rate' => $referralChanged ? $referralRate : null,
+                    'previous_referral_commission_type' => $referralChanged ? $previousReferral?->type->value : null,
+                    'previous_referral_commission_value' => $referralChanged ? $previousReferral?->value : null,
+                    'new_referral_commission_type' => $referralChanged ? $referralTerms?->type->value : null,
+                    'new_referral_commission_value' => $referralChanged ? $referralTerms?->value : null,
                     'changed_at' => now(),
                     'reason' => $payload['reason'] ?? null,
                 ]);

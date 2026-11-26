@@ -112,3 +112,55 @@ export function fieldHasRule(field: SettingsField): boolean {
     const groups = rs.groups?.length ? rs.groups : rs.group ? [rs.group] : [];
     return groups.some((g) => (g.criteria?.length ?? 0) > 0);
 }
+
+/** A built-in lead/deal field a custom field can be mapped into — see DefinedFieldRegistry. */
+export interface DefinedField {
+    key: string;
+    label: string;
+    kind: "string" | "date" | "int" | "bool" | "languages";
+    /** Model class the field belongs to, matching ModuleGroup.model. */
+    model: string;
+}
+
+export type MappingTarget = { type: "custom"; id: number } | { type: "defined"; key: string };
+
+export interface MappingOptions {
+    conflict: "skip" | "overwrite";
+    add_missing_options: boolean;
+    delete_source_values: boolean;
+    delete_source_field: boolean;
+    allow_loss: boolean;
+}
+
+/** Result of a mapping dry run / apply — see CustomFieldMappingService::newReport(). */
+export interface MappingReport {
+    dry_run: boolean;
+    source_total: number;
+    mapped: number;
+    unchanged: number;
+    skipped_conflict: number;
+    skipped_incompatible: number;
+    skipped_locked: number;
+    no_target_record: number;
+    superseded: number;
+    added_options: string[];
+    incompatible_samples: { record_id: number; value: string; reason: string }[];
+    deleted_values: number;
+    deleted_field: boolean;
+    will_delete_values: boolean;
+    will_delete_field: boolean;
+    blocked_delete: boolean;
+}
+
+/** Types that can't take part in a mapping at all. */
+export const UNMAPPABLE_TYPES = ["password", "repeatable"] as const;
+
+/** Mirrors CustomFieldValueConverter::typesCompatible() — only used to hide hopeless targets. */
+export function typesCompatible(sourceType: string, targetType: string): boolean {
+    if ((UNMAPPABLE_TYPES as readonly string[]).includes(sourceType) || (UNMAPPABLE_TYPES as readonly string[]).includes(targetType)) {
+        return false;
+    }
+    const sameOnly = (type: string) => !["text", "textarea", "email", "url", "phone", "mobile", "select", "radio", "multiselect", "checkbox", "number", "date", "datetime"].includes(type);
+    if (sameOnly(sourceType) || sameOnly(targetType)) return sourceType === targetType;
+    return true;
+}

@@ -3,9 +3,9 @@ import axios from "axios";
 import { message } from "antd";
 import type {
     AgentOverride,
+    CommissionRule,
     PackageFormValues,
     PackageRow,
-    PackageCommissionType,
     RoutingFieldOption,
     RoutingTrigger,
 } from "./types";
@@ -131,9 +131,10 @@ export default function usePackages(initial: PackageRow[]) {
         async (
             packageId: number,
             agentId: number,
-            commissionType: PackageCommissionType,
-            /** Null for "none" — there is nothing to enter. */
-            commissionValue: number | null,
+            /** What the agent earns as the closer. A null type: no override, the package default applies. */
+            closer: CommissionRule,
+            /** What they earn as the referrer; null leaves the role out (the feature is off). */
+            referral: CommissionRule | null,
         ) => {
             try {
                 const response = await axios.put(
@@ -142,8 +143,14 @@ export default function usePackages(initial: PackageRow[]) {
                         agent: agentId,
                     }),
                     {
-                        commission_type: commissionType,
-                        commission_value: commissionValue,
+                        commission_type: closer.type,
+                        commission_value: closer.value,
+                        ...(referral
+                            ? {
+                                  referral_commission_type: referral.type,
+                                  referral_commission_value: referral.value,
+                              }
+                            : {}),
                     },
                 );
                 applyOverrides(packageId, response.data?.data ?? []);

@@ -73,7 +73,7 @@ class PortfolioController extends AccountBaseController
     {
         $this->authorizeView();
 
-        $pipelines = LeadPipeline::query()->orderBy('name')->get(['id', 'name', 'default']);
+        $pipelines = LeadPipeline::query()->visibleInSystem()->orderBy('name')->get(['id', 'name', 'default']);
         $pipelineId = $this->dealsPipeline($request, $pipelines);
 
         $base = $this->myOpenDeals($pipelineId);

@@ -358,7 +358,6 @@
     border-color: var(--dr-green-mid);
 }
 
-.cb-spec-page .cb-outcome--missed,
 .cb-spec-page .cb-outcome--busy,
 .cb-spec-page .cb-outcome--declined {
     background: var(--dr-amber-soft);
@@ -366,6 +365,7 @@
     border-color: var(--dr-amber-mid);
 }
 
+.cb-spec-page .cb-outcome--missed,
 .cb-spec-page .cb-outcome--failed {
     background: var(--dr-red-soft);
     color: var(--dr-red);

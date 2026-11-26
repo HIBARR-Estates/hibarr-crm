@@ -1540,15 +1540,7 @@ class DealPaymentRequestTest extends TestCase
 
         $payment = Payment::withoutGlobalScope(CompanyScope::class)->without(['order'])->findOrFail($id);
 
-        // A receipt never makes the invoice: that has to be generated first.
-        try {
-            app(DealPaymentDocumentService::class)->viewData($payment, 'receipt');
-            $this->fail('Expected the receipt to be refused before the invoice exists.');
-        } catch (HttpException $e) {
-            $this->assertSame(409, $e->getStatusCode());
-        }
-        $this->assertSame(0, DB::table('payment_documents')->count());
-
+        // A receipt is made after the invoice here, so it settles that invoice.
         app(DealPaymentDocumentService::class)->viewData($payment, 'invoice');
         $data = app(DealPaymentDocumentService::class)->viewData($payment, 'receipt');
         $html = view('payment-requests.document', $data)->render();
@@ -1560,6 +1552,222 @@ class DealPaymentRequestTest extends TestCase
         $this->assertStringContainsString('TAHSİLAT MAKBUZU', $html);
         $this->assertStringContainsString('A 000001 no.lu fatura', $html);
         $this->assertNull($data['stamp']);
+    }
+
+    public function test_a_receipt_can_be_generated_without_an_invoice(): void
+    {
+        $this->seedSellerSettings(['legal_name' => 'Örnek Emlak Ltd.', 'address' => 'Girne, KKTC', 'invoice_number_end' => 5000, 'receipt_number_end' => 5000]);
+        $id = $this->insertPayment(['documents_requested_at' => now(),
+            'external_reference' => '883',
+            'ol_status' => 'completed',
+            'status' => 'complete',
+            'amount' => 2500,
+            'paid_on' => now(),
+        ]);
+        Http::fake(['https://api.frankfurter.app/*' => Http::response(['rates' => ['TRY' => 50]], 200)]);
+        $payment = Payment::withoutGlobalScope(CompanyScope::class)->without(['order'])->findOrFail($id);
+
+        $data = app(DealPaymentDocumentService::class)->viewData($payment, 'receipt');
+
+        $this->assertSame('receipt', $data['kind']);
+        $this->assertNull($data['invoice_number']);
+        // Standalone, KDV is added on top of the net amount.
+        $this->assertSame('2.500,00', $data['subtotal_display']);
+        $this->assertSame('2.900,00', $data['total_display']);
+        $html = view('payment-requests.document', $data)->render();
+        $this->assertStringContainsString('TAHSİLAT MAKBUZU', $html);
+        $this->assertStringNotContainsString('no.lu fatura', $html);
+        $this->assertSame(0, DB::table('payment_documents')->where('kind', 'invoice')->count());
+        $this->assertSame(1, DB::table('payment_documents')->where('kind', 'receipt')->count());
+    }
+
+    public function test_a_receipt_needs_no_invoice_request_and_makes_kdv_due(): void
+    {
+        $this->seedSellerSettings(['legal_name' => 'Örnek Emlak Ltd.', 'address' => 'Girne, KKTC', 'receipt_number_end' => 5000, 'invoice_number_end' => 5000]);
+        $id = $this->insertPayment([
+            'external_reference' => '885',
+            'ol_status' => 'completed',
+            'status' => 'complete',
+            'amount' => 2500,
+            'paid_on' => now(),
+        ]);
+        Http::fake(['https://api.frankfurter.app/*' => Http::response(['rates' => ['TRY' => 50]], 200)]);
+        $payment = Payment::withoutGlobalScope(CompanyScope::class)->without(['order'])->findOrFail($id);
+        $documents = app(DealPaymentDocumentService::class);
+
+        // The invoice still has to be asked for.
+        try {
+            $documents->viewData($payment, 'invoice');
+            $this->fail('Expected an invoice that was not requested to be refused.');
+        } catch (HttpException $e) {
+            $this->assertSame(409, $e->getStatusCode());
+        }
+
+        $this->assertNull(app(DealPaymentService::class)->serializeDealPayment($payment->fresh())['vat']);
+
+        $data = $documents->viewData($payment, 'receipt');
+
+        $this->assertSame('receipt', $data['kind']);
+        $this->assertNull($data['invoice_number']);
+        // The printed receipt carries the KDV that is reported as due.
+        $this->assertSame('2.500,00', $data['subtotal_display']);
+        $this->assertSame('2.900,00', $data['total_display']);
+        // The receipt is the customer's request for documents: KDV is due,
+        // but the invoice was never asked for and is still refused.
+        $this->assertNull($payment->fresh()->documents_requested_at);
+        $this->assertSame('due', app(DealPaymentService::class)->serializeDealPayment($payment->fresh())['vat']['status']);
+        try {
+            $documents->viewData($payment->fresh(), 'invoice');
+            $this->fail('Expected an invoice that was not requested to stay refused after a receipt.');
+        } catch (HttpException $e) {
+            $this->assertSame(409, $e->getStatusCode());
+        }
+        $this->assertSame(0, DB::table('payment_documents')->where('kind', 'invoice')->count());
+    }
+
+    public function test_a_standalone_receipt_keeps_its_kdv_when_the_rate_changes_and_a_kdv_payment_gets_no_second_kdv(): void
+    {
+        $this->seedSellerSettings(['legal_name' => 'Örnek Emlak Ltd.', 'address' => 'Girne, KKTC', 'receipt_number_end' => 5000]);
+        $id = $this->insertPayment(['external_reference' => '886', 'ol_status' => 'completed', 'status' => 'complete', 'amount' => 2500, 'paid_on' => now()]);
+        Http::fake(['https://api.frankfurter.app/*' => Http::response(['rates' => ['TRY' => 50]], 200)]);
+        $payment = Payment::withoutGlobalScope(CompanyScope::class)->without(['order'])->findOrFail($id);
+        $documents = app(DealPaymentDocumentService::class);
+
+        $documents->viewData($payment, 'receipt');
+        DB::table('payment_document_settings')->where('company_id', $this->companyId)->update(['vat_rate' => 20]);
+
+        // The receipt printed 16%, so that is the KDV that is due.
+        $this->assertEquals(400.0, $documents->vatDue($payment->fresh())['amount']);
+
+        // The KDV payment's own receipt shows what was collected, nothing added.
+        $kdvId = $this->insertPayment(['external_reference' => '887', 'ol_status' => 'completed', 'status' => 'complete', 'amount' => 400, 'paid_on' => now(), 'vat_for_payment_id' => $id]);
+        $kdv = Payment::withoutGlobalScope(CompanyScope::class)->without(['order'])->findOrFail($kdvId);
+        $data = $documents->viewData($kdv, 'receipt');
+        $this->assertSame('400,00', $data['total_display']);
+    }
+
+    public function test_a_receipt_cannot_be_issued_for_a_payment_that_was_not_collected(): void
+    {
+        $this->seedSellerSettings(['legal_name' => 'Örnek Emlak Ltd.', 'address' => 'Girne, KKTC', 'receipt_number_end' => 5000]);
+        $id = $this->insertPayment(['documents_requested_at' => now(), 'external_reference' => '884', 'ol_status' => 'pending', 'amount' => 100]);
+        $payment = Payment::withoutGlobalScope(CompanyScope::class)->without(['order'])->findOrFail($id);
+
+        try {
+            app(DealPaymentDocumentService::class)->issue($payment, 'receipt');
+            $this->fail('Expected a receipt for an uncollected payment to be refused.');
+        } catch (HttpException $e) {
+            $this->assertSame(409, $e->getStatusCode());
+        }
+        $this->assertSame(0, DB::table('payment_documents')->count());
+    }
+
+    private function collectedPaymentWithInvoiceRequested(array $overrides = []): Payment
+    {
+        $id = $this->insertPayment(array_merge([
+            'external_reference' => 'kdv-1',
+            'ol_status' => 'completed',
+            'status' => 'complete',
+            'amount' => 2500,
+            'base_amount' => 2500,
+            'exchange_rate' => 1,
+            'paid_on' => now(),
+            'documents_requested_at' => now(),
+        ], $overrides));
+
+        return Payment::withoutGlobalScope(CompanyScope::class)->without(['order'])->findOrFail($id);
+    }
+
+    public function test_a_collected_payment_with_an_invoice_request_shows_the_kdv_due(): void
+    {
+        $payment = $this->collectedPaymentWithInvoiceRequested();
+
+        $row = app(DealPaymentService::class)->serializeDealPayment($payment);
+
+        $this->assertSame('due', $row['vat']['status']);
+        $this->assertSame(400.0, $row['vat']['amount']);
+        $this->assertSame(16.0, $row['vat']['rate']);
+    }
+
+    public function test_no_kdv_is_due_before_an_invoice_is_requested(): void
+    {
+        $payment = $this->collectedPaymentWithInvoiceRequested(['documents_requested_at' => null]);
+
+        $this->assertNull(app(DealPaymentService::class)->serializeDealPayment($payment)['vat']);
+    }
+
+    public function test_kdv_can_be_marked_received_in_cash_or_outside_the_crm_once(): void
+    {
+        $payment = $this->collectedPaymentWithInvoiceRequested();
+        $service = app(DealPaymentService::class);
+
+        $row = $service->settleVat($this->makeDeal(), $payment, $this->makeUser(), 'cash');
+
+        $this->assertSame('settled', $row['vat']['status']);
+        $this->assertSame('cash', $row['vat']['method']);
+        $this->assertDatabaseHas('payments', ['id' => $payment->id, 'vat_settlement_method' => 'cash', 'vat_settled_by_user_id' => 99]);
+
+        try {
+            $service->settleVat($this->makeDeal(), $payment->fresh(), $this->makeUser(), 'external');
+            $this->fail('Expected a second settlement to be refused.');
+        } catch (HttpException $e) {
+            $this->assertSame(409, $e->getStatusCode());
+        }
+    }
+
+    public function test_kdv_cannot_be_collected_before_the_payment_is_collected_or_invoice_requested(): void
+    {
+        $service = app(DealPaymentService::class);
+
+        foreach ([['ol_status' => 'pending'], ['documents_requested_at' => null]] as $i => $override) {
+            $payment = $this->collectedPaymentWithInvoiceRequested($override + ['external_reference' => 'kdv-x'.$i]);
+            try {
+                $service->settleVat($this->makeDeal(), $payment, $this->makeUser(), 'cash');
+                $this->fail('Expected KDV collection to be refused.');
+            } catch (HttpException $e) {
+                $this->assertSame(409, $e->getStatusCode());
+            }
+        }
+    }
+
+    public function test_a_kdv_request_is_for_the_kdv_only_and_is_no_part_of_the_deal_value(): void
+    {
+        Http::fake();
+        $payment = $this->collectedPaymentWithInvoiceRequested();
+        $service = app(DealPaymentService::class);
+        $remainingBefore = $service->remainingBaseAmount($this->makeDeal());
+
+        $request = $service->createVatRequest($this->makeDeal(), $payment, $this->makeUser(), 'cash');
+
+        $this->assertEquals(400.0, (float) $request['amount']);
+        $this->assertSame($payment->id, $request['vat_for_payment_id']);
+        $this->assertSame('cash_pending', $request['ui_state']);
+        $this->assertNull($request['vat']);
+        $this->assertSame('requested', $service->serializeDealPayment($payment->fresh())['vat']['status']);
+        $this->assertSame($remainingBefore, $service->remainingBaseAmount($this->makeDeal()));
+
+        // A live KDV request blocks marking it received another way.
+        try {
+            $service->settleVat($this->makeDeal(), $payment->fresh(), $this->makeUser(), 'cash');
+            $this->fail('Expected a live KDV request to block settlement.');
+        } catch (HttpException $e) {
+            $this->assertSame(409, $e->getStatusCode());
+        }
+    }
+
+    public function test_confirming_the_kdv_request_settles_the_payment_and_leaves_the_deal_alone(): void
+    {
+        Http::fake();
+        $payment = $this->collectedPaymentWithInvoiceRequested();
+        $service = app(DealPaymentService::class);
+        $service->createVatRequest($this->makeDeal(), $payment, $this->makeUser(), 'cash');
+
+        $service->confirmBankTransfer($this->makeDeal(), $this->makeUser());
+
+        $row = $service->serializeDealPayment($payment->fresh());
+        $this->assertSame('settled', $row['vat']['status']);
+        $this->assertSame('request', $row['vat']['method']);
+        $this->assertNull(DB::table('deals')->where('id', $this->dealId)->value('outcome_status'));
+        $this->assertSame($service->remainingBaseAmount($this->makeDeal()), 0.0);
     }
 
     private function makeDeal(): Deal
@@ -1677,6 +1885,10 @@ class DealPaymentRequestTest extends TestCase
             $table->timestamp('invalidated_at')->nullable();
             $table->timestamp('documents_requested_at')->nullable();
             $table->unsignedInteger('documents_requested_by_user_id')->nullable();
+            $table->unsignedInteger('vat_for_payment_id')->nullable();
+            $table->timestamp('vat_settled_at')->nullable();
+            $table->string('vat_settlement_method', 16)->nullable();
+            $table->unsignedInteger('vat_settled_by_user_id')->nullable();
             $table->unsignedBigInteger('invalidated_by_user_id')->nullable();
             $table->string('invalidation_reason')->nullable();
             $table->decimal('base_amount', 16, 2)->nullable();

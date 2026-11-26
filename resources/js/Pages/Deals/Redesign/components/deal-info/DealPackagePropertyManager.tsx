@@ -14,7 +14,7 @@ import Button from "@/Components/Redesign/primitives/Button";
 import Icon from "@/Components/Redesign/primitives/Icon";
 import MenuSelect from "@/Components/Redesign/primitives/MenuSelect";
 import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
-import usePipelineHasPackages from "../../hooks/usePipelineHasPackages";
+import usePipelineOfferingType from "../../hooks/usePipelineOfferingType";
 import useSinglePackageMode from "../../hooks/useSinglePackageMode";
 import {
     PaymentInvalidationCancelled,
@@ -95,8 +95,8 @@ export default function DealPackagePropertyManager({
         ? packagePoolRaw
         : [];
 
-    // A package pipeline sells packages, not individual properties.
-    const pipelineHasPackages = usePipelineHasPackages();
+    // Pipeline offering_type decides which selector is available on this deal.
+    const offeringType = usePipelineOfferingType();
     // One package per deal: nothing to add once the deal has one.
     const singlePackageMode = useSinglePackageMode();
 
@@ -105,14 +105,14 @@ export default function DealPackagePropertyManager({
     const totalAttached = packages.length + products.length;
     const overLimit = restrictPackageOrProperty && totalAttached > 1;
 
-    // Under the restriction, the other section is removed from view entirely
-    // once the deal has committed to being a package deal or a property deal —
-    // both stay visible over the limit so it can be fixed. (v2.2:3132-3138)
+    // Offering type gates which selectors exist; company-level
+    // restrictPackageOrProperty can still hide the other once one is attached.
+    const allowsPackages = offeringType === "package" || offeringType === "both";
+    const allowsProperties = offeringType === "property" || offeringType === "both";
     const showPackagesSection =
-        !restrictPackageOrProperty || !hasProperty || overLimit;
+        allowsPackages && (!restrictPackageOrProperty || !hasProperty || overLimit);
     const showPropertiesSection =
-        !pipelineHasPackages &&
-        (!restrictPackageOrProperty || !hasPackage || overLimit);
+        allowsProperties && (!restrictPackageOrProperty || !hasPackage || overLimit);
     const showPackageAdd =
         !isLocked &&
         showPackagesSection &&

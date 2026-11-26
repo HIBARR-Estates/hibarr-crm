@@ -343,6 +343,7 @@ class CustomFieldController extends AccountBaseController
     public function pipelineOptions()
     {
         $pipelines = \App\Models\LeadPipeline::where('company_id', company()->id)
+            ->visibleInSystem()
             ->with(['stages' => function ($query) {
                 $query->orderBy('priority')->select('id', 'lead_pipeline_id', 'name', 'priority');
             }])

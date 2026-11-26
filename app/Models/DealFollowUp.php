@@ -122,6 +122,8 @@ class DealFollowUp extends BaseModel
         'attendance_confirmation_snoozed_until' => 'datetime',
         'host_id' => 'integer',
         'client_attended' => 'boolean',
+        'summary_retry_requested_at' => 'datetime',
+        'summary_retry_count' => 'integer',
     ];
 
     protected static function booted(): void

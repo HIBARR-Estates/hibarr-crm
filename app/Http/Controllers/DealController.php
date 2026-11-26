@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Actions\Deals\UpdateDealReferralTerms;
 use App\DataTables\DealNotesDataTable;
 use App\DataTables\DealsDataTable;
 use App\DataTables\LeadFollowupDataTable;
@@ -63,6 +64,7 @@ use App\Services\DealAgentAssignmentService;
 use App\Services\DealFilters;
 use App\Services\DealOfferService;
 use App\Services\DealValueResolver;
+use App\Services\MeetingContactability;
 use App\Services\MeetingVisibilityService;
 use App\Services\PackagePipelineRouterService;
 use App\Services\PackageRoutingFieldCatalog;
@@ -71,6 +73,7 @@ use App\Services\PipelineScopeResolverService;
 use App\Services\Reminders\MeetingReminderSync;
 use App\Services\SallyMeetingInsightService;
 use App\Services\SallySuggestionLogService;
+use App\Support\CommissionTerms;
 use App\Support\FeatureFlags;
 use App\Support\UserTimezone;
 use App\Traits\DealAutomationTrait;
@@ -465,7 +468,7 @@ class DealController extends AccountBaseController
      */
     protected function loadDataForInertiaIndex(): void
     {
-        $this->pipelines = LeadPipeline::all();
+        $this->pipelines = LeadPipeline::visibleInSystem()->get();
         $this->defaultPipeline = LeadPipeline::where('default', 1)->first();
     }
 
@@ -486,7 +489,7 @@ class DealController extends AccountBaseController
 
     protected function loadPipelineData()
     {
-        $this->pipelines = LeadPipeline::all();
+        $this->pipelines = LeadPipeline::visibleInSystem()->get();
         $defaultPipeline = LeadPipeline::where('default', 1)->first();
         $this->defaultPipeline = $defaultPipeline;
         $this->stages = PipelineStage::where('lead_pipeline_id', optional($defaultPipeline)->id)->get();
@@ -724,11 +727,12 @@ class DealController extends AccountBaseController
         return Inertia::render('AgentWorkspace/Deals', [
             'pageTitle' => __('pages.agent_workspace.deals.title'),
             'userId' => (int) user()->id,
-            // `visible` is the pipeline's nav-visibility setting; the default pipeline is always visible.
+            // `visible` combines nav-visibility + system-visibility; the default pipeline is always visible.
             'pipelines' => $this->pipelines->map(fn ($pipeline) => [
                 'id' => (int) $pipeline->id,
                 'name' => $pipeline->name,
-                'visible' => ! $navVisibility || (bool) $pipeline->default || ! $pipeline->hidden_from_nav,
+                'visible' => ((bool) $pipeline->default || ! $pipeline->hidden_from_system)
+                    && (! $navVisibility || (bool) $pipeline->default || ! $pipeline->hidden_from_nav),
             ])->values(),
             'pipelineId' => $pipelineId,
             'filters' => $request->only([
@@ -1010,11 +1014,11 @@ class DealController extends AccountBaseController
             // Quick action / composer follow in E-29.
             'emailQuickAction' => EmailFeature::quickActionFor(user()),
 
-            // A pipeline that sells packages does not sell individual properties,
-            // so properties / recommendations / offers are hidden for its deals.
-            'pipelineHasPackages' => $deal->lead_pipeline_id
-                ? \App\Models\PackagePipeline::where('pipeline_id', $deal->lead_pipeline_id)->exists()
-                : false,
+            // Explicit pipeline offering_type: package-only hides properties /
+            // recommendations / offers; property-only hides packages; both shows either.
+            'pipelineHasPackages' => (bool) optional($deal->pipeline)->isPackageOffering(),
+            'pipelineOfferingType' => optional($deal->pipeline)?->offeringType()
+                ?? \App\Models\LeadPipeline::OFFERING_PROPERTY,
 
             // ---- C1 deferred (queries run only when Inertia resolves these) ----
             // notes / dealFollowUps / files / tasks are no longer deferred props —
@@ -1694,7 +1698,7 @@ class DealController extends AccountBaseController
 
         $this->categories = $this->categories->get();
 
-        $this->leadPipelines = LeadPipeline::orderBy('default', 'DESC')->get();
+        $this->leadPipelines = LeadPipeline::visibleInSystem()->orderBy('default', 'DESC')->get();
         $this->leadStages = PipelineStage::all();
         $this->countries = countries();
 
@@ -1985,7 +1989,7 @@ class DealController extends AccountBaseController
         $this->categories = $this->categories->get();
         $this->leadContacts = Lead::all();
         $this->products = Product::all();
-        $this->leadPipelines = LeadPipeline::all();
+        $this->leadPipelines = LeadPipeline::visibleInSystem()->get();
 
         $this->stages = PipelineStage::all();
 
@@ -2493,11 +2497,12 @@ class DealController extends AccountBaseController
     }
 
     /**
-     * Set this deal's referral percentage and agreed amount.
+     * Set this deal's own referral terms: a percentage of the deal value, an
+     * agreed amount, or "not paid". With no type the override is cleared and the
+     * referrer's package or partner terms apply.
      *
-     * The percentage, left empty, uses the partner's default. An agreed amount
-     * replaces that percentage. Both are frozen once commission has been calculated,
-     * and the agreed amount can never exceed the commission the deal can carry.
+     * Frozen once commission has been calculated, and never more than the
+     * commission the deal can carry.
      */
     public function updateReferralCommission(Request $request, $id)
     {
@@ -2522,69 +2527,42 @@ class DealController extends AccountBaseController
             || ($editPermission == 'both' && ($deal->added_by == user()->id || $hasTeamAccess))
         ));
 
+        $type = $request->input('referral_commission_type');
+        $valueRules = in_array($type, ['percentage', 'fixed'], true)
+            ? ['required', 'numeric', 'min:0', 'decimal:0,2', $type === 'percentage' ? 'max:100' : 'max:9999999999999.99']
+            : ['nullable'];
+
         $validated = $request->validate([
-            'referral_pool_rate' => 'nullable|numeric|min:0|max:100',
-            'referral_fixed_amount' => 'nullable|numeric|min:0|max:9999999999999.99',
+            'referral_commission_type' => ['nullable', \Illuminate\Validation\Rule::enum(\App\Enums\PackageCommissionType::class)],
+            'referral_commission_value' => $valueRules,
         ]);
 
-        $maxAmount = null;
+        // Null type clears the override and the deal goes back to the referrer's
+        // package or partner terms. "None" has no value to keep.
+        $terms = CommissionTerms::make(
+            $validated['referral_commission_type'] ?? null,
+            $validated['referral_commission_value'] ?? null,
+        );
 
-        $blocked = DB::transaction(function () use ($request, $deal, $validated, &$maxAmount) {
-            $locked = Deal::query()->whereKey($deal->id)->lockForUpdate()->first();
+        $result = app(UpdateDealReferralTerms::class)->handle($deal->id, $terms);
 
-            if (! $locked) {
-                return 'locked';
-            }
-
-            // The deal may have been locked since the check above.
-            if ($locked->isLocked()) {
-                return 'deal_locked';
-            }
-
-            if ($locked->isCommissionLocked()) {
-                return 'locked';
-            }
-
-            if ($request->exists('referral_fixed_amount') && $validated['referral_fixed_amount'] !== null) {
-                // Checked against the locked row so a concurrent value or
-                // ceiling change cannot slip a larger amount through.
-                $maxAmount = app(\App\Services\MlmCommissionService::class)->maxReferralAmount($locked);
-
-                if (round((float) $validated['referral_fixed_amount'], 2) > $maxAmount) {
-                    return 'exceeds';
-                }
-            }
-
-            if ($request->exists('referral_pool_rate')) {
-                $locked->referral_pool_rate = $validated['referral_pool_rate'];
-            }
-
-            if ($request->exists('referral_fixed_amount')) {
-                $locked->referral_fixed_amount = $validated['referral_fixed_amount'];
-            }
-
-            $locked->save();
-
-            return null;
-        });
-
-        if ($blocked === 'exceeds') {
+        if ($result['outcome'] === UpdateDealReferralTerms::EXCEEDS) {
             return response()->json([
                 'success' => false,
                 'message' => __('messages.dealReferralAmountTooHigh', [
-                    'max' => number_format((float) $maxAmount, 2),
+                    'max' => number_format((float) $result['max'], 2),
                 ]),
             ], 422);
         }
 
-        if ($blocked === 'deal_locked') {
+        if ($result['outcome'] === UpdateDealReferralTerms::DEAL_LOCKED) {
             return response()->json([
                 'success' => false,
                 'message' => __('messages.dealLocked'),
             ], 403);
         }
 
-        if ($blocked === 'locked') {
+        if ($result['outcome'] === UpdateDealReferralTerms::COMMISSION_LOCKED) {
             return response()->json([
                 'success' => false,
                 'message' => __('messages.dealReferralLockedByCommission'),
@@ -3448,6 +3426,23 @@ class DealController extends AccountBaseController
             }
         }
 
+        // With the Meetings page improvements, a meeting is not created for a
+        // person who cannot be reached the way it is set up to run: an online
+        // meeting needs an email, a phone meeting a number, an in-person one
+        // either. Checked here as well as in the dialog, which only explains it.
+        if ($lead && FeatureFlags::enabled('crm.meetings-page-redesign') && FeatureFlags::enabled('crm.meetings-page-improvements')) {
+            $lead->loadMissing('contactMethods:id,lead_id,type,identifier');
+            $missing = MeetingContactability::shortfall($request->input('location'), MeetingContactability::forLead($lead));
+
+            if ($missing !== null) {
+                return Reply::error(__(match ($missing) {
+                    MeetingContactability::NEEDS_EMAIL => 'messages.meetingContactNoEmail',
+                    MeetingContactability::NEEDS_PHONE => 'messages.meetingContactNoPhone',
+                    default => 'messages.meetingContactNoWay',
+                }, ['name' => $lead->client_name]));
+            }
+        }
+
         // The form's timezone picker (creator's own by default, or the host's)
         // decides what the entered wall-clock time means.
         $timezone = UserTimezone::forWrite(user(), company(), $request->input('timezone'));
@@ -3742,29 +3737,57 @@ class DealController extends AccountBaseController
      */
     public function applyFollowUpQuickAction(Request $request)
     {
+        // The redesigned Meetings page posts here with axios and patches its
+        // own list from the answer. Answering it with `back()` made Inertia
+        // send the whole page's props again — every schedulable lead and
+        // deal included — only for the caller to reload the list on top.
+        $wantsJson = $request->expectsJson();
+
+        $ids = array_values(array_filter(
+            array_map('intval', explode(',', (string) $request->row_ids))
+        ));
+
         switch ($request->action_type) {
             case 'delete':
                 $this->deleteFollowUpRecords($request);
-
-                return back()->with([
-                    'status' => 'success',
-                    'message' => __('messages.deleteSuccess'),
-                ]);
+                $message = __('messages.deleteSuccess');
+                break;
 
             case 'change-status':
                 $this->changeBulkFollowUpStatus($request);
-
-                return back()->with([
-                    'status' => 'success',
-                    'message' => __('messages.updateSuccess'),
-                ]);
+                $message = __('messages.updateSuccess');
+                break;
 
             default:
+                // An unknown action is a failed request, not a success the
+                // caller should patch its list for.
+                if ($wantsJson) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => __('messages.selectAction'),
+                    ], 422);
+                }
+
                 return back()->with([
                     'status' => 'error',
                     'message' => __('messages.selectAction'),
                 ]);
         }
+
+        if ($wantsJson) {
+            return response()->json([
+                'success' => true,
+                'message' => $message,
+                'action' => $request->action_type,
+                'ids' => $ids,
+                'status' => $request->action_type === 'change-status' ? $request->status : null,
+            ]);
+        }
+
+        return back()->with([
+            'status' => 'success',
+            'message' => $message,
+        ]);
     }
 
     /**
@@ -3923,6 +3946,7 @@ class DealController extends AccountBaseController
 
         // Get all pipelines for the dropdown
         $this->pipelines = \App\Models\LeadPipeline::where('company_id', company()->id)
+            ->visibleInSystem()
             ->orderBy('id')
             ->get();
 

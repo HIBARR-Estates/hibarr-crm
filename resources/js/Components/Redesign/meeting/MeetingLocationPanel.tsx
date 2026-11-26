@@ -1,8 +1,10 @@
 import { message } from "antd";
 import { usePage } from "@inertiajs/react";
-import { useTd } from "@/Hooks/useDynamicTranslation";
 import useClickToCall from "@/Hooks/useClickToCall";
 import useSoftphone, { canPlaceCrmCall } from "@/Hooks/useSoftphone";
+import useMeetingsImprovementsFlag from "@/Hooks/useMeetingsImprovementsFlag";
+import { useTd } from "@/Hooks/useDynamicTranslation";
+import ClickToCallButton from "@/Components/ClickToCallButton";
 import useTranslation from "@/Hooks/useTranslation";
 import type { DealFollowup } from "@/Types/api/deal-followup";
 import {
@@ -17,8 +19,10 @@ import {
 import { copyToClipboard } from "@/lib/utils";
 import {
     meetingContactPhone,
+    meetingCallTarget,
     phoneTelHref,
 } from "./meetingContactPhone";
+import useMeetingUiLabel from "@/Components/Redesign/meeting/useMeetingUiLabel";
 
 interface MeetingLocationPanelProps {
     meeting: DealFollowup;
@@ -44,6 +48,7 @@ export default function MeetingLocationPanel({
     className,
 }: MeetingLocationPanelProps) {
     const { td } = useTd();
+    const ui = useMeetingUiLabel();
     const item = toWorkspaceMeetingListItem(meeting);
 
     if (item.locationType === "video" && item.meetingLink) {
@@ -98,7 +103,7 @@ export default function MeetingLocationPanel({
                             color: T.BLUE,
                         }}
                     >
-                        {td(item.platformLabel, { source: "en" })}
+                        {ui(item.platformLabel)}
                     </div>
                     <div
                         className="font-semibold"
@@ -189,7 +194,7 @@ function PhoneLocation({
     className?: string;
 }) {
     const { t } = useTranslation();
-    const { td } = useTd();
+    const improved = useMeetingsImprovementsFlag();
     const { props } = usePage();
     const { isEnabled: clickToCallEnabled } = useClickToCall();
     const { isEnabled: softphoneFeatureEnabled, devices } = useSoftphone();
@@ -204,6 +209,7 @@ function PhoneLocation({
     });
     const phone = meetingContactPhone(meeting);
     const tel = phoneTelHref(phone);
+    const callTarget = improved ? meetingCallTarget(meeting) : null;
 
     const copyNumber = async () => {
         if (!phone) return;
@@ -213,7 +219,7 @@ function PhoneLocation({
                 t("pages.deals.workspace.meetings.phone_number_copied"),
             );
         } catch {
-            message.error(td("Could not copy the number"));
+            message.error(t("pages.meetings.ui.could_not_copy_the_number"));
         }
     };
 
@@ -271,7 +277,14 @@ function PhoneLocation({
                         <Icon name="copy" size={14} />
                         {t("pages.deals.workspace.meetings.copy_number")}
                     </button>
-                    {actionable && canDial && tel && (
+                    {/* The softphone (or the click-to-call bridge), not the
+                        device's own dialer: a `tel:` link opened some other
+                        app and left the call unlogged against the lead or
+                        deal. The button renders nothing for anyone who
+                        cannot place a CRM call. */}
+                    {/* Without `crm.meetings-page-improvements`: the plain
+                        `tel:` link it always was. */}
+                    {!improved && actionable && canDial && tel && (
                         <a
                             href={tel}
                             className="dr-btn dr-btn-primary dr-btn-sm no-underline"
@@ -279,6 +292,25 @@ function PhoneLocation({
                             <Icon name="phone" size={14} />
                             {t("pages.deals.workspace.meetings.call_contact")}
                         </a>
+                    )}
+                    {actionable && callTarget && (
+                        <ClickToCallButton
+                            phone={callTarget.phones[0].phone}
+                            phones={callTarget.phones}
+                            entity={callTarget.entity}
+                            variant="link"
+                            className="dr-btn dr-btn-primary dr-btn-sm"
+                            title={t(
+                                "pages.deals.workspace.meetings.call_contact",
+                            )}
+                            ariaLabel={t(
+                                "pages.deals.workspace.meetings.call_contact",
+                            )}
+                            dataAction="call"
+                        >
+                            <Icon name="phone" size={14} />
+                            {t("pages.deals.workspace.meetings.call_contact")}
+                        </ClickToCallButton>
                     )}
                 </div>
             )}        </div>

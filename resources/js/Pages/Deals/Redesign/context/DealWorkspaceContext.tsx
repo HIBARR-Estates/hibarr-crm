@@ -312,12 +312,24 @@ export function DealWorkspaceProvider({
                 ? prev.requests.map((r) => (r.id === request.id ? request : r))
                 : [request, ...prev.requests];
             const isActive = request.ui_state !== "failed" && request.ui_state !== "invalidated";
-            const active = isActive
+            // An older payment that is only being refreshed (a receipt, KDV
+            // settled) never takes over from the newer active request.
+            const takesOver = isActive && (!prev.active || request.id >= prev.active.id);
+            const active = takesOver
                 ? request
-                : prev.active?.id === request.id
-                  ? null
-                  : prev.active;
-            return { active, requests };
+                : isActive
+                  ? prev.active
+                  : prev.active?.id === request.id
+                    ? null
+                    : prev.active;
+            // A KDV request arrives with its payment: refresh that row too,
+            // without letting it take over as the deal's active request.
+            const parent = request.vat_parent;
+            if (!parent) return { active, requests };
+            return {
+                active: active?.id === parent.id ? parent : active,
+                requests: requests.map((r) => (r.id === parent.id ? parent : r)),
+            };
         });
     }, []);
 

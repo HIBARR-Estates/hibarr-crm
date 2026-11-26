@@ -1,6 +1,8 @@
 import { useUserDateTime } from "@/Hooks/useUserDateTime";
-import { useTd } from "@/Hooks/useDynamicTranslation";
+import useTranslation from "@/Hooks/useTranslation";
+import Button from "@/Components/Redesign/primitives/Button";
 import EmptyState from "@/Components/Redesign/primitives/EmptyState";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
 import type { DealFollowup } from "@/Types/api/deal-followup";
 import MeetingCard from "./MeetingCard";
@@ -19,6 +21,20 @@ interface MeetingsUpcomingStripProps {
     /** Books a new meeting — the quick action on the empty state. */
     onSchedule: () => void;
     canSchedule: boolean;
+    /** False only for someone who has never had a meeting at all. */
+    hasAnyMeetings: boolean;
+    /**
+     * True when the list below is empty too. Two dashed empty states stacked
+     * on one screen read as a broken page, so then the list speaks and this
+     * stays out of the way.
+     */
+    listIsEmpty: boolean;
+    /**
+     * `crm.meetings-page-improvements`. Off, the strip renders nothing while
+     * it loads and shows its own dashed empty state when there is nothing
+     * next, as it did before.
+     */
+    improved: boolean;
 }
 
 /**
@@ -43,13 +59,17 @@ export default function MeetingsUpcomingStrip({
     onReport,
     onSchedule,
     canSchedule,
+    hasAnyMeetings,
+    listIsEmpty,
+    improved,
 }: MeetingsUpcomingStripProps) {
     const { timezone } = useUserDateTime();
+    const { t } = useTranslation();
     const { td } = useTd();
 
-    // Undefined is "still loading" and says nothing; an empty array is a
-    // real answer — there is nothing next — and deserves to be said.
-    if (!meetings) return null;
+    // Still loading (the cards are a deferred prop): hold their place rather
+    // than render nothing and push the list down when they arrive.
+    if (!meetings) return improved ? <StripSkeleton /> : null;
 
     const handlers = (meeting: DealFollowup) => ({
         permissions,
@@ -60,25 +80,60 @@ export default function MeetingsUpcomingStrip({
         onReport: () => onReport(meeting),
     });
 
-    if (meetings.length === 0) {
+    if (meetings.length === 0 && !improved) {
+        // Before the improvements: the strip's own dashed empty state, whatever
+        // the list below shows.
         return (
-            <section className="mb-5" aria-label={td("Next meetings")}>
-                <StripHeading label={td("Next up")} />
+            <section className="mb-5" aria-label={t("pages.meetings.ui.next_meetings")}>
+                <StripHeading label={t("pages.meetings.ui.next_up")} />
                 <EmptyState
                     icon="calendar"
-                    title={td("No more upcoming meetings")}
+                    title={t("pages.meetings.ui.no_more_upcoming_meetings")}
                     description={td(
                         "Everything on your calendar has already happened. Book the next one when you are ready.",
                     )}
                     action={
                         canSchedule
                             ? {
-                                  label: td("Schedule a meeting"),
+                                  label: t("pages.meetings.ui.schedule_a_meeting"),
                                   onClick: onSchedule,
                               }
                             : undefined
                     }
                 />
+            </section>
+        );
+    }
+
+    if (meetings.length === 0) {
+        // The list below is empty as well and has the full empty state: one
+        // per screen.
+        if (listIsEmpty) return null;
+
+        // The list has rows (Past, or All), so the one thing it cannot say is
+        // that nothing is coming. One quiet line says it; the full dashed
+        // card is for a screen with nothing else on it.
+        return (
+            <section className="mb-5" aria-label={t("pages.meetings.ui.next_meetings")}>
+                <StripHeading label={t("pages.meetings.ui.next_up")} />
+                <div
+                    className="flex flex-wrap items-center justify-between gap-3 rounded-lg px-4 py-3"
+                    style={{
+                        background: T.SURFACE_2,
+                        border: `1px solid ${T.BORDER}`,
+                    }}
+                >
+                    <span style={{ fontSize: 13, color: T.TEXT_MUTED }}>
+                        {hasAnyMeetings
+                            ? t("pages.meetings.ui.nothing_else_is_scheduled")
+                            : t("pages.meetings.ui.you_have_not_booked_a_meeting_yet")}
+                    </span>
+                    {canSchedule && (
+                        <Button variant="ghost" size="sm" onClick={onSchedule}>
+                            {t("pages.meetings.ui.schedule_a_meeting")}
+                        </Button>
+                    )}
+                </div>
             </section>
         );
     }
@@ -91,9 +146,9 @@ export default function MeetingsUpcomingStrip({
     const upcoming = buckets.filter(({ bucket }) => bucket === "upcoming");
 
     return (
-        <section className="mb-5" aria-label={td("Next meetings")}>
+        <section className="mb-5" aria-label={t("pages.meetings.ui.next_meetings")}>
             <StripHeading
-                label={live.length > 0 ? td("Happening now") : td("Next up")}
+                label={live.length > 0 ? t("pages.meetings.ui.happening_now") : t("pages.meetings.ui.next_up")}
             />
 
             {live.length > 0 && (
@@ -111,7 +166,7 @@ export default function MeetingsUpcomingStrip({
             {upcoming.length > 0 && (
                 <>
                     {live.length > 0 && (
-                        <StripHeading label={td("Next up")} />
+                        <StripHeading label={t("pages.meetings.ui.next_up")} />
                     )}
                     <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
                         {upcoming.map(({ meeting, bucket }) => (
@@ -128,6 +183,35 @@ export default function MeetingsUpcomingStrip({
                     </div>
                 </>
             )}
+        </section>
+    );
+}
+
+/** The cards' place while they load — same grid, so nothing shifts on arrival. */
+function StripSkeleton() {
+    const { t } = useTranslation();
+
+    return (
+        <section
+            className="mb-5"
+            aria-busy="true"
+            aria-label={t("pages.meetings.ui.next_meetings")}
+        >
+            <StripHeading label={t("pages.meetings.ui.next_up")} />
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+                {[0, 1, 2].map((index) => (
+                    <div
+                        key={index}
+                        className={`h-[132px] animate-pulse rounded-[10px] bg-dr-skeleton ${
+                            index === 1
+                                ? "hidden md:block"
+                                : index === 2
+                                  ? "hidden xl:block"
+                                  : ""
+                        }`}
+                    />
+                ))}
+            </div>
         </section>
     );
 }

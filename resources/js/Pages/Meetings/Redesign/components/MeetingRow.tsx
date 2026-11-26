@@ -4,6 +4,7 @@ import useTranslation from "@/Hooks/useTranslation";
 import AvatarStack from "@/Components/Redesign/primitives/AvatarStack";
 import SelectCheckbox from "@/Components/Redesign/primitives/SelectCheckbox";
 import Icon from "@/Components/Redesign/primitives/Icon";
+import MeetingCallButton from "@/Components/Redesign/meeting/MeetingCallButton";
 import RowActionMenu from "@/Components/Redesign/primitives/RowActionMenu";
 import {
     REDESIGN_RADIUS as R,
@@ -98,8 +99,8 @@ export default function MeetingRow({
     const minutes = meeting.duration ?? meeting.effective_duration ?? 30;
     const durationLabel =
         minutes >= 60
-            ? `${Math.round((minutes / 60) * 10) / 10}${td("h")}`
-            : `${minutes}${td("m")}`;
+            ? `${Math.round((minutes / 60) * 10) / 10}${t("pages.meetings.ui.h")}`
+            : `${minutes}${t("pages.meetings.ui.m")}`;
 
     const stageAccent = stage?.color?.trim() || T.BLUE;
 
@@ -122,7 +123,7 @@ export default function MeetingRow({
             <SelectCheckbox
                 checked={selected}
                 onChange={onToggleSelect}
-                label={td("Select meeting")}
+                label={t("pages.meetings.ui.select_meeting")}
             />
 
             {/* Start time and how long it runs. The day is above, not here. */}
@@ -174,7 +175,7 @@ export default function MeetingRow({
                         {record && (
                             <>
                                 {" "}
-                                {td("with")} {td(record.name)}
+                                {t("pages.meetings.ui.with")} {td(record.name)}
                             </>
                         )}
                     </span>
@@ -239,7 +240,7 @@ export default function MeetingRow({
                         }}
                     >
                         <Icon name="file-text" size={11} />
-                        {td("Summary")}
+                        {t("pages.meetings.ui.summary")}
                     </button>
                 )}
                 {summaryState === "generating" && (
@@ -247,8 +248,24 @@ export default function MeetingRow({
                         className="inline-flex items-center gap-1 animate-pulse"
                         style={{ fontSize: 11.5, color: T.TEXT_HINT }}
                     >
-                        {td("Generating…")}
+                        {t("pages.meetings.ui.generating")}
                     </span>
+                )}
+                {/* It should have arrived by now: say so, and open the
+                    dialog where it can be asked for again or written. */}
+                {summaryState === "stalled" && (
+                    <button
+                        type="button"
+                        className="dr-meeting-link inline-flex items-center gap-1 font-semibold"
+                        style={{ fontSize: 11.5, color: T.AMBER }}
+                        onClick={(event) => {
+                            event.stopPropagation();
+                            onView();
+                        }}
+                    >
+                        <Icon name="file-text" size={11} />
+                        {t("pages.meetings.ui.summary_missing")}
+                    </button>
                 )}
             </div>
 
@@ -326,6 +343,11 @@ export default function MeetingRow({
                 style={{ width: MEETING_COLUMNS.actions.width }}
                 onClick={(event) => event.stopPropagation()}
             >
+                <MeetingCallButton
+                    meeting={meeting}
+                    bucket={bucket}
+                    className="dr-btn dr-btn-ghost dr-btn-sm"
+                />
                 {showJoin && summaryState !== "ready" && (
                     <a
                         href={meeting.meeting_link}
@@ -341,12 +363,12 @@ export default function MeetingRow({
                             whiteSpace: "nowrap",
                         }}
                     >
-                        {td("Join")}
+                        {t("pages.meetings.ui.join")}
                     </a>
                 )}
                 <RowActionMenu
                     actions={actions}
-                    ariaLabel={td("Meeting actions")}
+                    ariaLabel={t("pages.meetings.ui.meeting_actions")}
                 />
             </div>
         </div>

@@ -32,18 +32,38 @@ class PipelineAnalysisScriptController extends Controller
     {
         abort_403(!(user()->permission('manage_lead_setting') == 'all' && in_array('leads', user()->modules)));
 
-        return Inertia::render('Settings/AnalysisScriptBuilder', [
-            'pageTitle' => __('modules.deal.analysisScript'),
+        return Inertia::render('Settings/Deals/Index', [
+            'pageTitle' => __('modules.deal.dealSettings'),
         ]);
     }
 
-    /** Pipeline picker for the builder. */
+    /** Pipeline picker for the builder and Deal Settings pipelines tab. */
     public function pipelines(): JsonResponse
     {
         $pipelines = LeadPipeline::where('company_id', company()->id)
+            ->withCount('stages')
             ->orderBy('default', 'desc')
             ->orderBy('name')
-            ->get(['id', 'name']);
+            ->get([
+                'id',
+                'name',
+                'label_color',
+                'default',
+                'hidden_from_nav',
+                'hidden_from_system',
+                'offering_type',
+            ])
+            ->map(fn (LeadPipeline $pipeline) => [
+                'id' => (int) $pipeline->id,
+                'name' => $pipeline->name,
+                'label_color' => $pipeline->label_color,
+                'default' => (bool) $pipeline->default,
+                'hidden_from_nav' => (bool) $pipeline->hidden_from_nav,
+                'hidden_from_system' => (bool) $pipeline->hidden_from_system,
+                'offering_type' => $pipeline->offeringType(),
+                'stages_count' => (int) $pipeline->stages_count,
+            ])
+            ->values();
 
         return response()->json(['pipelines' => $pipelines]);
     }

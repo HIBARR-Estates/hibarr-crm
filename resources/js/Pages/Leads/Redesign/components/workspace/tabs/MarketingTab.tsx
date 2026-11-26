@@ -2,7 +2,10 @@ import type { ReactNode } from "react";
 import useTranslation from "@/Hooks/useTranslation";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import { EmptyState } from "@/Components/Redesign";
-import { formatCompanyDate } from "@/lib/companyDateTime";
+import {
+    formatCompanyDate,
+    formatCompanyDateTime,
+} from "@/lib/companyDateTime";
 import MarketingSection from "./MarketingSection";
 import MarketingEntryHistory from "./MarketingEntryHistory";
 import MarketingTouchHistory from "./MarketingTouchHistory";
@@ -12,17 +15,31 @@ type MarketingField =
     | { kind: "text"; labelKey: string; value: string | null | undefined }
     | { kind: "bool"; labelKey: string; value: boolean }
     | { kind: "score"; labelKey: string; value: number | null | undefined }
-    | { kind: "date"; labelKey: string; value: string | null | undefined };
+    | { kind: "date"; labelKey: string; value: string | null | undefined }
+    | {
+          kind: "datetime";
+          labelKey: string;
+          value: string | null | undefined;
+          spanFull?: boolean;
+      };
 
-interface MarketingSection {
+interface MarketingSectionDef {
     titleKey: string;
     icon: string;
     fields: MarketingField[];
 }
 
-function FieldRow({ label, children }: { label: string; children: ReactNode }) {
+function FieldRow({
+    label,
+    spanFull = false,
+    children,
+}: {
+    label: string;
+    spanFull?: boolean;
+    children: ReactNode;
+}) {
     return (
-        <div className="v2-mkt-row">
+        <div className={`v2-mkt-row${spanFull ? " is-span-full" : ""}`}>
             <span className="v2-mkt-label">{label}</span>
             <span className="v2-mkt-value">{children}</span>
         </div>
@@ -50,6 +67,78 @@ function displayText(value: string | null | undefined): string {
     return trimmed ? trimmed : "—";
 }
 
+function SectionFields({
+    fields,
+    yes,
+    no,
+}: {
+    fields: MarketingField[];
+    yes: string;
+    no: string;
+}) {
+    const { t } = useTranslation();
+
+    return (
+        <div className="v2-mkt-grid">
+            {fields.map((field) => {
+                const label = t(field.labelKey);
+                if (field.kind === "bool") {
+                    return (
+                        <FieldRow key={field.labelKey} label={label}>
+                            <BoolPill value={field.value} yes={yes} no={no} />
+                        </FieldRow>
+                    );
+                }
+                if (field.kind === "score") {
+                    return (
+                        <FieldRow key={field.labelKey} label={label}>
+                            <span className="v2-pill v2-pill-blue">
+                                {field.value ?? 0}
+                            </span>
+                        </FieldRow>
+                    );
+                }
+                if (field.kind === "date") {
+                    return (
+                        <FieldRow key={field.labelKey} label={label}>
+                            {field.value
+                                ? formatCompanyDate(field.value)
+                                : "—"}
+                        </FieldRow>
+                    );
+                }
+                if (field.kind === "datetime") {
+                    return (
+                        <FieldRow
+                            key={field.labelKey}
+                            label={label}
+                            spanFull={field.spanFull}
+                        >
+                            {field.value
+                                ? formatCompanyDateTime(field.value)
+                                : "—"}
+                        </FieldRow>
+                    );
+                }
+                return (
+                    <FieldRow key={field.labelKey} label={label}>
+                        <span
+                            className={
+                                field.labelKey.includes("user_agent")
+                                    ? "break-all text-[12px]"
+                                    : undefined
+                            }
+                            title={field.value ?? undefined}
+                        >
+                            {displayText(field.value)}
+                        </span>
+                    </FieldRow>
+                );
+            })}
+        </div>
+    );
+}
+
 export default function MarketingTab() {
     const { t } = useTranslation();
     const { td } = useTd();
@@ -75,7 +164,7 @@ export default function MarketingTab() {
     const yes = t("pages.leads.marketing.yes");
     const no = t("pages.leads.marketing.no");
 
-    const sections: MarketingSection[] = [
+    const sections: MarketingSectionDef[] = [
         {
             titleKey: "pages.leads.marketing.utm_section",
             icon: "target",
@@ -114,6 +203,12 @@ export default function MarketingTab() {
                     kind: "text",
                     labelKey: "pages.leads.marketing.traffic_source_id",
                     value: marketing.traffic_source_id,
+                },
+                {
+                    kind: "datetime",
+                    labelKey: "pages.leads.marketing.first_touch_at",
+                    value: marketing.created_at,
+                    spanFull: true,
                 },
             ],
         },
@@ -204,65 +299,7 @@ export default function MarketingTab() {
                     title={t(section.titleKey)}
                     icon={section.icon}
                 >
-                    <div className="v2-mkt-grid">
-                        {section.fields.map((field) => {
-                            const label = t(field.labelKey);
-                            if (field.kind === "bool") {
-                                return (
-                                    <FieldRow
-                                        key={field.labelKey}
-                                        label={label}
-                                    >
-                                        <BoolPill
-                                            value={field.value}
-                                            yes={yes}
-                                            no={no}
-                                        />
-                                    </FieldRow>
-                                );
-                            }
-                            if (field.kind === "score") {
-                                return (
-                                    <FieldRow
-                                        key={field.labelKey}
-                                        label={label}
-                                    >
-                                        <span className="v2-pill v2-pill-blue">
-                                            {field.value ?? 0}
-                                        </span>
-                                    </FieldRow>
-                                );
-                            }
-                            if (field.kind === "date") {
-                                return (
-                                    <FieldRow
-                                        key={field.labelKey}
-                                        label={label}
-                                    >
-                                        {field.value
-                                            ? formatCompanyDate(field.value)
-                                            : "—"}
-                                    </FieldRow>
-                                );
-                            }
-                            return (
-                                <FieldRow key={field.labelKey} label={label}>
-                                    <span
-                                        className={
-                                            field.labelKey.includes(
-                                                "user_agent",
-                                            )
-                                                ? "break-all text-[12px]"
-                                                : undefined
-                                        }
-                                        title={field.value ?? undefined}
-                                    >
-                                        {displayText(field.value)}
-                                    </span>
-                                </FieldRow>
-                            );
-                        })}
-                    </div>
+                    <SectionFields fields={section.fields} yes={yes} no={no} />
                 </MarketingSection>
             ))}
             <MarketingEntryHistory />

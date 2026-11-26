@@ -141,4 +141,33 @@ class MeetingVisibilityService
 
         return $leadsQuery->orderBy('client_name');
     }
+
+    /**
+     * Leads a meeting can be booked against: the ones the viewer may see, plus
+     * the lead behind any deal they may schedule on.
+     *
+     * The schedule dialog starts from a lead, so a person who reaches a deal
+     * but not its lead (a narrower lead permission than deal permission)
+     * must still find that lead there, or the deal they could always book
+     * against would have vanished from the flow. Only the deals the viewer
+     * may schedule on are offered under it (`schedulableDealsQuery`).
+     */
+    public static function bookableLeadsQuery(): Builder
+    {
+        $viaDeals = self::schedulableDealsQuery()
+            ->whereNotNull('lead_id')
+            ->reorder()
+            ->select('lead_id');
+
+        $viaLeads = self::schedulableLeadsQuery()
+            ->reorder()
+            ->select('id');
+
+        return Lead::select('id', 'client_name', 'company_name', 'client_email', 'mobile', 'cell', 'lead_owner')
+            ->where(function ($query) use ($viaLeads, $viaDeals) {
+                $query->whereIn('id', $viaLeads)
+                    ->orWhereIn('id', $viaDeals);
+            })
+            ->orderBy('client_name');
+    }
 }

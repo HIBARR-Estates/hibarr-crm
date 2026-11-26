@@ -43,6 +43,12 @@ class SettingsController extends AccountBaseController
 
     public function deal_automations()
     {
+        // Automation v2 owns the React hub; every link to the classic list
+        // (settings sidebar, Blade cancel/redirect targets) lands there.
+        if (\App\Support\AutomationV2Feature::enabled()) {
+            return redirect()->route('settings-automation.index');
+        }
+
         $this->pageTitle = 'app.menu.dealAutomations';
         $this->activeSettingMenu = 'deal_automations';
         $this->employees = User::allEmployees(null, false);

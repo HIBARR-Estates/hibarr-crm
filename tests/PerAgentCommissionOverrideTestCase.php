@@ -86,9 +86,13 @@ abstract class PerAgentCommissionOverrideTestCase extends TestCase
             $table->unsignedInteger('company_id')->nullable();
             $table->unsignedInteger('user_id');
             $table->unsignedBigInteger('parent_agent_id')->nullable();
+            $table->unsignedBigInteger('lead_category_id')->nullable();
+            $table->unsignedInteger('added_by')->nullable();
+            $table->unsignedInteger('last_updated_by')->nullable();
             $table->decimal('custom_direct_rate', 5, 2)->nullable();
             $table->decimal('custom_override_rate', 5, 2)->nullable();
-            $table->decimal('referral_pool_rate', 5, 2)->nullable();
+            $table->string('referral_commission_type', 12)->nullable();
+            $table->decimal('referral_commission_value', 15, 2)->nullable();
             $table->boolean('is_partner')->default(false);
             $table->string('status')->default('enabled');
             $table->timestamps();
@@ -166,8 +170,8 @@ abstract class PerAgentCommissionOverrideTestCase extends TestCase
             $table->unsignedBigInteger('agent_id')->nullable();
             $table->unsignedBigInteger('lead_id')->nullable();
             $table->decimal('value', 15, 2)->nullable();
-            $table->decimal('referral_pool_rate', 5, 2)->nullable();
-            $table->decimal('referral_fixed_amount', 15, 2)->nullable();
+            $table->string('referral_commission_type', 12)->nullable();
+            $table->decimal('referral_commission_value', 15, 2)->nullable();
             $table->unsignedBigInteger('currency_id')->nullable();
             // Rate to convert deals.value (in the deal's own currency) into
             // the company's currency — null/1 for a same-currency deal.
@@ -207,8 +211,10 @@ abstract class PerAgentCommissionOverrideTestCase extends TestCase
             $table->decimal('new_direct_rate', 5, 2)->nullable();
             $table->decimal('previous_override_rate', 5, 2)->nullable();
             $table->decimal('new_override_rate', 5, 2)->nullable();
-            $table->decimal('previous_referral_pool_rate', 5, 2)->nullable();
-            $table->decimal('new_referral_pool_rate', 5, 2)->nullable();
+            $table->string('previous_referral_commission_type', 12)->nullable();
+            $table->decimal('previous_referral_commission_value', 15, 2)->nullable();
+            $table->string('new_referral_commission_type', 12)->nullable();
+            $table->decimal('new_referral_commission_value', 15, 2)->nullable();
             $table->timestamp('changed_at');
             $table->text('reason')->nullable();
             $table->timestamps();
@@ -324,9 +330,12 @@ abstract class PerAgentCommissionOverrideTestCase extends TestCase
             $table->unsignedInteger('company_id');
             $table->unsignedBigInteger('agent_id');
             $table->unsignedBigInteger('package_id');
-            $table->string('commission_type', 12);
+            // Nullable: a row can state the referral terms alone.
+            $table->string('commission_type', 12)->nullable();
             // Nullable: a "none" override has nothing to store.
             $table->decimal('commission_value', 15, 2)->nullable();
+            $table->string('referral_commission_type', 12)->nullable();
+            $table->decimal('referral_commission_value', 15, 2)->nullable();
             $table->timestamps();
             $table->unique(['agent_id', 'package_id']);
         });

@@ -361,6 +361,9 @@ export default function DealPaymentPanel({
                 onRetry={selected && canRetry(selected) ? () => setRetryTarget(selected) : undefined}
                 canRequestInvoice={canCreatePaymentRequest || canConfirmPaymentTransfer}
                 onDocumentsRequested={upsertPaymentRequest}
+                canRequestVat={canCreatePaymentRequest || canConfirmPaymentTransfer}
+                canSettleVat={canConfirmPaymentTransfer}
+                onVatChanged={upsertPaymentRequest}
                 onDelete={
                     selected && selected.ui_state === "invalidated" && canConfirmPaymentTransfer
                         ? () => setDeleteOpen(true)

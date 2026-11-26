@@ -51,7 +51,8 @@ return [
     'dealPaymentRequestInvalidationRequired' => 'Changing the deal value will cancel the current payment request — the client will no longer be able to pay with its link.',
     'dealAgentLockedByCommission' => 'Commission has already been calculated for this deal, so its agent can no longer be changed.',
     'dealReferralLockedByCommission' => 'Commission has already been calculated for this deal, so the referral share can no longer be changed.',
-    'dealReferralAmountTooHigh' => 'The agreed referral amount can\'t exceed the commission this deal can carry (:max).',
+    'dealReferralAmountTooHigh' => 'The referral commission can\'t exceed the commission this deal can carry (:max).',
+    'packageOverrideNeedsTerms' => 'Set what this agent earns as the closer, as the referrer, or both.',
     'leadUpdateSuccess' => 'Contact updated successfully.',
     'leadReferrerImmutable' => 'The referrer is already set and cannot be changed.',
     'propertyUpdateSuccess' => 'Property updated successfully.',
@@ -698,4 +699,8 @@ return [
     'missingCompanyId' => 'Missing Company ID in header.',
     'leadDuplicateEmail' => 'Another lead already uses this email address.',
     'leadDuplicateContact' => 'Another lead already uses this :attribute.',
+    'meetingContactNoEmail' => ':name has no email address, so an online meeting can\'t be set up. Add one to the lead, or choose another way to meet.',
+    'meetingContactNoPhone' => ':name has no phone number, so a phone meeting can\'t be set up. Add one to the lead, or choose another way to meet.',
+    'meetingContactNoWay' => ':name has no email address or phone number, so there is no way to reach them. Add one to the lead before scheduling a meeting.',
+
 ];

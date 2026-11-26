@@ -2,6 +2,7 @@
 
 namespace Tests\Unit\EntitySummary;
 
+use App\Enums\Gender;
 use App\Enums\Salutation;
 use App\Models\Lead;
 use App\Models\LeadMarketing;
@@ -22,6 +23,11 @@ class LeadSummaryInputBuilderTest extends TestCase
         'taskables',
         'tasks',
         'lead_follow_up',
+        'meeting_summary',
+        'lead_flight_itineraries',
+        'crm_events',
+        'crm_event_types',
+        'lead_marketing',
         'lead_notes',
         'deals',
         'hibarr_deal_custom_fields',
@@ -69,12 +75,73 @@ class LeadSummaryInputBuilderTest extends TestCase
             $table->timestamps();
         });
 
+        Schema::create('meeting_summary', function (Blueprint $table) {
+            $table->id();
+            $table->unsignedBigInteger('deal_id')->nullable();
+            $table->json('summary_object')->nullable();
+            $table->string('source')->nullable();
+            $table->timestamps();
+        });
+
         Schema::create('lead_follow_up', function (Blueprint $table) {
             $table->id();
             $table->unsignedBigInteger('lead_id')->nullable();
+            $table->unsignedBigInteger('summary_id')->nullable();
             $table->string('remark')->nullable();
             $table->timestamp('next_follow_up_date')->nullable();
             $table->string('status')->nullable();
+            $table->timestamps();
+        });
+
+        Schema::create('lead_flight_itineraries', function (Blueprint $table) {
+            $table->id();
+            $table->unsignedInteger('lead_id');
+            $table->unsignedBigInteger('deal_id')->nullable();
+            $table->string('direction');
+            $table->string('airport_name')->nullable();
+            $table->string('flight_number')->nullable();
+            $table->dateTime('flight_date')->nullable();
+            $table->string('status')->default('not arrived');
+            $table->boolean('is_transfer_required')->default(false);
+            $table->string('ticket_image_url')->nullable();
+            $table->timestamps();
+        });
+
+        Schema::create('lead_marketing', function (Blueprint $table) {
+            $table->id();
+            $table->unsignedBigInteger('lead_id');
+            $table->string('utm_source')->nullable();
+            $table->string('utm_medium')->nullable();
+            $table->string('utm_campaign')->nullable();
+            $table->string('utm_content')->nullable();
+            $table->string('utm_term')->nullable();
+            $table->boolean('has_registered_for_the_webinar')->default(false);
+            $table->boolean('has_attended_the_webinar')->default(false);
+            $table->boolean('has_joined_the_facebook_group')->default(false);
+            $table->boolean('has_joined_the_whatsapp_group')->default(false);
+            $table->boolean('has_downloaded_the_ebook')->default(false);
+            $table->boolean('registered_for_zoom_meeting')->default(false);
+            $table->date('last_webinar_date')->nullable();
+            $table->integer('contact_score')->nullable();
+            $table->timestamps();
+        });
+
+        Schema::create('crm_event_types', function (Blueprint $table) {
+            $table->id();
+            $table->unsignedInteger('company_id')->nullable();
+            $table->string('slug');
+        });
+
+        Schema::create('crm_events', function (Blueprint $table) {
+            $table->id();
+            $table->unsignedInteger('company_id')->nullable();
+            $table->unsignedBigInteger('event_type_id');
+            $table->string('direction')->nullable();
+            $table->string('model_type')->nullable();
+            $table->unsignedBigInteger('model_id')->nullable();
+            $table->string('call_key')->nullable();
+            $table->json('metadata')->nullable();
+            $table->timestamp('occurred_at')->nullable();
             $table->timestamps();
         });
 
@@ -166,11 +233,14 @@ class LeadSummaryInputBuilderTest extends TestCase
             'id' => 8521,
             'client_name' => 'Jane Doe',
             'salutation' => Salutation::Mr,
+            'gender' => Gender::Female,
         ]);
 
         $payload = app(LeadSummaryInputBuilder::class)->build($lead);
 
         $this->assertSame('buyer', $payload['lead']['type']);
+        $this->assertSame('mr', $payload['sections']['profile']['salutation']);
+        $this->assertSame('female', $payload['sections']['profile']['gender']);
     }
 
     public function test_payload_contains_no_personal_identifiers(): void
@@ -436,10 +506,106 @@ class LeadSummaryInputBuilderTest extends TestCase
         $marketing = app(LeadSummaryInputBuilder::class)->build($lead)['sections']['marketing'];
 
         $this->assertSame('Antalya Off-Plan Q3', $marketing['campaign']);
+        $this->assertTrue($marketing['registered_for_webinar']);
+        $this->assertArrayNotHasKey('attended_webinar', $marketing);
         $this->assertSame(['registered for webinar'], $marketing['engagement']);
         $this->assertStringNotContainsString('203.0.113.9', json_encode($marketing));
         $this->assertStringNotContainsString('fb.1.123.456', json_encode($marketing));
         $this->assertStringNotContainsString('Mozilla', json_encode($marketing));
+    }
+
+    public function test_meetings_include_summary_when_available(): void
+    {
+        $lead = $this->makeLeadForBuilder(['id' => 21, 'client_name' => 'Sam Lead']);
+
+        $summaryId = DB::table('meeting_summary')->insertGetId([
+            'summary_object' => json_encode([
+                'discussed' => 'Budget around 200K and a sea-view flat. Call Sam Lead at +90 533 877 3001.',
+                'outcome' => 'Wants a second viewing',
+                'next_steps' => 'Send three listings',
+            ]),
+            'source' => 'manual',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        DB::table('lead_follow_up')->insert([
+            'lead_id' => 21,
+            'summary_id' => $summaryId,
+            'remark' => 'Strategy call',
+            'next_follow_up_date' => Carbon::now()->subDays(2),
+            'status' => 'completed',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $meeting = app(LeadSummaryInputBuilder::class)->build($lead)['sections']['meetings'][0];
+
+        $this->assertSame('Strategy call', $meeting['title']);
+        $this->assertSame('Wants a second viewing', $meeting['summary']['outcome']);
+        $this->assertStringContainsString('sea-view flat', $meeting['summary']['discussed']);
+        $this->assertStringNotContainsString('Sam Lead', $meeting['summary']['discussed']);
+        $this->assertStringContainsString('[phone]', $meeting['summary']['discussed']);
+    }
+
+    public function test_flight_itinerary_and_call_logs_are_included_without_pii(): void
+    {
+        $lead = $this->makeLeadForBuilder([
+            'id' => 22,
+            'company_id' => 1,
+            'client_name' => 'Sam Lead',
+        ]);
+
+        DB::table('lead_flight_itineraries')->insert([
+            'lead_id' => 22,
+            'direction' => 'arrival',
+            'airport_name' => 'Antalya AYT',
+            'flight_number' => 'TK123',
+            'flight_date' => Carbon::now()->addDays(5),
+            'status' => 'not arrived',
+            'is_transfer_required' => true,
+            'ticket_image_url' => 'https://files.example/ticket-sam.pdf',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $endedId = DB::table('crm_event_types')->insertGetId([
+            'company_id' => null,
+            'slug' => 'call_ended',
+        ]);
+        DB::table('crm_events')->insert([
+            'company_id' => 1,
+            'event_type_id' => $endedId,
+            'direction' => 'outbound',
+            'model_type' => Lead::class,
+            'model_id' => 22,
+            'call_key' => 'call-1',
+            'metadata' => json_encode(['phone_number' => '+905338773001', 'duration' => 180]),
+            'occurred_at' => Carbon::now()->subDays(1),
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $sections = app(LeadSummaryInputBuilder::class)->build($lead)['sections'];
+
+        $this->assertSame([
+            'direction' => 'arrival',
+            'airport' => 'Antalya AYT',
+            'flight_number' => 'TK123',
+            'flight_date' => $sections['flight_itinerary'][0]['flight_date'],
+            'days_from_now' => 5,
+            'status' => 'not arrived',
+            'transfer_required' => true,
+        ], $sections['flight_itinerary'][0]);
+        $this->assertArrayNotHasKey('ticket_image_url', $sections['flight_itinerary'][0]);
+
+        $this->assertSame(1, $sections['call_logs'][0]['days_ago']);
+        $this->assertSame('outbound', $sections['call_logs'][0]['direction']);
+        $this->assertSame('ended', $sections['call_logs'][0]['outcome']);
+        $this->assertTrue($sections['call_logs'][0]['answered']);
+        $this->assertSame(180, $sections['call_logs'][0]['duration_seconds']);
+        $this->assertStringNotContainsString('905338773001', json_encode($sections['call_logs']));
+        $this->assertStringNotContainsString('ticket-sam', json_encode($sections['flight_itinerary']));
     }
 
     public function test_input_hash_changes_when_qualification_answers_or_custom_fields_change(): void
@@ -486,11 +652,14 @@ class LeadSummaryInputBuilderTest extends TestCase
     {
         $lead = $this->makeLeadForBuilder([
             'id' => 20,
+            'company_id' => 1,
             'client_name' => 'Jane Doe',
             'client_email' => 'jane@example.com',
             'mobile' => '+905338773001',
             'client_whatsapp' => '+905338773001',
             'client_telegram' => '@jane',
+            'salutation' => Salutation::Mrs,
+            'gender' => Gender::Female,
             'nationality' => 'German',
             'country' => 'Germany',
             'city' => 'Munich',
@@ -504,6 +673,7 @@ class LeadSummaryInputBuilderTest extends TestCase
             'marketing' => new LeadMarketing([
                 'utm_source' => 'google', 'utm_medium' => 'cpc', 'utm_campaign' => 'Q3',
                 'utm_content' => 'villa-ad', 'utm_term' => 'villa antalya',
+                'has_registered_for_the_webinar' => true,
                 'has_attended_the_webinar' => true, 'last_webinar_date' => Carbon::now()->subDays(5),
                 'contact_score' => 40,
             ]),
@@ -516,9 +686,29 @@ class LeadSummaryInputBuilderTest extends TestCase
         ]);
 
         DB::table('lead_notes')->insert(['lead_id' => 20, 'details' => 'A note', 'created_at' => now(), 'updated_at' => now()]);
+        $summaryId = DB::table('meeting_summary')->insertGetId([
+            'summary_object' => json_encode(['discussed' => 'Intro', 'outcome' => 'Follow up', 'next_steps' => 'Call']),
+            'source' => 'ai',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
         DB::table('lead_follow_up')->insert([
-            'lead_id' => 20, 'remark' => 'Intro call', 'next_follow_up_date' => Carbon::now()->addDays(3),
+            'lead_id' => 20, 'summary_id' => $summaryId, 'remark' => 'Intro call',
+            'next_follow_up_date' => Carbon::now()->addDays(3),
             'status' => 'scheduled', 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        DB::table('lead_flight_itineraries')->insert([
+            'lead_id' => 20, 'direction' => 'arrival', 'airport_name' => 'AYT',
+            'flight_number' => 'PC100', 'flight_date' => Carbon::now()->addDays(4),
+            'status' => 'not arrived', 'is_transfer_required' => false,
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $endedId = DB::table('crm_event_types')->insertGetId(['company_id' => null, 'slug' => 'call_ended']);
+        DB::table('crm_events')->insert([
+            'company_id' => 1, 'event_type_id' => $endedId, 'direction' => 'inbound',
+            'model_type' => Lead::class, 'model_id' => 20, 'call_key' => 'doc-call',
+            'metadata' => json_encode(['duration' => 60]),
+            'occurred_at' => Carbon::now()->subDay(), 'created_at' => now(), 'updated_at' => now(),
         ]);
         $callId = DB::table('lead_qualifications')->insertGetId([
             'lead_id' => 20, 'template_name' => 'Buyer', 'status' => 'completed',
@@ -560,9 +750,15 @@ class LeadSummaryInputBuilderTest extends TestCase
         $this->assertSame([], $missing, 'payload keys the prompt does not document: '.implode(', ', $missing));
 
         // The sections this test exists to protect must actually have been exercised.
-        foreach (['profile', 'initial_message', 'qualification_calls', 'lead_details', 'notes', 'meetings', 'tasks', 'marketing', 'deals'] as $section) {
+        foreach ([
+            'profile', 'initial_message', 'qualification_calls', 'lead_details', 'notes',
+            'meetings', 'call_logs', 'tasks', 'flight_itinerary', 'marketing', 'deals',
+        ] as $section) {
             $this->assertArrayHasKey($section, $payload['sections'], "test did not exercise section: {$section}");
         }
+        $this->assertArrayHasKey('summary', $payload['sections']['meetings'][0]);
+        $this->assertArrayHasKey('registered_for_webinar', $payload['sections']['marketing']);
+        $this->assertArrayHasKey('attended_webinar', $payload['sections']['marketing']);
     }
 
     /**
@@ -607,12 +803,14 @@ class LeadSummaryInputBuilderTest extends TestCase
         $lead = Mockery::mock(Lead::class)->makePartial();
 
         $defaults = [
+            'company_id' => null,
             'client_email' => null,
             'mobile' => null,
             'cell' => null,
             'office' => null,
             'client_whatsapp' => null,
             'client_telegram' => null,
+            'salutation' => null,
             'gender' => null,
             'languages' => null,
             'date_of_birth' => null,

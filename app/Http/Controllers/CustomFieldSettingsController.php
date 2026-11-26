@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\CustomField;
 use App\Models\CustomFieldCategory;
 use App\Models\CustomFieldGroup;
+use App\Services\CustomFieldMapping\DefinedFieldRegistry;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 
@@ -35,6 +36,9 @@ class CustomFieldSettingsController extends AccountBaseController
             'pageTitle' => __('app.menu.customFields'),
 
             'moduleGroups' => CustomFieldGroup::orderBy('id')->get(['id', 'name', 'model']),
+
+            // Built-in lead/deal fields a custom field can be mapped into.
+            'definedFields' => DefinedFieldRegistry::forAdmin(),
 
             'fields' => Inertia::defer(function () {
                 try {

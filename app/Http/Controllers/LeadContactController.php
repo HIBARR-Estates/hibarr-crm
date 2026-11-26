@@ -698,7 +698,7 @@ class LeadContactController extends AccountBaseController
             'taskLabels' => Inertia::defer(fn () => \App\Models\TaskLabelList::all(), 'taskMeta'),
             'taskBoardColumns' => Inertia::defer(fn () => \App\Models\TaskboardColumn::orderBy('priority')->get(), 'taskMeta'),
             'projects' => Inertia::defer(fn () => \App\Models\Project::all(), 'taskMeta'),
-            'leadPipelines' => Inertia::defer(fn () => LeadPipeline::orderBy('default', 'DESC')->get(), 'dealMeta'),
+            'leadPipelines' => Inertia::defer(fn () => LeadPipeline::visibleInSystem()->orderBy('default', 'DESC')->get(), 'dealMeta'),
             'leadStages' => Inertia::defer(fn () => PipelineStage::all(), 'dealMeta'),
             'stages' => Inertia::defer(fn () => PipelineStage::all(), 'dealMeta'),
             'leadAgents' => Inertia::defer(fn () => LeadAgent::with('user')->whereHas('user', function ($q) {
@@ -778,7 +778,7 @@ class LeadContactController extends AccountBaseController
         }
 
         $tab = request('tab');
-        $this->pipelines = LeadPipeline::all();
+        $this->pipelines = LeadPipeline::visibleInSystem()->get();
 
         $defaultPipeline = $this->pipelines->filter(function ($value, $key) {
             return $value->default == 1;
