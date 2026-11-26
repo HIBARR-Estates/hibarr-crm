@@ -36,6 +36,7 @@ class LeadAssignmentPoolController extends AccountBaseController
 
         $pools = LeadAssignmentPool::with('members')->orderBy('name')->get();
         $names = User::withoutGlobalScopes()
+            ->where('company_id', company()->id)
             ->whereIn('id', $pools->flatMap(fn ($pool) => $pool->members->pluck('user_id'))->unique())
             ->pluck('name', 'id');
 

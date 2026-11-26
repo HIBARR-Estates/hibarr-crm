@@ -54,28 +54,7 @@ class LeadEntryIntakeService
             return null;
         }
 
-        // One routing run per entry at a time, for as long as it takes: a second delivery arriving while the
-        // first is still running skips it (and, if the first fails, a later delivery retries). The lock
-        // expires on its own should the process die mid-run. Three times the request limit (PHP
-        // max_execution_time and the nginx FastCGI timeout are both 300s in docker/), so a run cannot outlive it.
-        $lock = Cache::lock('lead_entry_routing:'.$entry->id, self::ROUTING_LOCK_SECONDS);
-        if ($lock->get()) {
-            try {
-                // A delivery that held the lock before us may have finished the run.
-                $entry->refresh();
-                if ($entry->routed_at === null && $this->route($entry)) {
-                    $entry->forceFill(['routed_at' => now()])->saveQuietly();
-                }
-            } catch (\Throwable $e) {
-                Log::error('LeadEntryIntakeService: routing failed; it is retried if the entry is delivered again', [
-                    'lead_id' => $leadId,
-                    'entry_uuid' => $entry->ol_entry_uuid,
-                    'message' => $e->getMessage(),
-                ]);
-            } finally {
-                $lock->release();
-            }
-        }
+        $this->routeOnce($entry, $leadId);
 
         // Independent of routing: a failing automation must not cost the lead its clock. After routing,
         // so an owner assigned by an automation starts the clock straight away. Idempotent.
@@ -83,6 +62,54 @@ class LeadEntryIntakeService
         $slaService->safely(fn () => $slaService->openForEntry($entry));
 
         return $entry;
+    }
+
+    /**
+     * Routes the entry unless it already was, one run per entry at a time: a second delivery arriving while
+     * the first is still running skips it (and, if the first fails, a later delivery retries). The lock
+     * expires on its own should the process die mid-run; it lasts three times the request limit (PHP
+     * max_execution_time and the nginx FastCGI timeout are both 300s in docker/), so a run cannot outlive it.
+     *
+     * Never throws: a broken cache must not fail the request the entry rides on, or cost the lead its clock.
+     */
+    private function routeOnce(LeadEntry $entry, int $leadId): void
+    {
+        try {
+            $lock = Cache::lock('lead_entry_routing:'.$entry->id, self::ROUTING_LOCK_SECONDS);
+            if (! $lock->get()) {
+                return;
+            }
+        } catch (\Throwable $e) {
+            Log::warning('LeadEntryIntakeService: could not take the routing lock; routing is left for a later delivery', [
+                'lead_id' => $leadId,
+                'entry_uuid' => $entry->ol_entry_uuid,
+                'message' => $e->getMessage(),
+            ]);
+
+            return;
+        }
+
+        try {
+            // A delivery that held the lock before us may have finished the run.
+            $entry->refresh();
+            if ($entry->routed_at === null && $this->route($entry)) {
+                $entry->forceFill(['routed_at' => now()])->saveQuietly();
+            }
+        } catch (\Throwable $e) {
+            Log::error('LeadEntryIntakeService: routing failed; it is retried if the entry is delivered again', [
+                'lead_id' => $leadId,
+                'entry_uuid' => $entry->ol_entry_uuid,
+                'message' => $e->getMessage(),
+            ]);
+        } finally {
+            try {
+                $lock->release();
+            } catch (\Throwable $e) {
+                Log::warning('LeadEntryIntakeService: could not release the routing lock; it expires on its own', [
+                    'message' => $e->getMessage(),
+                ]);
+            }
+        }
     }
 
     /**
