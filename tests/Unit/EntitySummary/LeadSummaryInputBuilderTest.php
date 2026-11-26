@@ -243,6 +243,30 @@ class LeadSummaryInputBuilderTest extends TestCase
         $this->assertSame('female', $payload['sections']['profile']['gender']);
     }
 
+    public function test_lead_block_sends_all_categories_not_the_scalar_primary(): void
+    {
+        $lead = $this->makeLeadForBuilder(
+            [
+                'id' => 8522,
+                'client_name' => 'Sam Lead',
+                'category_id' => 1,
+            ],
+            [
+                'categories' => collect([
+                    (object) ['id' => 1, 'category_name' => 'Investor'],
+                    (object) ['id' => 2, 'category_name' => 'Referral partner'],
+                ]),
+            ]
+        );
+
+        $payload = app(LeadSummaryInputBuilder::class)->build($lead);
+
+        $this->assertSame(['Investor', 'Referral partner'], $payload['lead']['categories']);
+        $this->assertArrayNotHasKey('category', $payload['lead']);
+        // Secondary label still drives type when primary does not.
+        $this->assertSame('partner', $payload['lead']['type']);
+    }
+
     public function test_payload_contains_no_personal_identifiers(): void
     {
         $lead = $this->makeLeadForBuilder([
@@ -840,7 +864,8 @@ class LeadSummaryInputBuilderTest extends TestCase
         $lead->shouldReceive('loadMissing')->andReturnUsing(function () use ($lead, $relations) {
             $lead->setRelation('leadOwner', null);
             $lead->setRelation('leadSource', null);
-            $lead->setRelation('category', null);
+            $lead->setRelation('categories', collect($relations['categories'] ?? []));
+            $lead->setRelation('category', $relations['category'] ?? null);
             $lead->setRelation('lifecycleStatus', null);
             $lead->setRelation('marketing', $relations['marketing'] ?? null);
 

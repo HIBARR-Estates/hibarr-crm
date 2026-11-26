@@ -81,6 +81,7 @@ class LeadSummaryInputBuilder
         $lead->loadMissing([
             'leadOwner',
             'leadSource',
+            'categories',
             'category',
             'lifecycleStatus',
             'marketing',
@@ -148,10 +149,12 @@ class LeadSummaryInputBuilder
 
         $temperature = $lead->temperature;
 
+        $categories = $this->categoryNames($lead);
+
         $leadBlock = array_filter([
             'type' => $this->resolveLeadType($lead),
             'source' => $lead->leadSource?->type ?? null,
-            'category' => $lead->category?->category_name ?? null,
+            'categories' => $categories !== [] ? $categories : null,
             'temperature' => $temperature instanceof \BackedEnum ? $temperature->value : $temperature,
             'created_at' => $lead->created_at?->toIso8601String(),
             'updated_at' => $lead->updated_at?->toIso8601String(),
@@ -208,7 +211,8 @@ class LeadSummaryInputBuilder
             'lifecycle' => $lead->lead_lifecycle_status_id,
             'lead_owner' => $lead->lead_owner,
             'source_id' => $lead->source_id,
-            'category_id' => $lead->category_id,
+            // Full taxonomy list — primary category_id alone misses secondary picks.
+            'category_ids' => $this->categoryIdsForHash($lead),
             'deals_count' => Deal::where('lead_id', $lead->id)->count(),
             'deals_max_updated_at' => Deal::where('lead_id', $lead->id)->max('updated_at'),
             'hibarr_max_updated_at' => HibarrDealFields::whereIn('deal_id', $dealIds)->max('updated_at'),
@@ -873,19 +877,65 @@ class LeadSummaryInputBuilder
         return intdiv($now->getTimestamp() - $at->getTimestamp(), 86400);
     }
 
+    /**
+     * Team taxonomy of the lead's intent/purpose (multi-select). Falls back to
+     * the legacy scalar category when the pivot has not been populated yet.
+     *
+     * @return list<string>
+     */
+    private function categoryNames(Lead $lead): array
+    {
+        $names = $lead->categories
+            ->pluck('category_name')
+            ->filter(fn ($name) => is_string($name) && $name !== '')
+            ->values()
+            ->all();
+
+        if ($names === [] && is_string($lead->category?->category_name) && $lead->category->category_name !== '') {
+            return [$lead->category->category_name];
+        }
+
+        return $names;
+    }
+
+    /**
+     * @return list<int>
+     */
+    private function categoryIdsForHash(Lead $lead): array
+    {
+        $ids = [];
+
+        if (Schema::hasTable('lead_lead_category')) {
+            $ids = DB::table('lead_lead_category')
+                ->where('lead_id', $lead->id)
+                ->orderBy('lead_category_id')
+                ->pluck('lead_category_id')
+                ->map(fn ($id) => (int) $id)
+                ->all();
+        }
+
+        if ($ids === []) {
+            $primary = (int) ($lead->category_id ?? 0);
+
+            return $primary > 0 ? [$primary] : [];
+        }
+
+        return $ids;
+    }
+
     private function resolveLeadType(Lead $lead): string
     {
-        $category = strtolower((string) ($lead->category?->category_name ?? ''));
+        $haystack = strtolower(implode(' ', $this->categoryNames($lead)));
 
-        if (str_contains($category, 'seller')) {
+        if (str_contains($haystack, 'seller')) {
             return 'seller';
         }
 
-        if (str_contains($category, 'partner')) {
+        if (str_contains($haystack, 'partner')) {
             return 'partner';
         }
 
-        if (str_contains($category, 'agent')) {
+        if (str_contains($haystack, 'agent')) {
             return 'agent';
         }
 
