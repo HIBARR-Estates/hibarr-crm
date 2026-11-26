@@ -10,6 +10,7 @@ use App\Support\LeadEntryRouting;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Str;
 
 /**
  * Takes the `entry` block the backend (OL) sends with a contact or deal request: stores it as a
@@ -144,22 +145,22 @@ class LeadEntryIntakeService
                 'channel_ancestor_uuids' => $channel['ancestor_uuids'],
                 'channel_tags' => array_values($channel['tags'] ?? []),
                 'sla' => $this->validSla($payload['sla'] ?? null, $leadId),
-                'source_entity_type' => $source['entity_type'] ?? null,
-                'source_entity_id' => $source['entity_id'] ?? null,
+                'source_entity_type' => $this->clip($source['entity_type'] ?? null, 32),
+                'source_entity_id' => $this->unsignedInt($source['entity_id'] ?? null),
                 'source_entity_key' => $this->clip($source['entity_key'] ?? null, 191),
                 'source_label' => $this->clip($source['label'] ?? null, 255),
                 'is_new_lead' => (bool) ($payload['is_new_lead'] ?? false),
                 'resolved_by' => $this->clip($payload['resolved_by'] ?? 'type_default', 16),
                 'occurred_at' => $payload['occurred_at'],
-                'referral_ol_agent_id' => $context['referral_agent']['ol_agent_id'] ?? null,
-                'referral_user_id' => $context['referral_agent']['crm_user_id'] ?? null,
-                'partner_ol_agent_id' => $context['partner']['ol_agent_id'] ?? null,
-                'partner_user_id' => $context['partner']['crm_user_id'] ?? null,
+                'referral_ol_agent_id' => $this->unsignedInt($context['referral_agent']['ol_agent_id'] ?? null),
+                'referral_user_id' => $this->unsignedInt($context['referral_agent']['crm_user_id'] ?? null),
+                'partner_ol_agent_id' => $this->unsignedInt($context['partner']['ol_agent_id'] ?? null),
+                'partner_user_id' => $this->unsignedInt($context['partner']['crm_user_id'] ?? null),
                 'campaign_key' => $this->clip($campaign['key'] ?? null, 255),
                 'campaign_matched_by' => $this->clip($campaign['matched_by'] ?? null, 24),
                 'campaign_value' => $this->clip($campaign['value'] ?? null, 255),
                 'campaign_label' => $this->clip($campaign['label'] ?? null, 255),
-                'attribution_link_uuid' => ($campaign['attribution_link_uuid'] ?? null) ? strtolower((string) $campaign['attribution_link_uuid']) : null,
+                'attribution_link_uuid' => $this->uuidOrNull($campaign['attribution_link_uuid'] ?? null),
                 'utm_source' => $this->clip($utm['source'] ?? $utm['utmSource'] ?? null, 191),
                 'utm_medium' => $this->clip($utm['medium'] ?? $utm['utmMedium'] ?? null, 191),
                 'utm_campaign' => $this->clip($utm['campaign'] ?? $utm['utmCampaign'] ?? null, 191),
@@ -239,6 +240,23 @@ class LeadEntryIntakeService
             'recommended_method' => $sla['recommended_method'] ?? null,
             'window' => $sla['window'] ?? null,
         ];
+    }
+
+    /** A whole number that fits an unsigned INT column, else null: a bad id costs the field, not the entry. */
+    private function unsignedInt(mixed $value): ?int
+    {
+        if (is_int($value) || (is_string($value) && ctype_digit($value))) {
+            $int = (int) $value;
+
+            return $int >= 0 && $int <= 4294967295 ? $int : null;
+        }
+
+        return null;
+    }
+
+    private function uuidOrNull(mixed $value): ?string
+    {
+        return is_string($value) && Str::isUuid($value) ? strtolower($value) : null;
     }
 
     /** Free text from OL is trimmed to its column rather than costing the whole entry. */

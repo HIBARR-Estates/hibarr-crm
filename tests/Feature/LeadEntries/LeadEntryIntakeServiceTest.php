@@ -247,4 +247,34 @@ class LeadEntryIntakeServiceTest extends LeadEntryTestCase
         $this->assertNotNull($entry);
         $this->assertNull($entry->sla);
     }
+
+    public function test_values_that_do_not_fit_a_typed_column_cost_the_field_not_the_entry(): void
+    {
+        $entry = $this->intake()->receive($this->leadId, $this->companyId, $this->entryPayload([
+            'source' => ['entity_type' => str_repeat('t', 80), 'entity_id' => -4],
+            'context' => [
+                'referral_agent' => ['ol_agent_id' => 'abc', 'crm_user_id' => 99999999999],
+                'campaign' => ['attribution_link_uuid' => str_repeat('x', 80)],
+            ],
+        ]));
+
+        $this->assertNotNull($entry);
+        $this->assertSame(32, mb_strlen($entry->source_entity_type));
+        $this->assertNull($entry->source_entity_id);
+        $this->assertNull($entry->referral_ol_agent_id);
+        $this->assertNull($entry->referral_user_id);
+        $this->assertNull($entry->attribution_link_uuid);
+    }
+
+    public function test_valid_ids_and_link_uuids_are_kept(): void
+    {
+        $entry = $this->intake()->receive($this->leadId, $this->companyId, $this->entryPayload([
+            'context' => ['campaign' => ['attribution_link_uuid' => '0193A1C2-0000-7000-8000-0000000000AA']],
+        ]));
+
+        $this->assertSame(4, $entry->source_entity_id);
+        $this->assertSame(57, $entry->referral_ol_agent_id);
+        $this->assertSame(214, $entry->referral_user_id);
+        $this->assertSame('0193a1c2-0000-7000-8000-0000000000aa', $entry->attribution_link_uuid);
+    }
 }
