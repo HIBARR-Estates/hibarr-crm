@@ -201,16 +201,28 @@ deploy-production:
 	$(MAKE) queue-restart
 
 
-# Run this on Jenkins to prepare the artifact
-build-artifact:
+# Backend half of the artifact: PHP deps, generated gRPC classes, ziggy routes.
+# Needs no Node, so the deploy host can run it while the (memory-hungry) Mix
+# build happens on the Jenkins agent — see the Jenkinsfile.
+build-artifact-backend:
 	@if [ ! -f composer.phar ]; then curl -sS https://getcomposer.org/installer | php; fi
 	php composer.phar install --no-interaction --prefer-dist --optimize-autoloader
 	$(MAKE) proto
 	php composer.phar dump-autoload --optimize
-	npm install
 	php artisan ziggy:generate
-	npm run production
 	$(MAKE) write-build-version
+
+# Frontend half: Laravel Mix production build into public/js, public/css and
+# public/mix-manifest.json. Reads MIX_* values from .env at build time.
+build-artifact-frontend:
+	npm ci --no-audit --fund=false
+	npm run production
+
+# Everything in one place (local / single-host builds). Jenkins runs the two
+# halves separately: frontend on the agent, backend on the deploy host.
+build-artifact:
+	$(MAKE) build-artifact-backend
+	$(MAKE) build-artifact-frontend
 
 # Opaque id sitting tabs poll against after a deploy (`public/build-version.json`).
 write-build-version:
