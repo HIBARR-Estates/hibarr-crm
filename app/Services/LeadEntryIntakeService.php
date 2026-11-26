@@ -22,6 +22,9 @@ use Illuminate\Support\Str;
  */
 class LeadEntryIntakeService
 {
+    /** How long a routing run may hold its entry: well past the 300s request limit. */
+    private const ROUTING_LOCK_SECONDS = 900;
+
     /**
      * Stores the entry (idempotent on its uuid), runs the lead automations it triggers, and opens its
      * contact clock. A redelivery of an entry already stored never runs routing twice, but it does
@@ -53,8 +56,9 @@ class LeadEntryIntakeService
 
         // One routing run per entry at a time, for as long as it takes: a second delivery arriving while the
         // first is still running skips it (and, if the first fails, a later delivery retries). The lock
-        // expires on its own should the process die mid-run.
-        $lock = Cache::lock('lead_entry_routing:'.$entry->id, 300);
+        // expires on its own should the process die mid-run. Three times the request limit (PHP
+        // max_execution_time and the nginx FastCGI timeout are both 300s in docker/), so a run cannot outlive it.
+        $lock = Cache::lock('lead_entry_routing:'.$entry->id, self::ROUTING_LOCK_SECONDS);
         if ($lock->get()) {
             try {
                 // A delivery that held the lock before us may have finished the run.
