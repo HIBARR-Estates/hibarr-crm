@@ -166,6 +166,31 @@ class LeadEntryIntakeServiceTest extends LeadEntryTestCase
         $this->assertNotNull(LeadEntry::withoutGlobalScopes()->first()->routed_at);
     }
 
+    public function test_routing_waits_for_a_delivery_whose_deal_job_succeeded(): void
+    {
+        $this->enableRouting();
+        $calls = 0;
+        $engine = Mockery::mock(DealAutomationService::class);
+        $engine->shouldReceive('processLead')->andReturnUsing(function () use (&$calls) {
+            $calls++;
+        });
+        $this->instance(DealAutomationService::class, $engine);
+
+        // First delivery: the deal job failed. The entry is recorded, routing is held back.
+        $entry = $this->intake()->receive($this->leadId, $this->companyId, $this->entryPayload(), false);
+        $this->assertNotNull($entry);
+        $this->assertSame(0, $calls);
+        $this->assertNull($entry->fresh()->routed_at);
+
+        // The caller retries and the deal job now succeeds: routing runs, once.
+        $this->intake()->receive($this->leadId, $this->companyId, $this->entryPayload(), true);
+        $this->intake()->receive($this->leadId, $this->companyId, $this->entryPayload(), true);
+
+        $this->assertSame(1, $calls);
+        $this->assertSame(1, LeadEntry::withoutGlobalScopes()->count());
+        $this->assertNotNull(LeadEntry::withoutGlobalScopes()->first()->routed_at);
+    }
+
     public function test_an_entry_for_a_lead_of_another_company_is_ignored(): void
     {
         $engine = Mockery::mock(DealAutomationService::class);

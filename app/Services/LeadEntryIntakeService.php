@@ -32,8 +32,11 @@ class LeadEntryIntakeService
      * until it succeeds) and a clock that never opened.
      *
      * @param  array<string, mixed>|null  $payload  The request's `entry` block.
+     * @param  bool  $route  False when the request the entry rides on did not finish its work (the deal job
+     *                       failed): the entry and its clock are still recorded, but routing stays pending
+     *                       and runs when the entry is delivered again.
      */
-    public function receive(int $leadId, int $companyId, ?array $payload): ?LeadEntry
+    public function receive(int $leadId, int $companyId, ?array $payload, bool $route = true): ?LeadEntry
     {
         if (! $payload) {
             return null;
@@ -54,7 +57,9 @@ class LeadEntryIntakeService
             return null;
         }
 
-        $this->routeOnce($entry, $leadId);
+        if ($route) {
+            $this->routeOnce($entry, $leadId);
+        }
 
         // Independent of routing: a failing automation must not cost the lead its clock. After routing,
         // so an owner assigned by an automation starts the clock straight away. Idempotent.
