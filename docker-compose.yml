@@ -15,7 +15,7 @@ services:
       dockerfile: docker/Dockerfile
       args:
         BUILD_ID: ${BUILD_ID:-}
-        BUILD_PREFIX: ${BUILD_PREFIX:-hibarr}
+        BUILD_PREFIX: ${BUILD_PREFIX:-hibarr-crm}
     <<: *crm-image
     restart: unless-stopped
     ports:

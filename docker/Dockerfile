@@ -107,7 +107,7 @@ RUN chmod -R a+rX public/build public/css public/js
 # polls /build-version.json). Format: <prefix>-<commit>-<UTC timestamp>.
 # The timestamp keeps every image unique, including rebuilds of one commit.
 # Coolify supplies SOURCE_COMMIT; elsewhere pass BUILD_ID (e.g. a git sha).
-ARG BUILD_PREFIX=hibarr
+ARG BUILD_PREFIX=hibarr-crm
 ARG BUILD_ID=
 ARG SOURCE_COMMIT=
 RUN commit="${SOURCE_COMMIT:-${BUILD_ID:-nocommit}}" \
