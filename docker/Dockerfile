@@ -104,12 +104,14 @@ COPY --from=assets /app/public/js ./public/js
 RUN chmod -R a+rX public/build public/css public/js
 
 # Release id for the stale-build banner (AppBuild reads this file, the browser
-# polls /build-version.json). The timestamp makes every build unique even when
-# the platform passes no build args; Coolify supplies SOURCE_COMMIT.
+# polls /build-version.json). Format: <prefix>-<commit>-<UTC timestamp>.
+# The timestamp keeps every image unique, including rebuilds of one commit.
+# Coolify supplies SOURCE_COMMIT; elsewhere pass BUILD_ID (e.g. a git sha).
+ARG BUILD_PREFIX=hibarr
 ARG BUILD_ID=
 ARG SOURCE_COMMIT=
-RUN id="${BUILD_ID:-${SOURCE_COMMIT:-build}}" \
-    && printf '{"id":"%s-%s"}\n' "$(printf '%.12s' "$id")" "$(date -u +%Y%m%d%H%M%S)" > public/build-version.json \
+RUN commit="${SOURCE_COMMIT:-${BUILD_ID:-nocommit}}" \
+    && printf '{"id":"%s-%.12s-%s"}\n' "${BUILD_PREFIX}" "$commit" "$(date -u +%Y%m%d%H%M%S)" > public/build-version.json \
     && chmod 644 public/build-version.json
 
 RUN composer dump-autoload --optimize --no-interaction --no-scripts \
