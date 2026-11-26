@@ -70,18 +70,23 @@ pipeline {
                         # could be Jenkins itself).
                         MIN_MB="${FRONTEND_BUILD_MIN_MEM_MB:-6144}"
                         EFFECTIVE_MB="$(awk '/^MemAvailable:/ {print int($2/1024)}' /proc/meminfo)"
-                        for f in /sys/fs/cgroup/memory.max /sys/fs/cgroup/memory/memory.limit_in_bytes; do
-                            if [ -r "$f" ]; then
-                                LIMIT_B="$(cat "$f")"
+                        # A container limit caps what the build can use no matter what the host reports, and memory the
+                        # cgroup already uses (Jenkins itself, other builds) is not available to it. Headroom is
+                        # limit - usage, plus inactive page cache, which the kernel reclaims before it OOM-kills.
+                        cgroup_headroom() {
+                            if [ -r "$1" ] && [ -r "$2" ]; then
+                                LIMIT_B="$(cat "$1")"
                                 case "$LIMIT_B" in
-                                    ''|*[!0-9]*) ;;
-                                    *)
-                                        LIMIT_MB=$((LIMIT_B / 1048576))
-                                        if [ "$LIMIT_MB" -lt "$EFFECTIVE_MB" ]; then EFFECTIVE_MB="$LIMIT_MB"; fi
-                                        ;;
+                                    *[!0-9]*|"") return 0 ;;
                                 esac
+                                USED_B="$(cat "$2")"
+                                CACHE_B="$(awk -v k="$4" '$1 == k {print $2}' "$3" 2>/dev/null)"
+                                HEADROOM_MB=$(( (LIMIT_B - USED_B + ${CACHE_B:-0}) / 1048576 ))
+                                if [ "$HEADROOM_MB" -lt "$EFFECTIVE_MB" ]; then EFFECTIVE_MB="$HEADROOM_MB"; fi
                             fi
-                        done
+                        }
+                        cgroup_headroom /sys/fs/cgroup/memory.max /sys/fs/cgroup/memory.current /sys/fs/cgroup/memory.stat inactive_file
+                        cgroup_headroom /sys/fs/cgroup/memory/memory.limit_in_bytes /sys/fs/cgroup/memory/memory.usage_in_bytes /sys/fs/cgroup/memory/memory.stat total_inactive_file
                         echo "Memory usable by this build: ${EFFECTIVE_MB}MB (required: ${MIN_MB}MB)"
                         if [ "$EFFECTIVE_MB" -lt "$MIN_MB" ]; then
                             echo "ERROR: the Jenkins agent has too little free memory for the Mix production build."
@@ -221,7 +226,7 @@ pipeline {
                             cp -f /home/$TARGET_USER/shared/.env /home/$TARGET_USER/shared/.env.bak 2>/dev/null || true
 
                             echo 'Step 0f: Safeguard - verifying transferred .env is non-empty before it can ever replace shared secrets...'
-                            # (No backslashes or nested quotes on purpose: Groovy eats backslashes inside sh '''...''',
+                            # (No backslashes or nested quotes on purpose: Groovy eats backslashes inside this sh block,
                             # which is what silently broke the old non-empty check.)
                             if ! grep -qE '^[[:space:]]*[^[:space:]#]' '$REMOTE_ENV_TMP'; then
                                 echo 'ERROR: transferred .env is empty or invalid. Refusing to overwrite shared/.env. Aborting deploy before clone/build.'
