@@ -552,6 +552,13 @@ class CommunicationActivityResolverService
 
         if ($record->isDirty()) {
             $record->save();
+
+            // A queue worker is "running in console", where the lead observer skips its owner hooks, so a
+            // contact clock that was waiting for an owner is started here.
+            if ($record instanceof Lead && $record->wasChanged('lead_owner') && $record->lead_owner) {
+                $sla = app(\App\Services\LeadContactSlaService::class);
+                $sla->safely(fn () => $sla->ownerAssigned($record));
+            }
         }
     }
 }

@@ -122,6 +122,32 @@ export interface LeadNextAction {
     meta?: string | null;
 }
 
+/** One time a lead came in through an entry channel (see LeadEntry on the server). */
+export interface LeadEntryRow {
+    id: number;
+    channel_name: string;
+    channel_type: string;
+    channel_path: string;
+    source_entity_type: string | null;
+    source_label: string | null;
+    is_new_lead: boolean;
+    occurred_at: string;
+    campaign_label: string | null;
+    campaign_key: string | null;
+    utm_source: string | null;
+    utm_medium: string | null;
+    form_key: string | null;
+    /** The first-contact clock this entry started, if its channel set a time limit. */
+    contact_sla?: {
+        status: "awaiting_owner" | "running" | "met";
+        first_contact_seconds: number;
+        met_in_time: boolean | null;
+        breached_at: string | null;
+        elapsed_working_seconds: number | null;
+        contact_method: "call" | "whatsapp" | "email" | null;
+    } | null;
+}
+
 export interface LeadUtmTouch {
     id: number;
     lead_id: number;

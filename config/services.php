@@ -177,6 +177,9 @@ return [
         'base_url' => env('OL_BASE_URL', env('MIX_OL_BASE_URL', 'https://develop-api.hibarr.org/v1')),
         'api_key' => env('OL_API_KEY', env('MIX_OL_API_KEY')),
         'timeout' => (int) env('OL_API_TIMEOUT', 15),
+        // The CRM user OL used to stamp on every new lead before routing took over (OL's own default).
+        // assign_lead_owner's "overwrite if default owner" treats this user as "nobody chose this lead".
+        'default_lead_owner_id' => (int) env('OL_DEFAULT_LEAD_OWNER_ID', 1),
         // Provisional HIB-1185 path; override via env when OL locks the contract.
         'payment_review_decision_path' => env(
             'OL_PAYMENT_REVIEW_DECISION_PATH',

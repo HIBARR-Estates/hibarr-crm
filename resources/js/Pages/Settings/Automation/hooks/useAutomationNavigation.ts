@@ -10,6 +10,7 @@ const VALID_SCREENS: AutomationScreen[] = [
     "templates",
     "editor",
     "metaEvents",
+    "pools",
     "logs",
 ];
 
@@ -91,6 +92,7 @@ export default function useAutomationNavigation() {
     const goTemplates = useCallback(() => setAll("templates", null, null), [setAll]);
     const goEditor = useCallback((id: number | null) => setAll("editor", null, id), [setAll]);
     const goMetaEvents = useCallback(() => setAll("metaEvents", null, null), [setAll]);
+    const goPools = useCallback(() => setAll("pools", null, null), [setAll]);
     const goLogs = useCallback(() => setAll("logs", null, null), [setAll]);
 
     return useMemo(
@@ -105,8 +107,9 @@ export default function useAutomationNavigation() {
             goTemplates,
             goEditor,
             goMetaEvents,
+            goPools,
             goLogs,
         }),
-        [screen, autoId, tplId, goOverview, goAutomations, goBuilder, goDetail, goTemplates, goEditor, goMetaEvents, goLogs],
+        [screen, autoId, tplId, goOverview, goAutomations, goBuilder, goDetail, goTemplates, goEditor, goMetaEvents, goPools, goLogs],
     );
 }

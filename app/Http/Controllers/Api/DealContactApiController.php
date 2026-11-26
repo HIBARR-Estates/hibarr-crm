@@ -25,6 +25,7 @@ use App\Services\DealAutomationService;
 use App\Services\LeadApiChangeRecorder;
 use App\Services\LeadApiFieldMerger;
 use App\Services\LeadCoreFieldsService;
+use App\Services\LeadEntryIntakeService;
 use App\Services\LeadFieldWriter;
 use App\Services\LeadLifecycleStatusService;
 use App\Services\LeadUtmService;
@@ -277,8 +278,10 @@ class DealContactApiController extends Controller
             // Process synchronously in the web request so assignment uses current app code.
             // Async queue workers can run stale code until restarted, which skipped
             // lead owner and participant assignment even after service fixes.
+            $dealJobSucceeded = false;
             try {
                 ProcessDealRequestJob::dispatchSync((int) $contactId, $companyId, $request->all());
+                $dealJobSucceeded = true;
             } finally {
                 // After the deal job too: it may fill lead_owner (quietly, on new and
                 // existing leads), and the mirror event then also lands on the deal
@@ -286,8 +289,17 @@ class DealContactApiController extends Controller
                 $changeRecorder->recordUpdated((int) $contactId, $before, LeadApiChangeRecorder::CHANNEL_DEAL_CREATE);
                 // After marketing + the deal job, even if the job failed — the
                 // lead row already exists and a retry may look like an update.
-                if ($shouldFireLeadTrigger) {
-                    $this->fireLeadApiTrigger((int) $contactId, $leadWasCreated);
+                try {
+                    if ($shouldFireLeadTrigger) {
+                        $this->fireLeadApiTrigger((int) $contactId, $leadWasCreated);
+                    }
+                } finally {
+                    // Last, so lead_*_api automations see the state they always did. Even when the
+                    // deal job failed, or one of those automations threw: the lead exists and did come
+                    // in through this channel, so the entry and its clock are recorded. Routing waits for
+                    // the deal job though: it fills lead_owner and the deal the routing rules act on, and
+                    // the caller's retry of this request (same entry uuid) runs it once the job succeeds.
+                    $this->receiveLeadEntry($request, (int) $contactId, $companyId, $dealJobSucceeded);
                 }
             }
 
@@ -596,8 +608,15 @@ class DealContactApiController extends Controller
                     $updatedFields = $changeRecorder->recordUpdated((int) $contactId, $before, LeadApiChangeRecorder::CHANNEL_CONTACT_CREATE);
                 }
 
-                if ($shouldFireLeadTrigger) {
-                    $this->fireLeadApiTrigger((int) $contactId, $isNewContact);
+                try {
+                    if ($shouldFireLeadTrigger) {
+                        $this->fireLeadApiTrigger((int) $contactId, $isNewContact);
+                    }
+                } finally {
+                    // An entry counts even when nothing on the lead changed: a returning lead coming
+                    // back through a new channel is exactly what routing has to see. And even when a
+                    // lead_*_api automation threw: the lead did come in through this channel.
+                    $this->receiveLeadEntry($request, (int) $contactId, $companyId);
                 }
 
                 $savedContact = Lead::query()->find($contactId);
@@ -820,6 +839,20 @@ class DealContactApiController extends Controller
             : DealAutomation::TRIGGER_LEAD_UPDATED_API;
 
         app(DealAutomationService::class)->processLead($lead, $trigger);
+    }
+
+    /**
+     * Stores the `entry` block OL sent with this request (the channel the lead came in through) and
+     * runs the automations it triggers. Never throws, and does nothing without an `entry`.
+     */
+    private function receiveLeadEntry(Request $request, int $leadId, int $companyId, bool $route = true): void
+    {
+        $entry = $request->input('entry');
+        if (! is_array($entry)) {
+            return;
+        }
+
+        app(LeadEntryIntakeService::class)->receive($leadId, $companyId, $entry, $route);
     }
 
     /**
