@@ -3,14 +3,31 @@ import axios from "axios";
 
 export type WriteMode = "fill_empty" | "overwrite";
 
+/** Companion values a financial assessment target carries next to the amount. */
+export interface TargetOptions {
+    currency?: string;
+    frequency?: string;
+    certainty?: string;
+}
+
+/** What the page offers for those companions (null while financial assessments are off). */
+export interface FinancialMappingOptions {
+    currencies: string[];
+    frequencies: string[];
+    certainties: string[];
+    reporting_currency: string;
+}
+
 export interface FieldMappingRow {
     segment_key: string;
     lead_field: string | null;
     /** Resolved server-side so callers never decode `custom_field_<id>`. */
     lead_field_label?: string;
     write_mode: WriteMode;
-    /** script option key -> lead field value */
+    /** script option key -> lead field value (an amount, for a financial assessment target) */
     option_map: Record<string, string>;
+    /** Financial assessment targets only. */
+    target_options?: TargetOptions;
 }
 
 export interface ScriptMapping {
@@ -27,6 +44,9 @@ export interface LeadFieldOption {
     group: string;
     /** Empty for free-text fields — those take the answer verbatim. */
     values: Array<{ value: string; label: string }>;
+    /** A financial assessment line: the answer is read as an amount. */
+    amount?: boolean;
+    defaults?: { frequency: string | null; certainty: string | null };
 }
 
 const normalize = (raw: unknown, templateId: string): ScriptMapping => {
@@ -41,6 +61,7 @@ const normalize = (raw: unknown, templateId: string): ScriptMapping => {
             lead_field_label: row.lead_field_label ?? row.lead_field ?? undefined,
             write_mode: row.write_mode === "overwrite" ? "overwrite" : "fill_empty",
             option_map: (row.option_map ?? {}) as Record<string, string>,
+            target_options: (row.target_options ?? {}) as TargetOptions,
         })),
     };
 };

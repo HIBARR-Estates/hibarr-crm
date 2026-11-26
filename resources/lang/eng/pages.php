@@ -3294,6 +3294,12 @@ return [
 
     'settings' => [
         'custom_fields_mapping' => [
+            'suffix_financial' => '(financial assessment)',
+            'assessment_heading' => 'Stored with every amount',
+            'assessment_currency' => 'Currency',
+            'assessment_frequency' => 'Frequency',
+            'assessment_certainty' => 'Certainty',
+            'assessment_help' => 'Values are read as amounts and added to each lead’s draft assessment (source: import). Drafts are not counted until someone finalises them.',
             'title' => 'Map & migrate field',
             'action' => 'Map & migrate',
             'done' => 'Done',

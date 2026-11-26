@@ -31,7 +31,9 @@ import {
     fetchScriptMapping,
     saveScriptMapping,
     type FieldMappingRow,
+    type FinancialMappingOptions,
     type LeadFieldOption,
+    type TargetOptions,
     type WriteMode,
 } from "@/Features/Leads/QualificationMapping/mappingApi";
 // dr-btn / dr-menu / .modal-panel live here — without this the Redesign
@@ -42,10 +44,12 @@ interface Props extends PageProps {
     pageTitle: string;
     leadFields: LeadFieldOption[];
     writeModes: Array<{ value: WriteMode; label: string }>;
+    financialOptions?: FinancialMappingOptions | null;
 }
 
 const NO_FIELD = "__none__";
 const LEAVE_EMPTY = "__empty__";
+const USE_DEFAULT = "__default__";
 
 /**
  * MenuSelect treats `width` as a max-width and stays inline-flex, so a bare
@@ -68,9 +72,10 @@ const emptyRow = (segmentKey: string): FieldMappingRow => ({
     lead_field: null,
     write_mode: "fill_empty",
     option_map: {},
+    target_options: {},
 });
 
-const QualificationMappingIndex = ({ leadFields, writeModes }: Props) => {
+const QualificationMappingIndex = ({ leadFields, writeModes, financialOptions }: Props) => {
     const { td } = useTd();
     const templateService = useMemo(() => getQualificationTemplateService(), []);
 
@@ -465,7 +470,8 @@ const QualificationMappingIndex = ({ leadFields, writeModes }: Props) => {
                                 ? fieldsByKey.get(row.lead_field)
                                 : null;
                             const mappable = Boolean(
-                                field?.values.length && segment.options?.length,
+                                (field?.values.length || field?.amount) &&
+                                    segment.options?.length,
                             );
                             const mapped = countMappedOptions(
                                 segment,
@@ -524,6 +530,7 @@ const QualificationMappingIndex = ({ leadFields, writeModes }: Props) => {
                                                 // Targets differ in their value sets — a
                                                 // stale option map would write garbage.
                                                 option_map: {},
+                                                target_options: {},
                                             });
                                         }}
                                         searchable
@@ -564,9 +571,13 @@ const QualificationMappingIndex = ({ leadFields, writeModes }: Props) => {
                                                 ? "—"
                                                 : mappable
                                                   ? `${mapped}/${segment.options?.length ?? 0} ${td("mapped", { source: "en" })}`
-                                                  : td("Answer written as text", {
-                                                        source: "en",
-                                                    })}
+                                                  : field?.amount
+                                                    ? td("Answer read as an amount", {
+                                                          source: "en",
+                                                      })
+                                                    : td("Answer written as text", {
+                                                          source: "en",
+                                                      })}
                                         </span>
                                         {mappable ? (
                                             <Button
@@ -579,6 +590,19 @@ const QualificationMappingIndex = ({ leadFields, writeModes }: Props) => {
                                             </Button>
                                         ) : null}
                                     </div>
+
+                                    {field?.amount && financialOptions ? (
+                                        <AmountTargetOptions
+                                            field={field}
+                                            options={financialOptions}
+                                            value={row.target_options ?? {}}
+                                            onChange={(targetOptions) =>
+                                                patchRow(segment.key, {
+                                                    target_options: targetOptions,
+                                                })
+                                            }
+                                        />
+                                    ) : null}
                                 </div>
                             );
                         })
@@ -642,6 +666,94 @@ function expandOptionMap(
         if (option.id && option.id !== option.key) expanded[option.id] = target;
     }
     return expanded;
+}
+
+/**
+ * The currency, frequency and certainty a financial assessment target fixes for every answer it
+ * writes (an answer only carries the amount). Left on "Default", the line takes the company's
+ * reporting currency and the line type's own default frequency and certainty.
+ */
+function AmountTargetOptions({
+    field,
+    options,
+    value,
+    onChange,
+}: {
+    field: LeadFieldOption;
+    options: FinancialMappingOptions;
+    value: TargetOptions;
+    onChange: (value: TargetOptions) => void;
+}) {
+    const { td } = useTd();
+
+    const pick = (name: keyof TargetOptions) => (picked: string | number) => {
+        const next = { ...value };
+        if (picked === USE_DEFAULT) {
+            delete next[name];
+        } else {
+            next[name] = String(picked);
+        }
+        onChange(next);
+    };
+
+    const withDefault = (label: string, items: string[]): MenuOption[] => [
+        { value: USE_DEFAULT, label },
+        ...items.map((item) => ({ value: item, label: item })),
+    ];
+
+    const label = (text: string) => (
+        <span className="text-[11px] font-bold uppercase tracking-wider" style={{ color: T.TEXT_MUTED }}>
+            {text}
+        </span>
+    );
+
+    return (
+        <div
+            className="flex flex-wrap items-center gap-x-5 gap-y-2"
+            style={{ gridColumn: "1 / -1", paddingTop: 2 }}
+        >
+            <div className="flex items-center gap-2">
+                {label(td("Currency", { source: "en" }))}
+                <MenuSelect
+                    size="sm"
+                    value={value.currency ?? USE_DEFAULT}
+                    options={withDefault(`${td("Default", { source: "en" })} (${options.reporting_currency})`, options.currencies)}
+                    onChange={pick("currency")}
+                    searchable
+                    width={170}
+                    triggerStyle={SELECT_TRIGGER}
+                />
+            </div>
+            <div className="flex items-center gap-2">
+                {label(td("Frequency", { source: "en" }))}
+                <MenuSelect
+                    size="sm"
+                    value={value.frequency ?? USE_DEFAULT}
+                    options={withDefault(
+                        `${td("Default", { source: "en" })}${field.defaults?.frequency ? ` (${field.defaults.frequency})` : ""}`,
+                        options.frequencies,
+                    )}
+                    onChange={pick("frequency")}
+                    width={170}
+                    triggerStyle={SELECT_TRIGGER}
+                />
+            </div>
+            <div className="flex items-center gap-2">
+                {label(td("Certainty", { source: "en" }))}
+                <MenuSelect
+                    size="sm"
+                    value={value.certainty ?? USE_DEFAULT}
+                    options={withDefault(
+                        `${td("Default", { source: "en" })}${field.defaults?.certainty ? ` (${field.defaults.certainty})` : ""}`,
+                        options.certainties,
+                    )}
+                    onChange={pick("certainty")}
+                    width={170}
+                    triggerStyle={SELECT_TRIGGER}
+                />
+            </div>
+        </div>
+    );
 }
 
 function OptionMapModal({
@@ -743,28 +855,50 @@ function OptionMapModal({
                         >
                             {stripHtmlTags(option.label)}
                         </span>
-                        <MenuSelect
-                            size="sm"
-                            value={local[option.key] || LEAVE_EMPTY}
-                            options={valueOptions}
-                            onChange={(value) =>
-                                setLocal((prev) => {
-                                    const next = { ...prev };
-                                    if (value === LEAVE_EMPTY) {
-                                        delete next[option.key];
-                                    } else {
-                                        next[option.key] = String(value);
-                                    }
-                                    return next;
-                                })
-                            }
-                            searchable={valueOptions.length > 8}
-                            searchPlaceholder={td("Search values…", {
-                                source: "en",
-                            })}
-                            fullWidth
-                            triggerStyle={SELECT_TRIGGER}
-                        />
+                        {field?.amount ? (
+                            <input
+                                className="dr-input"
+                                inputMode="decimal"
+                                aria-label={`${td("Amount for", { source: "en" })} ${stripHtmlTags(option.label)}`}
+                                placeholder={td("Amount", { source: "en" })}
+                                value={local[option.key] ?? ""}
+                                onChange={(event) => {
+                                    const text = event.target.value;
+                                    setLocal((prev) => {
+                                        const next = { ...prev };
+                                        if (text.trim() === "") {
+                                            delete next[option.key];
+                                        } else {
+                                            next[option.key] = text;
+                                        }
+                                        return next;
+                                    });
+                                }}
+                            />
+                        ) : (
+                            <MenuSelect
+                                size="sm"
+                                value={local[option.key] || LEAVE_EMPTY}
+                                options={valueOptions}
+                                onChange={(value) =>
+                                    setLocal((prev) => {
+                                        const next = { ...prev };
+                                        if (value === LEAVE_EMPTY) {
+                                            delete next[option.key];
+                                        } else {
+                                            next[option.key] = String(value);
+                                        }
+                                        return next;
+                                    })
+                                }
+                                searchable={valueOptions.length > 8}
+                                searchPlaceholder={td("Search values…", {
+                                    source: "en",
+                                })}
+                                fullWidth
+                                triggerStyle={SELECT_TRIGGER}
+                            />
+                        )}
                     </div>
                 ))}
 

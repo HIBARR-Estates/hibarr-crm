@@ -81,6 +81,13 @@ ApiRoute::group(['namespace' => 'App\Http\Controllers'], function () {
         // Custom field definitions (optional ?model=Deal|Lead|... ; omit for all modules)
         ApiRoute::get('custom-fields', ['as' => 'api.custom-fields.index', 'uses' => 'Api\CustomFieldApiController@index']);
 
+        // Finalised financial assessments of a lead (read only; own token scopes; flag crm.lead-financial-assessments).
+        // `current` is declared before `{assessmentId}`; ids are validated in the controller because
+        // Froiden's ApiRoute does not return the route, so ->where() cannot be chained.
+        ApiRoute::get('leads/{leadId}/financial-assessments', ['as' => 'api.leads.financial-assessments.index', 'uses' => 'Api\LeadFinancialAssessmentApiController@index']);
+        ApiRoute::get('leads/{leadId}/financial-assessments/current', ['as' => 'api.leads.financial-assessments.current', 'uses' => 'Api\LeadFinancialAssessmentApiController@current']);
+        ApiRoute::get('leads/{leadId}/financial-assessments/{assessmentId}', ['as' => 'api.leads.financial-assessments.show', 'uses' => 'Api\LeadFinancialAssessmentApiController@show']);
+
         // Writable lead fields (read live from the leads table; target of `lead_fields` on contact/create)
         ApiRoute::get('lead-fields', ['as' => 'api.lead-fields.index', 'uses' => 'Api\LeadFieldApiController@index']);
 

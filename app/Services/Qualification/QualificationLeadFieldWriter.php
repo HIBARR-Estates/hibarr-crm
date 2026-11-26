@@ -2,12 +2,17 @@
 
 namespace App\Services\Qualification;
 
+use App\Enums\FinancialAssessmentSource;
 use App\Models\Lead;
 use App\Models\LeadCategory;
 use App\Models\LeadQualification;
 use App\Models\LeadQualificationAnswer;
 use App\Models\QualificationFieldMapping;
 use App\Models\QualificationScriptSetting;
+use App\Services\FinancialAssessment\AmountParser;
+use App\Services\FinancialAssessment\AssessmentException;
+use App\Services\FinancialAssessment\AssessmentFieldRegistry;
+use App\Services\FinancialAssessment\AssessmentService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -48,6 +53,7 @@ class QualificationLeadFieldWriter
         $customUpdates = [];
         $categoryIds = null;
         $written = [];
+        $assessmentWrites = [];
 
         foreach ($qualification->answers as $answer) {
             /** @var QualificationFieldMapping|null $mapping */
@@ -64,6 +70,19 @@ class QualificationLeadFieldWriter
             }
 
             $field = $mapping->lead_field;
+
+            // A financial assessment line: the answer is read as an amount and goes into the lead's
+            // draft once the lead's own fields are done. Stored after success, so a refused write is
+            // never reported as written.
+            if (AssessmentFieldRegistry::typeKeyOf($field) !== null) {
+                $write = $this->assessmentWrite($mapping, $field, $values);
+
+                if ($write !== null) {
+                    $assessmentWrites[$field] = $write;
+                }
+
+                continue;
+            }
 
             if ($mapping->write_mode !== QualificationFieldMapping::MODE_OVERWRITE
                 && ! $this->isEmptyOnLead($lead, $field)) {
@@ -89,8 +108,10 @@ class QualificationLeadFieldWriter
             $written[] = $field;
         }
 
+        $assessmentWritten = $this->applyAssessmentWrites($qualification, $lead, $assessmentWrites);
+
         if ($coreUpdates === [] && $customUpdates === [] && $categoryIds === null) {
-            return [];
+            return $assessmentWritten;
         }
 
         try {
@@ -116,7 +137,84 @@ class QualificationLeadFieldWriter
                 'error' => $e->getMessage(),
             ]);
 
+            return $assessmentWritten;
+        }
+
+        return [...$written, ...$assessmentWritten];
+    }
+
+    /**
+     * @param  list<string>  $values
+     * @return array{type_key: string, amount: float, mode: string, companions: array<string, string>}|null
+     */
+    private function assessmentWrite(QualificationFieldMapping $mapping, string $field, array $values): ?array
+    {
+        $amount = null;
+        foreach ($values as $value) {
+            $amount = AmountParser::parse($value);
+            if ($amount !== null) {
+                break;
+            }
+        }
+
+        if ($amount === null) {
+            Log::info('Qualification answer is not an amount; assessment field skipped', ['field' => $field]);
+
+            return null;
+        }
+
+        $companions = [];
+        foreach (['currency', 'frequency', 'certainty'] as $name) {
+            $option = $mapping->target_options[$name] ?? null;
+            if (filled($option)) {
+                $companions[$name] = (string) $option;
+            }
+        }
+
+        return [
+            'type_key' => (string) AssessmentFieldRegistry::typeKeyOf($field),
+            'amount' => $amount,
+            // "Only if empty" fills a type the lead has no line for yet; a new draft already holds the
+            // current assessment's lines, so a type that is already known is left alone.
+            'mode' => $mapping->write_mode === QualificationFieldMapping::MODE_OVERWRITE ? 'overwrite' : 'fill',
+            'companions' => $companions,
+        ];
+    }
+
+    /**
+     * Store the collected assessment writes in the lead's open draft (source "call"; never finalises).
+     * A refused line is skipped and logged: a bad mapping must never fail the call.
+     *
+     * @param  array<string, array{type_key: string, amount: float, mode: string, companions: array<string, string>}>  $writes
+     * @return list<string> the lead fields actually written
+     */
+    private function applyAssessmentWrites(LeadQualification $qualification, Lead $lead, array $writes): array
+    {
+        if ($writes === []) {
             return [];
+        }
+
+        $service = app(AssessmentService::class);
+        $written = [];
+
+        try {
+            $draft = $service->startDraft($lead, $qualification->agent_id ? (int) $qualification->agent_id : null, FinancialAssessmentSource::Call);
+        } catch (\Throwable $e) {
+            Log::warning('Qualification assessment draft could not be started', ['qualification_id' => $qualification->id, 'error' => $e->getMessage()]);
+
+            return [];
+        }
+
+        foreach ($writes as $field => $write) {
+            try {
+                $result = $service->applyValue($draft, $write['type_key'], $write['amount'], $write['mode'], $write['companions']);
+
+                if ($result['action'] !== 'skipped') {
+                    $written[] = $field;
+                }
+            } catch (AssessmentException $e) {
+                Log::warning('Qualification assessment field skipped', ['field' => $field, 'reason' => $e->reason, 'qualification_id' => $qualification->id]);
+            }
         }
 
         return $written;

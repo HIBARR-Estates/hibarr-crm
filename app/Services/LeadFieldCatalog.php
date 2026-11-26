@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Lead;
+use App\Services\FinancialAssessment\AssessmentFieldRegistry;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Str;
 
@@ -61,6 +62,18 @@ class LeadFieldCatalog
     public function all(): array
     {
         return Cache::remember(self::CACHE_KEY, self::CACHE_TTL_SECONDS, fn () => $this->introspect());
+    }
+
+    /**
+     * The column-backed fields plus the company's financial assessment fields (the latter only
+     * while the feature is on). The column list is shared and cached; the assessment fields depend
+     * on each company's configured line types, so they are added per call and never cached with it.
+     *
+     * @return list<array<string, mixed>>
+     */
+    public function allForCompany(int $companyId): array
+    {
+        return [...$this->all(), ...app(AssessmentFieldRegistry::class)->fields($companyId)];
     }
 
     /**

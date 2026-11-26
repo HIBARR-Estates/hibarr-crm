@@ -70,6 +70,64 @@ class AssessmentPresenter
         ];
     }
 
+    /**
+     * One finalised (or superseded) assessment for the external read API. Narrower than the page
+     * payload on purpose: no internal user, file or line ids, and no override reason.
+     *
+     * @return array<string, mixed>
+     */
+    public function forApi(FinancialAssessment $assessment, bool $withLines = true): array
+    {
+        $assessment->loadMissing(['lines.type.kind']);
+        $totals = $assessment->totals ?? [];
+        $base = $assessment->currency;
+        $rates = $totals['rates'] ?? [];
+
+        $data = [
+            'id' => (int) $assessment->id,
+            'status' => $assessment->status->value,
+            'is_current' => $assessment->current_lead_id !== null,
+            'source' => $assessment->source->value,
+            'as_of_date' => $assessment->as_of_date->toDateString(),
+            'currency' => $base,
+            'finalised_at' => $assessment->finalised_at?->toIso8601String(),
+            'verified' => $assessment->verified_at !== null,
+            'verified_at' => $assessment->verified_at?->toIso8601String(),
+            'available_now_overridden' => $assessment->available_now_override !== null,
+            'totals' => $totals,
+        ];
+
+        if ($withLines) {
+            $data['lines'] = $assessment->lines->map(function (FinancialAssessmentLine $line) use ($base, $rates) {
+                $currency = strtoupper($line->currency);
+                $rate = $currency === strtoupper($base) ? 1.0 : ($rates[$currency]['rate'] ?? null);
+
+                return [
+                    'type' => $line->type->key,
+                    'type_label' => $line->type->label,
+                    'kind' => $line->type->kind->key,
+                    'role' => $line->type->kind->role->value,
+                    'amount' => (float) $line->amount,
+                    'currency' => $currency,
+                    'frequency' => $line->frequency->value,
+                    'certainty' => $line->certainty->value,
+                    'available_from' => $line->available_from?->toDateString(),
+                    'contributor' => $line->contributor_label,
+                    'note' => $line->note,
+                    'converted_amount' => $rate !== null ? round((float) $line->amount * $rate, 2) : null,
+                ];
+            })->all();
+        }
+
+        return $data;
+    }
+
+    /** The lead's one-row summary for the external read API, or null when it has no finalised assessment. */
+    public function summaryForApi(Lead $lead): ?array
+    {
+        return $this->summary($lead);
+    }
+
     // ------------------------------------------------------------------ pieces
 
     /** @return array<string, mixed>|null */

@@ -2,7 +2,11 @@
 
 namespace App\Services;
 
+use App\Enums\FinancialAssessmentSource;
 use App\Models\Lead;
+use App\Services\FinancialAssessment\AssessmentException;
+use App\Services\FinancialAssessment\AssessmentFieldRegistry;
+use App\Services\FinancialAssessment\AssessmentService;
 use Carbon\Carbon;
 
 /**
@@ -15,22 +19,42 @@ use Carbon\Carbon;
  *  - fill:      write only when the lead has no value yet (the contact API's convention);
  *  - overwrite: write when the value differs;
  *  - append:    long-text columns only; add the value on a new line unless it is already in there.
+ *
+ * Financial assessment fields (`assessment.{type}`, see {@see AssessmentFieldRegistry}) are not columns.
+ * `apply()` validates them and hands them back as `assessment` writes; {@see applyAssessment()} stores
+ * them in the lead's open draft once the lead has been saved (a new contact has no id before that).
+ * The value is an amount, plain or `{value, mode, currency?, frequency?, certainty?, available_from?, note?}`;
+ * modes are fill (only if the draft has no line of that type), overwrite, append (add another line).
+ * They never finalise anything.
  */
 class LeadFieldWriter
 {
-    public function __construct(private readonly LeadFieldCatalog $catalog) {}
+    private readonly AssessmentFieldRegistry $assessmentFields;
+
+    public function __construct(private readonly LeadFieldCatalog $catalog, ?AssessmentFieldRegistry $assessmentFields = null)
+    {
+        $this->assessmentFields = $assessmentFields ?? app(AssessmentFieldRegistry::class);
+    }
 
     /**
      * @param  array<string, mixed>  $input
-     * @return array{changed: bool, skipped: array<string, string>} skipped: field key => reason
+     * @return array{changed: bool, skipped: array<string, string>, assessment: array<string, array{type_key: string, value: float, mode: string, companions: array<string, mixed>}>} skipped: field key => reason
      */
     public function apply(Lead $lead, array $input): array
     {
         $changed = false;
         $skipped = [];
+        $assessment = [];
 
         foreach ($input as $key => $spec) {
             $key = (string) $key;
+
+            if (str_starts_with($key, AssessmentFieldRegistry::PREFIX)) {
+                $this->collectAssessmentField($lead, $key, $spec, $skipped, $assessment);
+
+                continue;
+            }
+
             $field = $this->catalog->find($key);
             if ($field === null) {
                 $skipped[$key] = 'not_available';
@@ -73,7 +97,93 @@ class LeadFieldWriter
             $changed = true;
         }
 
-        return ['changed' => $changed, 'skipped' => $skipped];
+        return ['changed' => $changed, 'skipped' => $skipped, 'assessment' => $assessment];
+    }
+
+    /**
+     * Store the assessment writes that {@see apply()} collected, in the lead's open draft (started
+     * on the first write, source "api"). The lead must already be saved. Returns the fields that
+     * could not be written, key => reason; one bad field never blocks the others.
+     *
+     * @param  array<string, array{type_key: string, value: float, mode: string, companions: array<string, mixed>}>  $writes
+     * @return array<string, string>
+     */
+    public function applyAssessment(Lead $lead, array $writes): array
+    {
+        if ($writes === []) {
+            return [];
+        }
+
+        $skipped = [];
+        $service = app(AssessmentService::class);
+
+        try {
+            $draft = $service->startDraft($lead, null, FinancialAssessmentSource::Api);
+        } catch (\Throwable $e) {
+            report($e);
+
+            return array_fill_keys(array_keys($writes), 'unavailable');
+        }
+
+        foreach ($writes as $key => $write) {
+            try {
+                $service->applyValue($draft, $write['type_key'], $write['value'], $write['mode'], $write['companions']);
+            } catch (AssessmentException $e) {
+                $skipped[$key] = $e->reason;
+            }
+        }
+
+        return $skipped;
+    }
+
+    /**
+     * Validate one `assessment.*` field and queue it for {@see applyAssessment()}.
+     *
+     * @param  array<string, string>  $skipped
+     * @param  array<string, array{type_key: string, value: float, mode: string, companions: array<string, mixed>}>  $assessment
+     */
+    private function collectAssessmentField(Lead $lead, string $key, mixed $spec, array &$skipped, array &$assessment): void
+    {
+        $field = $this->assessmentFields->find((int) $lead->company_id, $key);
+        if ($field === null) {
+            $skipped[$key] = 'not_available';
+
+            return;
+        }
+
+        $isStructured = is_array($spec) && array_key_exists('value', $spec);
+        $value = $isStructured ? $spec['value'] : $spec;
+        $mode = $isStructured ? (string) ($spec['mode'] ?? LeadFieldCatalog::MODE_FILL) : LeadFieldCatalog::MODE_FILL;
+
+        if ($value === null || (is_string($value) && trim($value) === '')) {
+            return;
+        }
+        if (! $field['writable'] || ! in_array($mode, $field['write_modes'], true)) {
+            $skipped[$key] = 'mode_not_supported';
+
+            return;
+        }
+        if (is_array($value) || ! is_numeric($value) || (float) $value < 0) {
+            $skipped[$key] = 'invalid_value';
+
+            return;
+        }
+
+        $companions = [];
+        if ($isStructured) {
+            foreach (AssessmentFieldRegistry::ACCEPTS as $name) {
+                if (array_key_exists($name, $spec) && $spec[$name] !== null && $spec[$name] !== '') {
+                    $companions[$name] = $spec[$name];
+                }
+            }
+        }
+
+        $assessment[$key] = [
+            'type_key' => (string) AssessmentFieldRegistry::typeKeyOf($key),
+            'value' => (float) $value,
+            'mode' => $mode,
+            'companions' => $companions,
+        ];
     }
 
     /**

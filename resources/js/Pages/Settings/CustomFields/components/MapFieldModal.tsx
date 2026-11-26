@@ -6,6 +6,8 @@ import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import useTranslation from "@/Hooks/useTranslation";
 import {
+    AssessmentOptions,
+    AssessmentTargetOptions,
     DefinedField,
     MappingOptions,
     MappingReport,
@@ -22,6 +24,7 @@ interface Props {
     fields: SettingsField[];
     moduleGroups: ModuleGroup[];
     definedFields: DefinedField[];
+    assessmentOptions: AssessmentOptions | null;
     mapping: ReturnType<typeof useCustomFieldMapping>;
     onClose: () => void;
 }
@@ -62,7 +65,7 @@ function Stat({ label, value, tone }: { label: string; value: number; tone?: "wa
  * source values or the source field. Always previews (a server-side dry run)
  * before it can apply, so nothing is written blind.
  */
-export default function MapFieldModal({ open, sourceField, fields, moduleGroups, definedFields, mapping, onClose }: Props) {
+export default function MapFieldModal({ open, sourceField, fields, moduleGroups, definedFields, assessmentOptions, mapping, onClose }: Props) {
     const { td } = useTd();
     const { t } = useTranslation();
     const [targetValue, setTargetValue] = useState("");
@@ -72,6 +75,7 @@ export default function MapFieldModal({ open, sourceField, fields, moduleGroups,
     const [allowLoss, setAllowLoss] = useState(false);
     const [report, setReport] = useState<MappingReport | null>(null);
     const [done, setDone] = useState(false);
+    const [assessment, setAssessment] = useState<AssessmentTargetOptions | null>(null);
 
     useEffect(() => {
         if (!open) return;
@@ -83,6 +87,7 @@ export default function MapFieldModal({ open, sourceField, fields, moduleGroups,
         setAllowLoss(false);
         setReport(null);
         setDone(false);
+        setAssessment(null);
     }, [open, sourceField?.id]);
 
     const modelOf = (module: string) => moduleGroups.find((g) => g.name === module)?.model;
@@ -96,7 +101,10 @@ export default function MapFieldModal({ open, sourceField, fields, moduleGroups,
             .filter((f) => typesCompatible(sourceField.type, f.type))
             .map((f) => ({ value: `custom:${f.id}`, label: `${f.label} · ${f.module} ${t("pages.settings.custom_fields_mapping.suffix_custom_field")}` }));
         const defined = typesCompatible(sourceField.type, "text")
-            ? definedFields.map((f) => ({ value: `defined:${f.key}`, label: `${f.label} ${t("pages.settings.custom_fields_mapping.suffix_built_in")}` }))
+            ? definedFields.map((f) => ({
+                  value: `defined:${f.key}`,
+                  label: `${f.label} ${t(f.kind === "amount" ? "pages.settings.custom_fields_mapping.suffix_financial" : "pages.settings.custom_fields_mapping.suffix_built_in")}`,
+              }))
             : [];
         return [...custom, ...defined];
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -107,6 +115,7 @@ export default function MapFieldModal({ open, sourceField, fields, moduleGroups,
     const targetDefined = target?.type === "defined" ? definedFields.find((f) => f.key === target.key) : undefined;
     const targetModel = targetField ? modelOf(targetField.module) : targetDefined?.model;
     const needsOptionToggle = !!targetField && OPTION_TYPES.includes(targetField.type);
+    const isAmountTarget = targetDefined?.kind === "amount" && assessmentOptions !== null;
 
     const options: MappingOptions = {
         conflict,
@@ -114,6 +123,7 @@ export default function MapFieldModal({ open, sourceField, fields, moduleGroups,
         delete_source_values: after === "delete_values",
         delete_source_field: after === "delete_field",
         allow_loss: allowLoss,
+        ...(isAmountTarget && assessment ? { assessment } : {}),
     };
 
     // Any change to the request invalidates the preview that was shown for the old one.
@@ -228,6 +238,18 @@ export default function MapFieldModal({ open, sourceField, fields, moduleGroups,
                             onChange={(v) => {
                                 setTargetValue(String(v));
                                 setAddMissing(false);
+                                // A financial target starts from the line type's own defaults: visible and editable, never guessed.
+                                const picked = parseTarget(String(v));
+                                const defined = picked?.type === "defined" ? definedFields.find((f) => f.key === picked.key) : undefined;
+                                setAssessment(
+                                    defined?.kind === "amount" && assessmentOptions
+                                        ? {
+                                              currency: assessmentOptions.reporting_currency,
+                                              frequency: defined.defaults?.frequency ?? "once",
+                                              certainty: defined.defaults?.certainty ?? "likely",
+                                          }
+                                        : null,
+                                );
                                 resetReport();
                             }}
                             options={[{ value: "", label: t("pages.settings.custom_fields_mapping.choose_field") }, ...targetOptions]}
@@ -235,6 +257,49 @@ export default function MapFieldModal({ open, sourceField, fields, moduleGroups,
                         />
                         {crossHint && <div style={{ fontSize: 11, color: T.TEXT_HINT, marginTop: 4 }}>{crossHint}</div>}
                     </ModalField>
+
+                    {isAmountTarget && assessment && assessmentOptions && (
+                        <div style={{ marginBottom: 16, padding: 12, border: `1px solid ${T.BORDER}`, borderRadius: 10, background: T.SURFACE_SUBTLE }}>
+                            <div style={sectionLabel}>{t("pages.settings.custom_fields_mapping.assessment_heading")}</div>
+                            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 10 }}>
+                                <ModalField label={t("pages.settings.custom_fields_mapping.assessment_currency")}>
+                                    <MenuSelect
+                                        value={assessment.currency}
+                                        onChange={(v) => {
+                                            setAssessment({ ...assessment, currency: String(v) });
+                                            resetReport();
+                                        }}
+                                        options={assessmentOptions.currencies.map((code) => ({ value: code, label: code }))}
+                                        searchable
+                                        fullWidth
+                                    />
+                                </ModalField>
+                                <ModalField label={t("pages.settings.custom_fields_mapping.assessment_frequency")}>
+                                    <MenuSelect
+                                        value={assessment.frequency}
+                                        onChange={(v) => {
+                                            setAssessment({ ...assessment, frequency: String(v) });
+                                            resetReport();
+                                        }}
+                                        options={assessmentOptions.frequencies.map((value) => ({ value, label: t(`pages.leads.financials.frequencies.${value}`) }))}
+                                        fullWidth
+                                    />
+                                </ModalField>
+                                <ModalField label={t("pages.settings.custom_fields_mapping.assessment_certainty")}>
+                                    <MenuSelect
+                                        value={assessment.certainty}
+                                        onChange={(v) => {
+                                            setAssessment({ ...assessment, certainty: String(v) });
+                                            resetReport();
+                                        }}
+                                        options={assessmentOptions.certainties.map((value) => ({ value, label: t(`pages.leads.financials.certainties.${value}`) }))}
+                                        fullWidth
+                                    />
+                                </ModalField>
+                            </div>
+                            <div style={{ fontSize: 11, color: T.TEXT_HINT }}>{t("pages.settings.custom_fields_mapping.assessment_help")}</div>
+                        </div>
+                    )}
 
                     <ModalField label={t("pages.settings.custom_fields_mapping.conflict_label")}>
                         <MenuSelect

@@ -3195,6 +3195,12 @@ return [
 
     'settings' => [
         'custom_fields_mapping' => [
+            'suffix_financial' => '(Finanzbewertung)',
+            'assessment_heading' => 'Wird mit jedem Betrag gespeichert',
+            'assessment_currency' => 'Währung',
+            'assessment_frequency' => 'Häufigkeit',
+            'assessment_certainty' => 'Sicherheit',
+            'assessment_help' => 'Werte werden als Beträge gelesen und dem Bewertungsentwurf jedes Leads hinzugefügt (Quelle: Import). Entwürfe zählen erst, wenn jemand sie abschließt.',
             'title' => 'Feld zuordnen & migrieren',
             'action' => 'Zuordnen & migrieren',
             'done' => 'Fertig',

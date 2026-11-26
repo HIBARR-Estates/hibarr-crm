@@ -12,7 +12,7 @@ import "@/Components/Redesign/redesign.css";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import useTranslation from "@/Hooks/useTranslation";
 
-import { DefinedField, ModuleGroup, SettingsField, SettingsCategory, fieldHasRule } from "./types";
+import { AssessmentOptions, DefinedField, ModuleGroup, SettingsField, SettingsCategory, fieldHasRule } from "./types";
 import useCustomFieldMutations from "./hooks/useCustomFieldMutations";
 import useCustomFieldCategoryMutations from "./hooks/useCustomFieldCategoryMutations";
 import useCustomFieldMapping from "./hooks/useCustomFieldMapping";
@@ -31,6 +31,7 @@ interface Props {
     pageTitle: string;
     moduleGroups: ModuleGroup[];
     definedFields: DefinedField[];
+    assessmentOptions?: AssessmentOptions | null;
     fields?: SettingsField[];
     categories?: SettingsCategory[];
 }
@@ -50,7 +51,7 @@ function TabSkeleton() {
     );
 }
 
-function CustomFieldsSettingsBody({ pageTitle, moduleGroups, definedFields, fields: initialFields, categories: initialCategories }: Props) {
+function CustomFieldsSettingsBody({ pageTitle, moduleGroups, definedFields, assessmentOptions, fields: initialFields, categories: initialCategories }: Props) {
     const { td } = useTd();
     const { t } = useTranslation();
     const [tab, setTab] = useState<TabKey>("fields");
@@ -367,6 +368,7 @@ function CustomFieldsSettingsBody({ pageTitle, moduleGroups, definedFields, fiel
                 fields={fields}
                 moduleGroups={moduleGroups}
                 definedFields={definedFields ?? []}
+                assessmentOptions={assessmentOptions ?? null}
                 mapping={mapping}
                 onClose={() => setMapSourceField(null)}
             />

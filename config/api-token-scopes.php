@@ -57,6 +57,15 @@ return [
                 'api.deals.create' => 'Create deal',
                 'api.contacts.createOrUpdate' => 'Create or update contact',
                 'api.qualification-actions.index' => 'List qualification action catalog',
+                'api.lead-fields.index' => 'List lead fields (field catalog)',
+            ],
+        ],
+        'financial_assessments' => [
+            'label' => 'Financial assessments',
+            'scopes' => [
+                'api.leads.financial-assessments.index' => 'List a lead\'s finalised financial assessments',
+                'api.leads.financial-assessments.current' => 'Read a lead\'s current financial assessment',
+                'api.leads.financial-assessments.show' => 'Read one financial assessment',
             ],
         ],
         'custom_fields' => [

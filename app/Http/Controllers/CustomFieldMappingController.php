@@ -47,6 +47,11 @@ class CustomFieldMappingController extends AccountBaseController
             'delete_source_values' => ['nullable', 'boolean'],
             'delete_source_field' => ['nullable', 'boolean'],
             'allow_loss' => ['nullable', 'boolean'],
+            // Financial assessment targets only: what the migrated amounts are stored with.
+            'assessment' => ['nullable', 'array'],
+            'assessment.currency' => ['nullable', 'string', 'max:10'],
+            'assessment.frequency' => ['nullable', 'string', 'max:20'],
+            'assessment.certainty' => ['nullable', 'string', 'max:20'],
         ]);
 
         try {

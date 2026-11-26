@@ -204,3 +204,28 @@ Deviations and limits to know about:
 - **Compare** is a wide dialog rather than a full page board; the trend chart is a small inline SVG.
 - **Not claimed yet:** the empty state no longer lists capture by qualification answers or website form (Phase 3), and the finalise dialog does not say filters/automations/API use the figures (Phases 4-5). Add that copy when those ship.
 - Reordering and an in-drawer "manage kinds and types" link are not built.
+
+## 14. Phase 3 as built (field catalog, mappings, read API)
+
+Delivered behind `crm.lead-financial-assessments` (everything below is invisible and inert while it is off).
+
+**Field catalog (`GET api/lead-fields`, `lead_fields` on `contact/create`)**
+- `AssessmentFieldRegistry` builds the fields per company from its *active* kinds and types, so a type an admin adds later appears with no deploy: writable line fields `assessment.{type_key}`, read-only metrics `assessment.metric.*` (available now/projected, uncertain, monthly income/commitments/disposable, totals per kind, verified, verified_at, as_of_date, refresh_due_on, age_days, is_refresh_due, has_assessment, has_draft) and per-type totals `assessment.metric.total.{type_key}`.
+- `LeadFieldCatalog::allForCompany()` appends them after the column fields; the endpoint now resolves the company from the token. Descriptors keep the existing shape plus additive keys (`accepts`, `defaults`, `kind`, `role`).
+- A write is `value` or `{value, mode: fill|overwrite|append, currency, frequency, certainty, available_from, note}`. Amounts are parsed leniently ("6.500,50", "€ 5 000"). Skip reasons per field: `not_available`, `invalid_value`, `mode_not_supported`.
+- **Writes always go to the lead's open draft** (created from the current final if none exists, source `api`). They **never finalise** (decision 2); a person reviews and finalises on the lead page. "fill" means only if the type has no line yet.
+- For a *new* contact the fields are held and flushed after the lead is saved (`DealContactApiController::flushAssessmentFields`); an invalid field does not fail the contact.
+
+**Qualification mappings** - a "Financial assessment" group appears among targets. The answer is read as an amount; each mapping can fix currency, frequency and certainty (`qualification_field_mappings.target_options`, new migration). Writes use source `call`, overwrite/fill modes, and never finalise.
+
+**Custom-field mapping** - assessment line types are targets in the "map & migrate" dialog (kind `amount`; currency/frequency/certainty prefilled from the type's defaults). The copy goes through `AssessmentService` with source `import`, with the same skip/overwrite/unchanged accounting and dry-run parity as other targets. **Q4 is still open:** the default built is *drafts only* (nothing is finalised by a migration); a bulk "finalise after import" option can be added if wanted.
+
+**Read API** (own token scopes, group `financial_assessments` in `config/api-token-scopes.php`; `api.lead-fields.index` also added to the leads scope group)
+- `GET api/leads/{id}/financial-assessments` (finals and superseded, newest first, no lines, `per_page` capped at 200), `.../current` (current final with lines + summary figures), `.../{assessmentId}`.
+- Drafts are never exposed; the lead must belong to the token's company; non-numeric ids return 404. `current` is declared before `{assessmentId}`.
+- Froiden's `ApiRoute` returns nothing, so route constraints (`->where()`) cannot be chained; ids are validated in the controller.
+- Tokens with no scope list (full access) can read financial data automatically; restrict a token to scopes to exclude it.
+
+**Crypto rates** - settings and env keys were delivered in Phase 1 (`COINGECKO_API_KEY`, `COINMARKETCAP_API_KEY`, `CRYPTO_RATE_PROVIDER`); nothing further was needed here.
+
+**Verification and limits.** The full app cannot boot in the build environment, so verification used a scratch harness: 96 tests / 427 assertions pass (the new ones cover the catalog, write path, both mappings, and the read API controller called directly), Pint is clean on all new files, and `tsc` shows only the 7 pre-existing unrelated errors. The controllers' HTTP wiring (middleware, token auth, Inertia pages) and the new UI were **not exercised in a running app** and need a smoke test in staging. Pint was deliberately not run over pre-existing files I only edited, to avoid unrelated style churn.

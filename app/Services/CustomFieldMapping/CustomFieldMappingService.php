@@ -4,7 +4,15 @@ namespace App\Services\CustomFieldMapping;
 
 use App\Models\CustomField;
 use App\Models\Deal;
+use App\Enums\FinancialAssessmentSource;
+use App\Enums\FinancialLineCertainty;
+use App\Enums\FinancialLineFrequency;
 use App\Models\Lead;
+use App\Scopes\CompanyScope;
+use App\Services\FinancialAssessment\AssessmentException;
+use App\Services\FinancialAssessment\AssessmentFieldRegistry;
+use App\Services\FinancialAssessment\AssessmentService;
+use App\Services\FinancialAssessment\Rates\CryptoRateService;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -167,6 +175,10 @@ class CustomFieldMappingService
             throw new InvalidMappingException("Fields of type \"{$source->type}\" can't be mapped.");
         }
 
+        if (($request['target_type'] ?? null) === 'defined' && str_starts_with((string) ($request['target_key'] ?? ''), AssessmentFieldRegistry::PREFIX)) {
+            return $this->resolveAssessmentTarget($source, $request);
+        }
+
         if (($request['target_type'] ?? null) === 'defined') {
             $defined = DefinedFieldRegistry::find((string) ($request['target_key'] ?? ''))
                 ?? throw new InvalidMappingException('That built-in field is not available as a mapping target.');
@@ -204,6 +216,50 @@ class CustomFieldMappingService
         }
 
         return ['type' => 'custom', 'field' => $target, 'model' => $targetModel, 'options' => $options];
+    }
+
+    /**
+     * A financial assessment line as the target: Lead -> Lead and Deal -> Lead only (assessments belong to
+     * the lead). The currency, frequency and certainty the amounts are stored with must be chosen: the
+     * values carry only a number, and a guessed currency would silently corrupt totals.
+     *
+     * @return array{type: string, assessment: array{type_key: string, company_id: int, options: array{currency: string, frequency: string, certainty: string}}, model: string}
+     */
+    private function resolveAssessmentTarget(CustomField $source, array $request): array
+    {
+        if (! $this->converter->typesCompatible($source->type, 'text')) {
+            throw new InvalidMappingException("\"{$source->type}\" values can't be mapped to a financial assessment amount.");
+        }
+
+        $companyId = (int) $source->company_id;
+        $key = (string) ($request['target_key'] ?? '');
+        $field = app(AssessmentFieldRegistry::class)->find($companyId, $key);
+
+        if ($field === null || ! $field['writable']) {
+            throw new InvalidMappingException('That financial assessment field is not available as a mapping target.');
+        }
+
+        $given = (array) ($request['assessment'] ?? []);
+        $currency = strtoupper(trim((string) ($given['currency'] ?? '')));
+        $frequency = (string) ($given['frequency'] ?? '');
+        $certainty = (string) ($given['certainty'] ?? '');
+
+        $knownCurrency = preg_match('/^[A-Z]{3}$/', $currency) === 1
+            || in_array($currency, app(CryptoRateService::class)->activeTickers($companyId), true);
+
+        if (! $knownCurrency || FinancialLineFrequency::tryFrom($frequency) === null || FinancialLineCertainty::tryFrom($certainty) === null) {
+            throw new InvalidMappingException('Choose the currency, frequency and certainty these amounts are stored with.');
+        }
+
+        return [
+            'type' => 'assessment',
+            'assessment' => [
+                'type_key' => (string) AssessmentFieldRegistry::typeKeyOf($key),
+                'company_id' => $companyId,
+                'options' => ['currency' => $currency, 'frequency' => $frequency, 'certainty' => $certainty],
+            ],
+            'model' => Lead::CUSTOM_FIELD_MODEL,
+        ];
     }
 
     private function assertFieldDeletable(CustomField $source): void
@@ -250,9 +306,11 @@ class CustomFieldMappingService
                     $report['source_total']++;
 
                     foreach ($this->targetRecordIds($source, (int) $row->model_id, $crossModel, $winningDeals, $lookup, $report) as $targetId) {
-                        $converted = $target['type'] === 'custom'
-                            ? $this->converter->toCustomField($neutral, $target['field'], $targetOptions, $addMissing, $missingOptions)
-                            : $this->converter->toDefinedField($neutral, $target['defined']);
+                        $converted = match ($target['type']) {
+                            'custom' => $this->converter->toCustomField($neutral, $target['field'], $targetOptions, $addMissing, $missingOptions),
+                            'assessment' => $this->converter->toAmount($neutral),
+                            default => $this->converter->toDefinedField($neutral, $target['defined']),
+                        };
 
                         if ($converted['value'] === null) {
                             $report['skipped_incompatible']++;
@@ -377,6 +435,12 @@ class CustomFieldMappingService
      */
     private function writeChunk(array $target, array $pending, string $conflict, bool $dryRun, array &$report): void
     {
+        if ($target['type'] === 'assessment') {
+            $this->writeAssessmentChunk($target['assessment'], $pending, $conflict, $dryRun, $report);
+
+            return;
+        }
+
         $existing = $target['type'] === 'custom'
             ? $this->existingCustomValues($target, array_keys($pending))
             : $this->existingDefinedValues($target['defined'], array_keys($pending));
@@ -415,6 +479,74 @@ class CustomFieldMappingService
                 $target['type'] === 'custom'
                     ? $this->writeCustomValue($target['field'], $target['model'], $recordId, $value, $rowExists)
                     : $this->writeDefinedValue($target['defined'], $recordId, $value);
+            }
+
+            $report['mapped']++;
+        }
+    }
+
+    /**
+     * Financial assessment amounts, lead by lead, into each lead's open draft (source "import"). A bulk
+     * run never finalises: drafts count nowhere until someone finalises them, so even a wrong run
+     * moves no filter, automation or API figure. Writes go through {@see AssessmentService}, so the
+     * draft rules hold; the dry run reads the same existing lines and decides the same way.
+     *
+     * "Keep what is there" (skip) leaves a lead that already has a line of that type untouched;
+     * "overwrite" replaces it. A lead whose line already holds exactly these values is "unchanged".
+     *
+     * @param  array{type_key: string, company_id: int, options: array{currency: string, frequency: string, certainty: string}}  $assessment
+     * @param  array<int, float>  $pending  lead id => amount
+     */
+    private function writeAssessmentChunk(array $assessment, array $pending, string $conflict, bool $dryRun, array &$report): void
+    {
+        $service = app(AssessmentService::class);
+        $options = $assessment['options'];
+
+        $leads = Lead::withoutGlobalScope(CompanyScope::class)
+            ->where('company_id', $assessment['company_id'])
+            ->whereIn('id', array_keys($pending))
+            ->get()->keyBy('id');
+        $existing = $service->existingLines(array_keys($pending), $assessment['type_key'], $assessment['company_id']);
+
+        foreach ($pending as $leadId => $amount) {
+            $lead = $leads[$leadId] ?? null;
+
+            if ($lead === null) {
+                $report['no_target_record']++;
+
+                continue;
+            }
+
+            $current = $existing[$leadId] ?? null;
+
+            if ($current !== null
+                && abs($current['amount'] - $amount) < 0.000000005
+                && $current['currency'] === $options['currency']
+                && $current['frequency'] === $options['frequency']
+                && $current['certainty'] === $options['certainty']) {
+                $report['unchanged']++;
+
+                continue;
+            }
+
+            if ($current !== null && $conflict === 'skip') {
+                $report['skipped_conflict']++;
+
+                continue;
+            }
+
+            if (! $dryRun) {
+                try {
+                    $draft = $service->startDraft($lead, null, FinancialAssessmentSource::Import);
+                    $service->applyValue($draft, $assessment['type_key'], $amount, $current === null ? 'fill' : 'overwrite', $options);
+                } catch (AssessmentException $e) {
+                    $report['skipped_incompatible']++;
+                    if (count($report['incompatible_samples']) < self::SAMPLE_LIMIT) {
+                        $report['incompatible_samples'][] = ['record_id' => (int) $leadId, 'value' => (string) $amount, 'reason' => $e->getMessage()];
+                    }
+
+                    continue;
+                }
             }
 
             $report['mapped']++;

@@ -3173,6 +3173,12 @@ return [
 
     'settings' => [
         'custom_fields_mapping' => [
+            'suffix_financial' => '(finansal değerlendirme)',
+            'assessment_heading' => 'Her tutarla birlikte saklanır',
+            'assessment_currency' => 'Para birimi',
+            'assessment_frequency' => 'Sıklık',
+            'assessment_certainty' => 'Kesinlik',
+            'assessment_help' => 'Değerler tutar olarak okunur ve her lead’in değerlendirme taslağına eklenir (kaynak: içe aktarma). Taslaklar, biri kesinleştirene kadar sayılmaz.',
             'title' => 'Alanı eşle ve taşı',
             'action' => 'Eşle ve taşı',
             'done' => 'Tamam',

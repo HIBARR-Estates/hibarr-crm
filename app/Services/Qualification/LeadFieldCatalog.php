@@ -10,6 +10,7 @@ use App\Models\CustomField;
 use App\Models\CustomFieldGroup;
 use App\Models\Lead;
 use App\Models\LeadCategory;
+use App\Services\FinancialAssessment\AssessmentFieldRegistry;
 
 /**
  * The lead fields a qualification answer may be written into, and (where the
@@ -96,6 +97,23 @@ class LeadFieldCatalog
                 'label' => $customField->label,
                 'group' => 'Custom fields',
                 'values' => $this->customFieldValues($customField),
+            ];
+        }
+
+        // Financial assessment line types (only while the feature is on). An answer is read as an
+        // amount; the currency / frequency / certainty come from the mapping's target options.
+        foreach (app(AssessmentFieldRegistry::class)->fields($companyId) as $field) {
+            if (! $field['writable']) {
+                continue;
+            }
+
+            $fields[] = [
+                'value' => $field['key'],
+                'label' => $field['type_label'] ?? $field['label'],
+                'group' => 'Financial assessment',
+                'values' => [],
+                'amount' => true,
+                'defaults' => $field['defaults'] ?? ['frequency' => null, 'certainty' => null],
             ];
         }
 

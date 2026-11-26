@@ -23,10 +23,12 @@ class QualificationFieldMapping extends BaseModel
         'lead_field',
         'write_mode',
         'option_map',
+        'target_options',
     ];
 
     protected $casts = [
         'option_map' => 'array',
+        'target_options' => 'array',
     ];
 
     public function scriptSetting(): BelongsTo

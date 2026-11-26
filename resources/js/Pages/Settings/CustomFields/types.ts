@@ -117,9 +117,26 @@ export function fieldHasRule(field: SettingsField): boolean {
 export interface DefinedField {
     key: string;
     label: string;
-    kind: "string" | "date" | "int" | "bool" | "languages";
+    kind: "string" | "date" | "int" | "bool" | "languages" | "amount";
     /** Model class the field belongs to, matching ModuleGroup.model. */
     model: string;
+    /** Financial assessment lines (kind "amount"): the line type's own defaults. */
+    defaults?: { frequency: string | null; certainty: string | null };
+}
+
+/** What the mapping dialog offers for a financial assessment target; null while the feature is off. */
+export interface AssessmentOptions {
+    currencies: string[];
+    frequencies: string[];
+    certainties: string[];
+    reporting_currency: string;
+}
+
+/** What migrated amounts are stored with (an amount value carries no currency, frequency or certainty). */
+export interface AssessmentTargetOptions {
+    currency: string;
+    frequency: string;
+    certainty: string;
 }
 
 export type MappingTarget = { type: "custom"; id: number } | { type: "defined"; key: string };
@@ -130,6 +147,8 @@ export interface MappingOptions {
     delete_source_values: boolean;
     delete_source_field: boolean;
     allow_loss: boolean;
+    /** Only for a financial assessment target. */
+    assessment?: AssessmentTargetOptions;
 }
 
 /** Result of a mapping dry run / apply — see CustomFieldMappingService::newReport(). */

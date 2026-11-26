@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Helper\Reply;
 use App\Models\QualificationFieldMapping;
 use App\Models\QualificationScriptSetting;
+use App\Services\FinancialAssessment\AssessmentFieldRegistry;
 use App\Services\Qualification\LeadFieldCatalog;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -47,6 +48,10 @@ class QualificationFieldMappingController extends AccountBaseController
                 ['value' => QualificationFieldMapping::MODE_FILL_EMPTY, 'label' => 'Only if empty'],
                 ['value' => QualificationFieldMapping::MODE_OVERWRITE, 'label' => 'Always overwrite'],
             ],
+            // Currencies, frequencies and certainties a financial assessment target can fix; null while the feature is off.
+            'financialOptions' => app(AssessmentFieldRegistry::class)->enabled()
+                ? app(AssessmentFieldRegistry::class)->mappingOptions((int) company()->id)
+                : null,
         ]);
     }
 
@@ -68,6 +73,7 @@ class QualificationFieldMappingController extends AccountBaseController
                     'lead_field_label' => $fields[$mapping->lead_field]['label'] ?? $mapping->lead_field,
                     'write_mode' => $mapping->write_mode,
                     'option_map' => $mapping->option_map ?? new \stdClass,
+                    'target_options' => $mapping->target_options ?: new \stdClass,
                 ])->values()
                 : [],
         ]);
@@ -89,6 +95,10 @@ class QualificationFieldMappingController extends AccountBaseController
             'mappings.*.write_mode' => ['nullable', Rule::in(QualificationFieldMapping::WRITE_MODES)],
             'mappings.*.option_map' => ['nullable', 'array'],
             'mappings.*.option_map.*' => ['nullable', 'string', 'max:255'],
+            'mappings.*.target_options' => ['nullable', 'array'],
+            'mappings.*.target_options.currency' => ['nullable', 'string', 'regex:/^[A-Za-z0-9]{2,10}$/'],
+            'mappings.*.target_options.frequency' => ['nullable', Rule::in(array_map(fn ($case) => $case->value, \App\Enums\FinancialLineFrequency::cases()))],
+            'mappings.*.target_options.certainty' => ['nullable', Rule::in(array_map(fn ($case) => $case->value, \App\Enums\FinancialLineCertainty::cases()))],
         ]);
 
         DB::transaction(function () use ($templateId, $validated) {
@@ -118,6 +128,7 @@ class QualificationFieldMappingController extends AccountBaseController
                         'lead_field' => $row['lead_field'],
                         'write_mode' => $row['write_mode'] ?? QualificationFieldMapping::MODE_FILL_EMPTY,
                         'option_map' => array_filter($row['option_map'] ?? [], fn ($value) => filled($value)),
+                        'target_options' => $this->cleanTargetOptions($row['lead_field'], $row['target_options'] ?? []),
                     ]
                 );
             }
@@ -128,6 +139,29 @@ class QualificationFieldMappingController extends AccountBaseController
         });
 
         return Reply::success(__('messages.updateSuccess'));
+    }
+
+    /**
+     * The currency / frequency / certainty a financial assessment target carries. Any other target has
+     * none, so a stale value from a previously chosen field is never kept.
+     *
+     * @param  array<string, mixed>  $options
+     * @return array<string, string>|null
+     */
+    private function cleanTargetOptions(string $leadField, array $options): ?array
+    {
+        if (AssessmentFieldRegistry::typeKeyOf($leadField) === null) {
+            return null;
+        }
+
+        $clean = [];
+        foreach (['currency', 'frequency', 'certainty'] as $name) {
+            if (filled($options[$name] ?? null)) {
+                $clean[$name] = $name === 'currency' ? strtoupper((string) $options[$name]) : (string) $options[$name];
+            }
+        }
+
+        return $clean === [] ? null : $clean;
     }
 
     private function settingFor(string $templateId): ?QualificationScriptSetting

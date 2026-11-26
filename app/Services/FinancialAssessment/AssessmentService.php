@@ -357,6 +357,62 @@ class AssessmentService
     }
 
     /**
+     * The line each lead currently has for a type, read-only: the open draft's line if there is a
+     * draft, else the current final assessment's. Used to predict (dry run) and decide what a bulk
+     * write would change.
+     *
+     * @param  list<int>  $leadIds
+     * @return array<int, array{amount: float, currency: string, frequency: string, certainty: string}> keyed by lead id
+     */
+    public function existingLines(array $leadIds, string $typeKey, int $companyId): array
+    {
+        if ($leadIds === []) {
+            return [];
+        }
+
+        $assessments = FinancialAssessment::withoutGlobalScope(CompanyScope::class)
+            ->where('company_id', $companyId)
+            ->whereIn('lead_id', $leadIds)
+            ->whereIn('status', [FinancialAssessmentStatus::Draft->value, FinancialAssessmentStatus::Final->value])
+            ->get(['id', 'lead_id', 'status']);
+
+        // A lead with a draft is judged by the draft (it already holds the final's lines); else by its final.
+        $chosen = [];
+        foreach ($assessments as $assessment) {
+            $current = $chosen[$assessment->lead_id] ?? null;
+            if ($current === null || $assessment->status === FinancialAssessmentStatus::Draft) {
+                $chosen[$assessment->lead_id] = $assessment;
+            }
+        }
+
+        if ($chosen === []) {
+            return [];
+        }
+
+        $typeId = FinancialAssessmentLineType::withoutGlobalScope(CompanyScope::class)
+            ->where('company_id', $companyId)->where('key', $typeKey)->value('id');
+        if (! $typeId) {
+            return [];
+        }
+
+        $byAssessment = collect($chosen)->mapWithKeys(fn ($a) => [$a->id => $a->lead_id]);
+        $result = [];
+
+        foreach (FinancialAssessmentLine::withoutGlobalScope(CompanyScope::class)
+            ->whereIn('assessment_id', $byAssessment->keys())->where('type_id', $typeId)->orderBy('id')->get() as $line) {
+            $leadId = $byAssessment[$line->assessment_id];
+            $result[$leadId] ??= [
+                'amount' => (float) $line->amount,
+                'currency' => strtoupper($line->currency),
+                'frequency' => $line->frequency->value,
+                'certainty' => $line->certainty->value,
+            ];
+        }
+
+        return $result;
+    }
+
+    /**
      * Indicative totals for an assessment as it stands, with live rates and nothing frozen or
      * saved. Used while a draft is being edited. When a rate is unavailable `totals` is null and
      * the currencies without a rate are listed, so the caller can say so instead of guessing.

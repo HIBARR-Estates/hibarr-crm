@@ -544,6 +544,7 @@ class DealContactApiController extends Controller
                     $this->applyLeadFields($contact, $request);
                     $this->applyReferralAgentToLead($contact, $request);
                     $this->saveContact($contact, $request, $notify);
+                    $this->flushAssessmentFields($contact);
                     $this->applyLeadCategories($contact, $request);
                     $this->applyLeadCustomFields($contact, $request);
                     $contactId = $contact->id;
@@ -573,6 +574,7 @@ class DealContactApiController extends Controller
                     if ($updated) {
                         $this->saveContact($existingContact, $request, $notify);
                     }
+                    $this->flushAssessmentFields($existingContact);
                     $customFieldsChanged = $this->applyLeadCustomFields($existingContact, $request);
                     $contactId = $existingContact->id;
                     // A custom-field-only change (no core field touched) still
@@ -956,6 +958,14 @@ class DealContactApiController extends Controller
     private array $skippedLeadFields = [];
 
     /**
+     * Financial assessment writes from `lead_fields`, held until the lead is saved (a new contact has no
+     * id when the fields are applied) and then stored in its draft by {@see flushAssessmentFields()}.
+     *
+     * @var array<string, array{type_key: string, value: float, mode: string, companions: array<string, mixed>}>
+     */
+    private array $pendingAssessmentFields = [];
+
+    /**
      * Write `lead_fields` (native lead columns chosen in the backoffice) onto the lead, validated
      * against the live LeadFieldCatalog. Anything the catalog no longer offers, or a value of the
      * wrong type, is skipped and logged rather than failing the contact request.
@@ -965,6 +975,7 @@ class DealContactApiController extends Controller
     private function applyLeadFields(Lead $lead, Request $request): bool
     {
         $this->skippedLeadFields = [];
+        $this->pendingAssessmentFields = [];
         $input = $request->input('lead_fields');
         if (! is_array($input) || $input === []) {
             return false;
@@ -972,6 +983,7 @@ class DealContactApiController extends Controller
 
         $result = app(LeadFieldWriter::class)->apply($lead, $input);
         $this->skippedLeadFields = $result['skipped'];
+        $this->pendingAssessmentFields = $result['assessment'];
         if ($result['skipped'] !== []) {
             Log::warning('DealContactApi: lead_fields skipped', [
                 'lead_id' => $lead->id,
@@ -980,6 +992,25 @@ class DealContactApiController extends Controller
         }
 
         return $result['changed'];
+    }
+
+    /**
+     * Store the held `assessment.*` writes in the saved lead's open draft and report what could not
+     * be written alongside the other skipped `lead_fields`. Never fails the contact request.
+     */
+    private function flushAssessmentFields(Lead $lead): void
+    {
+        if ($this->pendingAssessmentFields === []) {
+            return;
+        }
+
+        $skipped = app(LeadFieldWriter::class)->applyAssessment($lead, $this->pendingAssessmentFields);
+        $this->pendingAssessmentFields = [];
+
+        if ($skipped !== []) {
+            $this->skippedLeadFields = array_merge($this->skippedLeadFields, $skipped);
+            Log::warning('DealContactApi: assessment fields skipped', ['lead_id' => $lead->id, 'skipped' => $skipped]);
+        }
     }
 
     /**

@@ -6,6 +6,7 @@ use App\Models\CustomField;
 use App\Models\CustomFieldCategory;
 use App\Models\CustomFieldGroup;
 use App\Services\CustomFieldMapping\DefinedFieldRegistry;
+use App\Services\FinancialAssessment\AssessmentFieldRegistry;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 
@@ -38,7 +39,11 @@ class CustomFieldSettingsController extends AccountBaseController
             'moduleGroups' => CustomFieldGroup::orderBy('id')->get(['id', 'name', 'model']),
 
             // Built-in lead/deal fields a custom field can be mapped into.
-            'definedFields' => DefinedFieldRegistry::forAdmin(),
+            'definedFields' => [...DefinedFieldRegistry::forAdmin(), ...app(AssessmentFieldRegistry::class)->mappingTargets((int) company()->id)],
+            // Currencies / frequencies / certainties for financial assessment targets; null while the feature is off.
+            'assessmentOptions' => app(AssessmentFieldRegistry::class)->enabled()
+                ? app(AssessmentFieldRegistry::class)->mappingOptions((int) company()->id)
+                : null,
 
             'fields' => Inertia::defer(function () {
                 try {

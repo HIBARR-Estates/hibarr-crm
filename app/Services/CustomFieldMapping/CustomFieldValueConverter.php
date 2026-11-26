@@ -3,6 +3,7 @@
 namespace App\Services\CustomFieldMapping;
 
 use App\Models\CustomField;
+use App\Services\FinancialAssessment\AmountParser;
 use App\Services\LeadCoreFieldsService;
 use Carbon\Carbon;
 use Throwable;
@@ -230,6 +231,23 @@ class CustomFieldValueConverter
         }
 
         return $this->fail('unsupported target');
+    }
+
+    /**
+     * Reads a source value as a money amount for a financial assessment line.
+     *
+     * @param  array{kind: string, value: mixed, type: string}  $neutral
+     * @return array{value: float|null, reason: ?string}
+     */
+    public function toAmount(array $neutral): array
+    {
+        if ($neutral['kind'] === self::NEUTRAL_OPAQUE) {
+            return $this->fail("{$neutral['type']} values can't be mapped to an amount");
+        }
+
+        $amount = AmountParser::parse($this->stringify($neutral));
+
+        return $amount === null ? $this->fail('not an amount') : ['value' => $amount, 'reason' => null];
     }
 
     /**
