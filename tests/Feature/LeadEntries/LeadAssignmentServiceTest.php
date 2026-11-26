@@ -234,4 +234,21 @@ class LeadAssignmentServiceTest extends LeadEntryTestCase
         $this->assertSame(3, $result['previous_owner_id']);
         $this->assertSame(3, (int) $this->lead()->lead_owner);
     }
+
+    public function test_the_chosen_owner_is_written_even_when_it_equals_the_one_the_stale_copy_started_with(): void
+    {
+        $this->makeUser(2);
+        $this->makeUser(3);
+        $this->lead()->forceFill(['lead_owner' => 2])->saveQuietly();
+        $stale = $this->lead();
+        // Someone else took the lead meanwhile; this run overwrites it and picks the user the stale copy holds.
+        $this->lead()->forceFill(['lead_owner' => 3])->saveQuietly();
+
+        $result = $this->service->assign($stale, ['strategy' => 'specific_user', 'user_id' => 2, 'when_owned' => 'overwrite']);
+
+        $this->assertSame('assigned', $result['outcome']);
+        $this->assertSame(3, $result['previous_owner_id']);
+        $this->assertSame(2, (int) $this->lead()->lead_owner);
+        $this->assertSame(2, (int) $stale->lead_owner);
+    }
 }

@@ -174,45 +174,51 @@ class LeadContactSlaService
     public function registerContact(int $leadId, string $method, ?int $userId, CarbonImmutable $at): int
     {
         $at = $this->storageTime($at);
-        $open = LeadContactSla::withoutGlobalScopes()
+        $openIds = LeadContactSla::withoutGlobalScopes()
             ->where('lead_id', $leadId)
             ->whereIn('status', [LeadContactSla::STATUS_AWAITING_OWNER, LeadContactSla::STATUS_RUNNING])
-            ->get();
+            ->pluck('id');
 
         $ended = 0;
-        foreach ($open as $row) {
-            if ($row->created_at && $at->lt(CarbonImmutable::instance($row->created_at)->subSeconds(5))) {
+        foreach ($openIds as $id) {
+            // The outcome is decided on the row as it is when it is closed, under a lock: a start that
+            // commits a moment before would otherwise leave this recording "in time" against no deadline.
+            $closed = DB::transaction(function () use ($id, $method, $userId, $at) {
+                $row = LeadContactSla::withoutGlobalScopes()->lockForUpdate()->find($id);
+                if (! $row || ! in_array($row->status, [LeadContactSla::STATUS_AWAITING_OWNER, LeadContactSla::STATUS_RUNNING], true)) {
+                    return null;
+                }
+                if ($row->created_at && $at->lt(CarbonImmutable::instance($row->created_at)->subSeconds(5))) {
+                    return null;
+                }
+
+                $started = $row->started_at ? CarbonImmutable::instance($row->started_at) : null;
+                $due = $row->due_at ? CarbonImmutable::instance($row->due_at) : null;
+                // A clock that never started (nobody owned the lead) cannot have been missed.
+                $inTime = $due === null || $at->lte($due);
+                $elapsed = $started
+                    ? BusinessHours::workingSecondsBetween($started, $at->lt($started) ? $started : $at, $row->window)
+                    : 0;
+
+                $row->forceFill([
+                    'status' => LeadContactSla::STATUS_MET,
+                    'contacted_at' => $at,
+                    'contact_method' => $method,
+                    'contacted_by_user_id' => $userId,
+                    'used_recommended_method' => $row->recommended_method ? $row->recommended_method === $method : null,
+                    'elapsed_working_seconds' => $elapsed,
+                    'met_in_time' => $inTime,
+                    // A late contact is also a breach, even if the scan had not flagged it yet.
+                    'breached_at' => $row->breached_at ?? ($inTime ? null : $due),
+                ])->save();
+
+                return [$row, $inTime, $elapsed];
+            });
+            if ($closed === null) {
                 continue;
             }
 
-            $started = $row->started_at ? CarbonImmutable::instance($row->started_at) : null;
-            $due = $row->due_at ? CarbonImmutable::instance($row->due_at) : null;
-            // A clock that never started (nobody owned the lead) cannot have been missed.
-            $inTime = $due === null || $at->lte($due);
-            $elapsed = $started
-                ? BusinessHours::workingSecondsBetween($started, $at->lt($started) ? $started : $at, $row->window)
-                : 0;
-
-            // Atomic: closes the clock only if it is still open, so a breach flagged or a contact
-            // registered a moment ago by another worker is not overwritten or logged twice.
-            $closed = LeadContactSla::withoutGlobalScopes()
-                ->whereKey($row->id)
-                ->whereIn('status', [LeadContactSla::STATUS_AWAITING_OWNER, LeadContactSla::STATUS_RUNNING])
-                ->update([
-                'status' => LeadContactSla::STATUS_MET,
-                'contacted_at' => $at,
-                'contact_method' => $method,
-                'contacted_by_user_id' => $userId,
-                'used_recommended_method' => $row->recommended_method ? $row->recommended_method === $method : null,
-                'elapsed_working_seconds' => $elapsed,
-                'met_in_time' => $inTime,
-                // A late contact is also a breach, even if the scan had not flagged it yet.
-                'breached_at' => $row->breached_at ?? ($inTime ? null : $due),
-            ]);
-            if (! $closed) {
-                continue;
-            }
-
+            [$row, $inTime, $elapsed] = $closed;
             $lead = Lead::withoutGlobalScopes()->find($leadId);
             if ($lead) {
                 $this->recordCrmEvent($inTime ? 'lead_contact_sla_met' : 'lead_contact_sla_missed', $lead, [
@@ -375,6 +381,11 @@ class LeadContactSlaService
             // deadline would count the hours the channel is closed.
             'remaining_working_seconds' => $running && $row->due_at !== null && $window !== null
                 ? BusinessHours::workingSecondsBetween($now, CarbonImmutable::instance($row->due_at), $window)
+                : null,
+            // When the current working period ends, so the countdown stops deducting there rather than
+            // running on through the closed hours until the next refresh says "paused".
+            'window_closes_at' => $running && $window !== null && ($closes = BusinessHours::closingAt($now, $window))
+                ? CarbonImmutable::instance($closes)->toIso8601String()
                 : null,
             // Lets the browser tick against the server's clock rather than its own.
             'server_now' => $now->toIso8601String(),

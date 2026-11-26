@@ -79,9 +79,12 @@ class LeadAssignmentService
                 );
             }
 
-            $lead->lead_owner = $userId;
-            $lead->assigned_at = now();
-            $lead->saveQuietly();
+            // Written on the locked row, whose dirty tracking is current: the caller's copy may already hold
+            // the owner being chosen as its "original", and an update of it would then leave the column alone.
+            $current->lead_owner = $userId;
+            $current->assigned_at = now();
+            $current->saveQuietly();
+            $lead->refresh();
 
             return ['previous_owner_id' => $currentOwner] + $result(
                 self::OUTCOME_ASSIGNED,

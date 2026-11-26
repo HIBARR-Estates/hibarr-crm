@@ -8,6 +8,7 @@ use App\Models\LeadEntry;
 use App\Support\BusinessHours;
 use App\Support\LeadEntryRouting;
 use Illuminate\Database\QueryException;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
@@ -50,16 +51,26 @@ class LeadEntryIntakeService
             return null;
         }
 
-        try {
-            if ($entry->routed_at === null && $this->route($entry)) {
-                $entry->forceFill(['routed_at' => now()])->saveQuietly();
+        // One routing run per entry at a time, for as long as it takes: a second delivery arriving while the
+        // first is still running skips it (and, if the first fails, a later delivery retries). The lock
+        // expires on its own should the process die mid-run.
+        $lock = Cache::lock('lead_entry_routing:'.$entry->id, 300);
+        if ($lock->get()) {
+            try {
+                // A delivery that held the lock before us may have finished the run.
+                $entry->refresh();
+                if ($entry->routed_at === null && $this->route($entry)) {
+                    $entry->forceFill(['routed_at' => now()])->saveQuietly();
+                }
+            } catch (\Throwable $e) {
+                Log::error('LeadEntryIntakeService: routing failed; it is retried if the entry is delivered again', [
+                    'lead_id' => $leadId,
+                    'entry_uuid' => $entry->ol_entry_uuid,
+                    'message' => $e->getMessage(),
+                ]);
+            } finally {
+                $lock->release();
             }
-        } catch (\Throwable $e) {
-            Log::error('LeadEntryIntakeService: routing failed; it is retried if the entry is delivered again', [
-                'lead_id' => $leadId,
-                'entry_uuid' => $entry->ol_entry_uuid,
-                'message' => $e->getMessage(),
-            ]);
         }
 
         // Independent of routing: a failing automation must not cost the lead its clock. After routing,
@@ -172,7 +183,8 @@ class LeadEntryIntakeService
             // Two deliveries of one entry racing: the other request's row wins.
             $winner = LeadEntry::withoutGlobalScopes()->where('ol_entry_uuid', $payload['uuid'])->first();
             if ($winner) {
-                return $winner;
+                // Another company's entry that won the race for a reused uuid is not ours to route.
+                return (int) $winner->company_id === $companyId ? $winner : null;
             }
 
             throw $e;

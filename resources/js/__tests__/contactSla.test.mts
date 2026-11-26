@@ -75,6 +75,23 @@ describe("slaView", () => {
         assert.equal(slaView(windowed, NOW + 600_000).seconds, 1);
     });
 
+    test("stops deducting when the working window closes, until the next refresh says paused", () => {
+        // 310 working seconds left at 16:59:50; the window closes at 17:00:00.
+        const closing = sla({
+            window: { timezone: "UTC", days: [1, 2, 3, 4, 5], start: "09:00", end: "17:00" },
+            server_now: "2026-11-27T16:59:50Z",
+            due_at: "2026-11-30T09:05:00Z",
+            remaining_working_seconds: 310,
+            window_closes_at: "2026-11-27T17:00:00Z",
+        });
+        const at = (iso: string) => Date.parse(iso);
+
+        assert.equal(slaView(closing, at("2026-11-27T16:59:55Z")).seconds, 305);
+        // Ten seconds after the close, only the ten seconds before it were working time.
+        assert.equal(slaView(closing, at("2026-11-27T17:00:10Z")).seconds, 300);
+        assert.equal(slaView(closing, at("2026-11-27T17:05:00Z")).seconds, 300);
+    });
+
     test("without working hours the countdown is the plain distance to the deadline", () => {
         assert.deepEqual(slaView(sla({ remaining_working_seconds: null }), NOW), { phase: "running", seconds: 300 });
     });

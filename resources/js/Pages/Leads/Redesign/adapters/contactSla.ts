@@ -29,6 +29,8 @@ export interface ContactSla {
     met_in_time: boolean | null;
     /** Working time left at `server_now` for a running clock with working hours, else null. */
     remaining_working_seconds?: number | null;
+    /** When the working period at `server_now` ends: the countdown does not run past it. */
+    window_closes_at?: string | null;
     server_now: string;
 }
 
@@ -98,7 +100,10 @@ function workingRemaining(sla: ContactSla, nowMs: number, wallRemaining: number)
     if (sla.paused || atServer === null || atServer === undefined || !Number.isFinite(serverNow)) {
         return wallRemaining;
     }
-    const elapsed = Math.max(0, Math.floor((nowMs - serverNow) / 1000));
+    // Closed time is not working time: stop deducting at the moment the window closes.
+    const closesAt = sla.window_closes_at ? Date.parse(sla.window_closes_at) : NaN;
+    const countedUntil = Number.isFinite(closesAt) ? Math.min(nowMs, closesAt) : nowMs;
+    const elapsed = Math.max(0, Math.floor((countedUntil - serverNow) / 1000));
     return Math.min(wallRemaining, Math.max(1, atServer - elapsed));
 }
 

@@ -154,4 +154,17 @@ class BusinessHoursTest extends TestCase
             ['timezone' => 'Europe/Berlin', 'days' => [1], 'start' => '09:00', 'end' => '09:00']
         );
     }
+
+    public function test_the_closing_time_of_the_period_that_contains_a_moment(): void
+    {
+        $w = self::WEEKDAYS;
+
+        $this->assertSame('Wed 2026-11-25 18:00:00', $this->show(BusinessHours::closingAt($this->berlin('2026-11-25 10:00'), $w)));
+        $this->assertSame('Wed 2026-11-25 18:00:00', $this->show(BusinessHours::closingAt($this->berlin('2026-11-25 09:00'), $w)));
+        // Closed: before opening, at closing, after it, at the weekend.
+        foreach (['2026-11-25 08:59', '2026-11-25 18:00', '2026-11-25 20:00', '2026-11-28 12:00'] as $closed) {
+            $this->assertNull(BusinessHours::closingAt($this->berlin($closed), $w), $closed);
+        }
+        $this->assertNull(BusinessHours::closingAt($this->berlin('2026-11-25 10:00'), null));
+    }
 }

@@ -109,6 +109,23 @@ class BusinessHours
     }
 
     /**
+     * When the working period containing $at ends, or null when the window is closed at $at (or there
+     * is no window: round the clock never closes).
+     *
+     * @param  array<string, mixed>|null  $window
+     */
+    public static function closingAt(DateTimeImmutable $at, ?array $window): ?DateTimeImmutable
+    {
+        if ($window === null || ! self::isOpen($at, $window)) {
+            return null;
+        }
+
+        $local = $at->setTimezone(new DateTimeZone($window['timezone']));
+
+        return self::dayBounds($local->setTime(0, 0), $window)[1];
+    }
+
+    /**
      * The start of the next working period at or after $from ($from itself when the window is open).
      *
      * @param  array<string, mixed>|null  $window

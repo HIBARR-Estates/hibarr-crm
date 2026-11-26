@@ -277,4 +277,23 @@ class LeadEntryIntakeServiceTest extends LeadEntryTestCase
         $this->assertSame(214, $entry->referral_user_id);
         $this->assertSame('0193a1c2-0000-7000-8000-0000000000aa', $entry->attribution_link_uuid);
     }
+
+    public function test_a_delivery_that_arrives_while_the_entry_is_being_routed_does_not_route_it_again(): void
+    {
+        $this->enableRouting();
+        $engine = Mockery::mock(DealAutomationService::class);
+        $engine->shouldReceive('processLead')->never();
+        $this->instance(DealAutomationService::class, $engine);
+
+        $entry = $this->intake()->store($this->leadId, $this->companyId, $this->entryPayload());
+        $lock = \Illuminate\Support\Facades\Cache::lock('lead_entry_routing:'.$entry->id, 60);
+        $this->assertTrue($lock->get());
+
+        // The first delivery is still running: this one stores nothing new and routes nothing.
+        $again = $this->intake()->receive($this->leadId, $this->companyId, $this->entryPayload());
+
+        $this->assertSame($entry->id, $again->id);
+        $this->assertNull($entry->fresh()->routed_at);
+        $lock->release();
+    }
 }

@@ -446,6 +446,8 @@ class LeadContactSlaServiceTest extends LeadEntryTestCase
         $present = $this->service->present($row, CarbonImmutable::parse('2026-11-23 16:56:00', 'Europe/Berlin'));
 
         $this->assertSame(540, $present['remaining_working_seconds']);
+        // Still inside the window at 16:56, which closes at 17:00 Berlin (16:00 UTC).
+        $this->assertSame('2026-11-23T16:00:00+00:00', CarbonImmutable::parse($present['window_closes_at'])->setTimezone('UTC')->toIso8601String());
         $this->assertNull($this->service->present($this->service->openForEntry($this->entry(['window' => null], '07')))['remaining_working_seconds']);
     }
 }

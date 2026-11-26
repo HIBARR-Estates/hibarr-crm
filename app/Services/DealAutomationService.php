@@ -214,7 +214,14 @@ class DealAutomationService
                 return;
             }
 
-            $this->executeActions($subject, $automation, null, null, $trigger);
+            try {
+                $this->executeActions($subject, $automation, null, null, $trigger);
+            } catch (\Throwable $e) {
+                // A run that failed must not suppress its own retry: release the claim before surfacing it.
+                Cache::forget($this->immediateRunKey($subject, $automation, $trigger));
+
+                throw $e;
+            }
 
             return;
         }
@@ -251,14 +258,18 @@ class DealAutomationService
      */
     protected function claimImmediateRun(Deal|Lead $subject, DealAutomation $automation, ?string $trigger): bool
     {
+        return Cache::add($this->immediateRunKey($subject, $automation, $trigger), true, now()->addSeconds(2));
+    }
+
+    protected function immediateRunKey(Deal|Lead $subject, DealAutomation $automation, ?string $trigger): string
+    {
         $subjectType = $subject instanceof Lead ? DealAutomation::SUBJECT_LEAD : DealAutomation::SUBJECT_DEAL;
         $triggerKey = $trigger ?? 'any';
         // An entry trigger fires once per entry: two different entries reaching one lead within the
         // window are two runs. A repeat of the same entry is still suppressed.
         $entryKey = $subject instanceof Lead ? (LeadEntryContext::triggeringEntryFor($subject)?->ol_entry_uuid ?? '') : '';
-        $key = "deal_automation_run_lock:{$automation->id}:{$subjectType}:{$subject->id}:{$triggerKey}:{$entryKey}";
 
-        return Cache::add($key, true, now()->addSeconds(2));
+        return "deal_automation_run_lock:{$automation->id}:{$subjectType}:{$subject->id}:{$triggerKey}:{$entryKey}";
     }
 
     /**
