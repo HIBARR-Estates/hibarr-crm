@@ -74,6 +74,11 @@ class BusinessHours
             return $to->getTimestamp() - $from->getTimestamp();
         }
 
+        // The walk covers MAX_DAYS; past that a total would silently be partial. Better to say so.
+        if ($to->getTimestamp() - $from->getTimestamp() > self::MAX_DAYS * 86400) {
+            throw new \LogicException('The interval is longer than the working hours can be counted over.');
+        }
+
         $total = 0;
         foreach (self::segmentsFrom($from, $window) as [$start, $end]) {
             if ($start >= $to) {

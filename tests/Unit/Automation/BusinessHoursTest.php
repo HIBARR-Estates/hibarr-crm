@@ -167,4 +167,15 @@ class BusinessHoursTest extends TestCase
         }
         $this->assertNull(BusinessHours::closingAt($this->berlin('2026-11-25 10:00'), null));
     }
+
+    public function test_an_interval_too_long_to_count_fails_loudly_instead_of_returning_a_partial_total(): void
+    {
+        $this->expectException(\LogicException::class);
+
+        BusinessHours::workingSecondsBetween(
+            $this->berlin('2026-11-25 10:00'),
+            $this->berlin('2026-11-25 10:00')->modify('+80000 days'),
+            self::WEEKDAYS
+        );
+    }
 }
