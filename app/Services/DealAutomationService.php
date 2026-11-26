@@ -800,6 +800,17 @@ class DealAutomationService
         $isAdjustment = $subject instanceof Deal && in_array($fieldName, self::DEAL_ADJUSTMENT_FIELDS, true);
 
         if ($isAdjustment) {
+            // saveQuietly() below skips DealObserver::updating, which is the
+            // guard that reverts value-affecting changes on a locked deal — so
+            // the lock has to be honoured here. The entry points already skip
+            // locked deals, but an earlier lock_deal action in this same run
+            // can lock the subject before this action executes.
+            if ($subject->isLocked()) {
+                $this->logAction($subject, $automation, "Skipped {$fieldName}: deal is locked", DealAutomationLog::STATUS_SKIPPED, 'field');
+
+                return;
+            }
+
             if ($subject->isCommissionLocked()) {
                 $this->logAction($subject, $automation, "Skipped {$fieldName}: commission is locked", DealAutomationLog::STATUS_SKIPPED, 'field');
 
