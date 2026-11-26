@@ -24,10 +24,12 @@ final class AppBuild
 
     /**
      * Id shared with browsers. Local/testing omit it so the banner never appears.
+     * Any other environment name (production, staging, dev, ...) gets it, since
+     * the file only exists in a built artifact.
      */
     public static function clientId(): ?string
     {
-        if (! app()->environment(['production', 'staging'])) {
+        if (app()->environment(['local', 'testing'])) {
             return null;
         }
 

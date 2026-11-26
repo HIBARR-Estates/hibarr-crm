@@ -103,10 +103,13 @@ COPY --from=assets /app/public/js ./public/js
 # www-data and would 403 js/main.js, which leaves the page preloader up.
 RUN chmod -R a+rX public/build public/css public/js
 
-# Release id for the stale-build banner (AppBuild reads this file). Declared
-# late so a new BUILD_ID only invalidates the layers below.
-ARG BUILD_ID=local
-RUN printf '{"id":"%s"}\n' "${BUILD_ID}" > public/build-version.json \
+# Release id for the stale-build banner (AppBuild reads this file, the browser
+# polls /build-version.json). The timestamp makes every build unique even when
+# the platform passes no build args; Coolify supplies SOURCE_COMMIT.
+ARG BUILD_ID=
+ARG SOURCE_COMMIT=
+RUN id="${BUILD_ID:-${SOURCE_COMMIT:-build}}" \
+    && printf '{"id":"%s-%s"}\n' "$(printf '%.12s' "$id")" "$(date -u +%Y%m%d%H%M%S)" > public/build-version.json \
     && chmod 644 public/build-version.json
 
 RUN composer dump-autoload --optimize --no-interaction --no-scripts \

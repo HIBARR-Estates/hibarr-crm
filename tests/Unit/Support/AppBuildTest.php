@@ -64,7 +64,7 @@ class AppBuildTest extends TestCase
         $this->assertNull(AppBuild::id());
     }
 
-    public function test_client_id_is_null_outside_production_and_staging(): void
+    public function test_client_id_is_null_in_local_and_testing(): void
     {
         $this->assertSame('testing', app()->environment());
         $this->assertNull(AppBuild::clientId());

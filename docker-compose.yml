@@ -14,7 +14,7 @@ services:
       context: .
       dockerfile: docker/Dockerfile
       args:
-        BUILD_ID: ${BUILD_ID:-local}
+        BUILD_ID: ${BUILD_ID:-}
     <<: *crm-image
     restart: unless-stopped
     ports:
