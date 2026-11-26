@@ -1,6 +1,11 @@
 pipeline {
     agent any
-    options { skipDefaultCheckout() }
+    options {
+        skipDefaultCheckout()
+        // One deploy per branch job at a time: overlapping runs would race on the deploy host's shared/.env and the
+        // live symlink switch. Per job, so main (production) and develop (staging) still run in parallel.
+        disableConcurrentBuilds()
+    }
 
     environment {
         ENV_NAME = "${BRANCH_NAME == 'main' || BRANCH_NAME == 'master' ? 'production' : 'staging'}"
@@ -177,7 +182,9 @@ pipeline {
                         echo "Step F4: Packaging build output..."
                         test -s public/mix-manifest.json
                         test -s public/js/inertia.js
-                        git ls-files -z --others --ignored --exclude-standard -- public > "${WORKSPACE}/.assets.list"
+                        # Everything the build produced under public/: ignored output (js, css, manifest) plus
+                        # tracked files it rewrote (e.g. public/js/bootstrap.js) and untracked non-ignored files.
+                        { git ls-files -z --others --ignored --exclude-standard -- public; git ls-files -z --modified --others --exclude-standard -- public; } | sort -zu > "${WORKSPACE}/.assets.list"
                         tar --null -czf "$ASSETS_TGZ" -T "${WORKSPACE}/.assets.list"
                         rm -f "${WORKSPACE}/.assets.list"
                         ls -lh "$ASSETS_TGZ"
