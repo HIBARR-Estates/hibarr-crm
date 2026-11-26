@@ -429,6 +429,7 @@ Built on branch `claude/vigilant-euler-39ffbu` in `hibarr-backend`, `hibarr-back
 - Lead merge moves entries to the kept lead; the lead's Marketing tab shows an Entry History section (deferred).
 - Flag `crm.lead-entry-routing` (needs `crm.automation-v2`). Entries are stored without it. `OL_DEFAULT_LEAD_OWNER_ID` (default 1) is what `overwrite_if_default_owner` treats as "nobody chose this lead".
 - Owner assignment decides on the locked lead row and only offers users of the lead's company (the intake is token-authenticated, so no request user narrows the query); pool and automation validators reject users of other companies.
+- Known trade-off: retrying routing re-runs the whole `lead_entry_received` run, including actions that completed before a later one threw (an email already sent is sent again). There is no per-action completion tracking yet; the alternative, never retrying, loses routing for an entry whose first run failed. Per-action idempotency keyed by entry uuid is the proper fix.
 - Known limit: a *waited* `lead_entry_received` automation coalesces entries of one lead into one pending run (the pending-run key is automation + lead), so two entries arriving during one wait run once. Immediate runs are per entry.
 - Not built: `weighted` / `least_open_leads`, `GET /internal/entry-campaigns` and the campaign/partner/attribution-link pickers (those condition values are free text), the erasure path for `lead_entries`, a concurrency test with parallel requests.
 
