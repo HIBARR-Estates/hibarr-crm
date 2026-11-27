@@ -118,6 +118,7 @@ class CrmEventService
         $eventData = app(EmployeeImpersonationService::class)->attributeEvent($eventData);
 
         $this->stampLeadFirstContact($eventData, $params['event_type_slug']);
+        $this->registerSlaContact($eventData, $params['event_type_slug']);
 
         // Dispatch async or insert sync
         if (!$forceSync && $eventType->isAsync()) {
@@ -208,6 +209,40 @@ class CrmEventService
                 'triggered_by_event' => $slug,
             ],
         ], forceSync: true);
+    }
+
+    /**
+     * Ends the first-contact clocks of a lead when an outbound call, email or WhatsApp message is
+     * recorded against it. Like stampLeadFirstContact(), this lives here so every event passes
+     * through one place. A failure is logged and never blocks the event.
+     */
+    private function registerSlaContact(array $eventData, string $slug): void
+    {
+        try {
+            $sla = app(LeadContactSlaService::class);
+            $method = $sla->contactMethodOf($slug, $eventData);
+            if ($method === null || ! LeadContactSlaService::enabled()) {
+                return;
+            }
+
+            $leadId = $this->resolveLeadId($eventData['model_type'] ?? null, $eventData['model_id'] ?? null);
+            if (! $leadId) {
+                return;
+            }
+
+            $at = $eventData['occurred_at'] ?? now();
+            $sla->registerContact(
+                $leadId,
+                $method,
+                isset($eventData['user_id']) ? (int) $eventData['user_id'] : null,
+                \Carbon\CarbonImmutable::parse($at)
+            );
+        } catch (\Throwable $e) {
+            Log::error('CrmEventService: failed to update the contact SLA', [
+                'slug' => $slug,
+                'message' => $e->getMessage(),
+            ]);
+        }
     }
 
     /**

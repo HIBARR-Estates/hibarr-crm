@@ -25,6 +25,8 @@ use App\Services\DealAutomationService;
 use App\Services\LeadApiChangeRecorder;
 use App\Services\LeadApiFieldMerger;
 use App\Services\LeadCoreFieldsService;
+use App\Services\LeadEntryIntakeService;
+use App\Services\LeadFieldWriter;
 use App\Services\LeadLifecycleStatusService;
 use App\Services\LeadUtmService;
 use Illuminate\Http\Request;
@@ -276,8 +278,10 @@ class DealContactApiController extends Controller
             // Process synchronously in the web request so assignment uses current app code.
             // Async queue workers can run stale code until restarted, which skipped
             // lead owner and participant assignment even after service fixes.
+            $dealJobSucceeded = false;
             try {
                 ProcessDealRequestJob::dispatchSync((int) $contactId, $companyId, $request->all());
+                $dealJobSucceeded = true;
             } finally {
                 // After the deal job too: it may fill lead_owner (quietly, on new and
                 // existing leads), and the mirror event then also lands on the deal
@@ -285,8 +289,17 @@ class DealContactApiController extends Controller
                 $changeRecorder->recordUpdated((int) $contactId, $before, LeadApiChangeRecorder::CHANNEL_DEAL_CREATE);
                 // After marketing + the deal job, even if the job failed — the
                 // lead row already exists and a retry may look like an update.
-                if ($shouldFireLeadTrigger) {
-                    $this->fireLeadApiTrigger((int) $contactId, $leadWasCreated);
+                try {
+                    if ($shouldFireLeadTrigger) {
+                        $this->fireLeadApiTrigger((int) $contactId, $leadWasCreated);
+                    }
+                } finally {
+                    // Last, so lead_*_api automations see the state they always did. Even when the
+                    // deal job failed, or one of those automations threw: the lead exists and did come
+                    // in through this channel, so the entry and its clock are recorded. Routing waits for
+                    // the deal job though: it fills lead_owner and the deal the routing rules act on, and
+                    // the caller's retry of this request (same entry uuid) runs it once the job succeeds.
+                    $this->receiveLeadEntry($request, (int) $contactId, $companyId, $dealJobSucceeded);
                 }
             }
 
@@ -540,11 +553,13 @@ class DealContactApiController extends Controller
 
                     $this->applyAddressAndDobToLead($contact, $request);
                     $this->applyLeadOptionalFields($contact, $request);
+                    $this->applyLeadFields($contact, $request);
                     $this->applyReferralAgentToLead($contact, $request);
                     $this->saveContact($contact, $request, $notify);
                     $this->applyLeadCategories($contact, $request);
                     $this->applyLeadCustomFields($contact, $request);
                     $contactId = $contact->id;
+                    $this->logSkippedLeadFields($contactId);
                     $shouldFireLeadTrigger = true;
                 } else {
                     // Existing contact: fill what is empty, never overwrite (see fillExistingContactBasics)
@@ -565,11 +580,15 @@ class DealContactApiController extends Controller
                     if ($this->applyLeadOptionalFields($existingContact, $request)) {
                         $updated = true;
                     }
+                    if ($this->applyLeadFields($existingContact, $request)) {
+                        $updated = true;
+                    }
                     if ($updated) {
                         $this->saveContact($existingContact, $request, $notify);
                     }
                     $customFieldsChanged = $this->applyLeadCustomFields($existingContact, $request);
                     $contactId = $existingContact->id;
+                    $this->logSkippedLeadFields($contactId);
                     // A custom-field-only change (no core field touched) still
                     // counts as an update — otherwise lead_updated_api would
                     // never fire for it at all. Marketing-only writes do not.
@@ -589,8 +608,15 @@ class DealContactApiController extends Controller
                     $updatedFields = $changeRecorder->recordUpdated((int) $contactId, $before, LeadApiChangeRecorder::CHANNEL_CONTACT_CREATE);
                 }
 
-                if ($shouldFireLeadTrigger) {
-                    $this->fireLeadApiTrigger((int) $contactId, $isNewContact);
+                try {
+                    if ($shouldFireLeadTrigger) {
+                        $this->fireLeadApiTrigger((int) $contactId, $isNewContact);
+                    }
+                } finally {
+                    // An entry counts even when nothing on the lead changed: a returning lead coming
+                    // back through a new channel is exactly what routing has to see. And even when a
+                    // lead_*_api automation threw: the lead did come in through this channel.
+                    $this->receiveLeadEntry($request, (int) $contactId, $companyId);
                 }
 
                 $savedContact = Lead::query()->find($contactId);
@@ -603,6 +629,7 @@ class DealContactApiController extends Controller
                     'referred_by_agent_id' => $savedContact?->referred_by_agent_id,
                     'preferred_contact_times' => $preferredContactTimes,
                     'preferred_contact_time' => $preferredContactTimes[0] ?? null,
+                    'skipped_lead_fields' => $this->skippedLeadFields,
                 ]);
             }));
         } catch (\Exception $e) {
@@ -815,6 +842,20 @@ class DealContactApiController extends Controller
     }
 
     /**
+     * Stores the `entry` block OL sent with this request (the channel the lead came in through) and
+     * runs the automations it triggers. Never throws, and does nothing without an `entry`.
+     */
+    private function receiveLeadEntry(Request $request, int $leadId, int $companyId, bool $route = true): void
+    {
+        $entry = $request->input('entry');
+        if (! is_array($entry)) {
+            return;
+        }
+
+        app(LeadEntryIntakeService::class)->receive($leadId, $companyId, $entry, $route);
+    }
+
+    /**
      * Notify the assigned owner when a new lead is created via the API.
      */
     private function notifyLeadOwnerOnCreate(Lead $contact): void
@@ -944,6 +985,47 @@ class DealContactApiController extends Controller
         }
 
         return $updated;
+    }
+
+    /** Fields from `lead_fields` the last request could not write, key => reason. */
+    private array $skippedLeadFields = [];
+
+    /**
+     * Write `lead_fields` (native lead columns chosen in the backoffice) onto the lead, validated
+     * against the live LeadFieldCatalog. Anything the catalog no longer offers, or a value of the
+     * wrong type, is skipped and logged rather than failing the contact request.
+     *
+     * @return bool True when a field was set on the in-memory lead (caller saves).
+     */
+    private function applyLeadFields(Lead $lead, Request $request): bool
+    {
+        $this->skippedLeadFields = [];
+        $input = $request->input('lead_fields');
+        if (! is_array($input) || $input === []) {
+            return false;
+        }
+
+        $result = app(LeadFieldWriter::class)->apply($lead, $input);
+        $this->skippedLeadFields = $result['skipped'];
+
+        return $result['changed'];
+    }
+
+    /**
+     * Log what applyLeadFields() skipped. Called once the lead is saved: for a
+     * newly created contact applyLeadFields() runs before the insert, so the
+     * lead has no id yet and a warning logged there couldn't be correlated.
+     */
+    private function logSkippedLeadFields(int|string|null $leadId): void
+    {
+        if ($this->skippedLeadFields === []) {
+            return;
+        }
+
+        Log::warning('DealContactApi: lead_fields skipped', [
+            'lead_id' => $leadId,
+            'skipped' => $this->skippedLeadFields,
+        ]);
     }
 
     /**

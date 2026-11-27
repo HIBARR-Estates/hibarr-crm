@@ -8,7 +8,9 @@ use App\Models\Deal;
 use App\Models\Lead;
 use App\Models\User;
 use App\Support\CallAccess;
+use App\Services\CallBridge\InboundCallRotation;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\QueryException;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -52,6 +54,9 @@ class CallLogService
     /** Ranks counted as "missed" on the summary tiles. */
     private const MISSED_RANKS = [2, 3, 4, 5];
 
+    /** @var array<int, int> company id => ring window in seconds, per request */
+    private array $ringWindowSeconds = [];
+
     /**
      * One row per call: every agent's leg of the same call is folded into
      * one entry that says who it rang, who answered and how it ended.
@@ -81,7 +86,7 @@ class CallLogService
         $calls
             ->selectRaw('crm_events.call_key as call_key, MIN(crm_events.occurred_at) as started_at, MAX(crm_events.id) as last_id')
             ->groupBy('crm_events.call_key');
-        $this->applyCallFilters($calls, $rank, $filters);
+        $this->applyCallFilters($calls, $rank, $filters, $companyId);
 
         $paginator = $calls
             ->orderByDesc('started_at')
@@ -145,11 +150,14 @@ class CallLogService
                 "{$key} as call_key, MIN({$rank}) as outcome_rank, "
                 ."MAX(CASE WHEN crm_events.event_type_id = {$endedId} THEN CAST({$duration} AS {$int}) ELSE 0 END) as duration, "
                 ."MAX(CASE WHEN {$recordingId} IS NOT NULL THEN 1 ELSE 0 END) as has_recording, "
+                ."MAX(CASE WHEN crm_events.direction = 'inbound' THEN 1 ELSE 0 END) as is_inbound, "
                 .'MAX(crm_events.model_id) as model_id, MAX(crm_events.occurred_at) as last_at'
             )
             ->groupBy('crm_events.call_key');
 
         $missed = implode(',', self::MISSED_RANKS);
+        $startedRank = self::OUTCOME_RANK['call_started'];
+        $staleCutoff = $this->staleInboundCutoff($companyId);
         $totals = DB::connection($query->getQuery()->getConnection()->getName())
             ->query()
             ->fromSub($perCall, 'calls')
@@ -157,10 +165,11 @@ class CallLogService
                 'COUNT(*) as total, '
                 .'SUM(CASE WHEN outcome_rank = 1 THEN 1 ELSE 0 END) as connected, '
                 .'SUM(CASE WHEN outcome_rank = 1 THEN duration ELSE 0 END) as connected_seconds, '
-                ."SUM(CASE WHEN outcome_rank IN ({$missed}) THEN 1 ELSE 0 END) as missed, "
+                ."SUM(CASE WHEN outcome_rank IN ({$missed}) OR (outcome_rank = {$startedRank} AND is_inbound = 1 AND last_at <= ?) THEN 1 ELSE 0 END) as missed, "
                 .'SUM(has_recording) as with_recording, '
                 .'SUM(CASE WHEN model_id IS NULL THEN 1 ELSE 0 END) as unlinked, '
-                .'MAX(last_at) as last_at'
+                .'MAX(last_at) as last_at',
+                [$staleCutoff],
             )
             ->first();
 
@@ -175,6 +184,43 @@ class CallLogService
             'unlinked' => (int) ($totals->unlinked ?? 0),
             'last_at' => $lastAt !== null ? \Illuminate\Support\Carbon::parse($lastAt)->toIso8601String() : null,
         ];
+    }
+
+    /**
+     * Before this moment an unanswered inbound call that only has
+     * `call_started` can no longer be ringing anyone, so it reads as missed.
+     */
+    private function staleInboundCutoff(int $companyId): string
+    {
+        return now()->subSeconds($this->ringWindowSeconds($companyId))->format('Y-m-d H:i:s');
+    }
+
+    /**
+     * How long an inbound call can ring for this company, from its slot
+     * length and the size of its ring roster (see InboundCallRotation).
+     */
+    private function ringWindowSeconds(int $companyId): int
+    {
+        if (isset($this->ringWindowSeconds[$companyId])) {
+            return $this->ringWindowSeconds[$companyId];
+        }
+
+        $slotSeconds = InboundCallRotation::DEFAULT_SLOT_SECONDS;
+        $rosterSize = 0;
+        try {
+            $slotSeconds = (int) (DB::table('companies')->where('id', $companyId)->value('incoming_call_fallback_seconds')
+                ?? InboundCallRotation::DEFAULT_SLOT_SECONDS);
+            $rosterSize = (int) DB::table('softphone_call_agents')
+                ->where('company_id', $companyId)
+                ->where('active', true)
+                ->distinct()
+                ->count('user_id');
+        } catch (QueryException) {
+            // Without routing tables (a company not on the softphone) the
+            // defaults still give a safe, bounded window.
+        }
+
+        return $this->ringWindowSeconds[$companyId] = InboundCallRotation::maxRingSeconds($slotSeconds, $rosterSize);
     }
 
     /** @param  Collection<string, int>  $types */
@@ -304,10 +350,25 @@ class CallLogService
      *
      * @param  array<string, mixed>  $filters
      */
-    private function applyCallFilters(\Illuminate\Database\Query\Builder $calls, string $rank, array $filters): void
+    private function applyCallFilters(\Illuminate\Database\Query\Builder $calls, string $rank, array $filters, int $companyId): void
     {
         if (! empty($filters['outcome'])) {
-            $calls->havingRaw("MIN({$rank}) = ?", [self::OUTCOME_RANK['call_'.$filters['outcome']] ?? 0]);
+            $staleCutoff = $this->staleInboundCutoff($companyId);
+            $startedRank = self::OUTCOME_RANK['call_started'];
+
+            if ($filters['outcome'] === 'missed') {
+                $calls->havingRaw(
+                    "(MIN({$rank}) = ? OR (MIN({$rank}) = ? AND MAX(CASE WHEN crm_events.direction = 'inbound' THEN 1 ELSE 0 END) = 1 AND MAX(crm_events.occurred_at) <= ?))",
+                    [self::OUTCOME_RANK['call_missed'], $startedRank, $staleCutoff],
+                );
+            } elseif ($filters['outcome'] === 'started') {
+                $calls->havingRaw(
+                    "(MIN({$rank}) = ? AND NOT (MAX(CASE WHEN crm_events.direction = 'inbound' THEN 1 ELSE 0 END) = 1 AND MAX(crm_events.occurred_at) <= ?))",
+                    [$startedRank, $staleCutoff],
+                );
+            } else {
+                $calls->havingRaw("MIN({$rank}) = ?", [self::OUTCOME_RANK['call_'.$filters['outcome']] ?? 0]);
+            }
         }
         if (! empty($filters['user_id'])) {
             $calls->havingRaw('SUM(CASE WHEN crm_events.user_id = ? THEN 1 ELSE 0 END) > 0', [(int) $filters['user_id']]);
@@ -401,6 +462,21 @@ class CallLogService
             return $leg;
         }, $legs));
 
+        $first = $events->first();
+        $last = $events->last();
+
+        // An inbound call whose only recorded event is `call_started` and whose
+        // longest possible ring (see ringWindowSeconds) has passed was never
+        // answered — surface it as `missed` so dropped-tab rings read as missed.
+        if (
+            $row['outcome'] === 'started'
+            && $row['direction'] === 'inbound'
+            && $last->occurred_at !== null
+            && $last->occurred_at->lte(now()->subSeconds($this->ringWindowSeconds((int) $first->company_id)))
+        ) {
+            $row['outcome'] = 'missed';
+        }
+
         // call_started only means it rang or was dialled; a call is answered
         // when one of its legs ended as connected (see OUTCOME_RANK).
         $answered = $row['outcome'] === 'ended';
@@ -416,8 +492,6 @@ class CallLogService
             $row['user_name'] = count($legs) === 1 ? $legs[0]['user_name'] : null;
         }
 
-        $first = $events->first();
-        $last = $events->last();
         $row['occurred_at'] = $first->occurred_at?->toIso8601String();
 
         return $row + [

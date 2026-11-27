@@ -286,7 +286,9 @@ class LeadSummaryService
                 'label' => 'Source',
                 'value' => (string) $source,
                 'tone' => 'neutral',
-                'sublabel' => $leadData['category'] ?? 'How this lead arrived',
+                'sublabel' => ! empty($leadData['categories'])
+                    ? implode(', ', $leadData['categories'])
+                    : ($leadData['category'] ?? 'How this lead arrived'),
             ];
         }
 

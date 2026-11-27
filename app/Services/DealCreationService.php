@@ -371,6 +371,9 @@ class DealCreationService
                         $previousLeadOwner = $lead->lead_owner;
                         $lead->lead_owner = $dealOwnerId;
                         $lead->saveQuietly();
+                        // A quiet save skips the observer's owner hook: start a contact clock waiting for an owner.
+                        $sla = app(\App\Services\LeadContactSlaService::class);
+                        $sla->safely(fn () => $sla->ownerAssigned($lead));
                         Log::info('DealCreationService: Lead owner set', [
                             'contact_id' => $contactId,
                             'company_id' => $companyId,

@@ -97,6 +97,13 @@ class LeadApiChangeRecorder
             $state[$attribute] = $this->normalize($lead->getAttribute($attribute));
         }
 
+        // Lead fields the backoffice mapped (lead_fields) that are not in the fixed list above.
+        foreach (app(LeadFieldCatalog::class)->all() as $field) {
+            if (! array_key_exists($field['key'], self::ATTRIBUTES)) {
+                $state['lead_field:'.$field['key']] = $this->normalize($lead->getAttribute($field['key']));
+            }
+        }
+
         $state['categories'] = $lead->categories()->pluck('lead_category.id')
             ->map(fn ($id) => (int) $id)->sort()->values()->all();
 
@@ -289,6 +296,9 @@ class LeadApiChangeRecorder
         }
         if (str_starts_with($key, 'custom:')) {
             return $customFieldLabels[$key] ?? $key;
+        }
+        if (str_starts_with($key, 'lead_field:')) {
+            return app(LeadFieldCatalog::class)->find(substr($key, 11))['label'] ?? $key;
         }
         if (str_starts_with($key, 'marketing:')) {
             return self::MARKETING_ATTRIBUTES[substr($key, 10)] ?? $key;

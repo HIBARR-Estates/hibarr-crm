@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Deal;
 use App\Models\Lead;
+use App\Models\LeadUtmTouch;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
@@ -58,6 +59,9 @@ class FieldResolverService
      * conditions/merge tags, addressed as `lead_marketing_{column}`. Keys must
      * match AutomationFieldCatalog::LEAD_MARKETING_FIELDS.
      */
+    /** Key prefix for a UTM column matched across every touch, not just the first. */
+    public const LEAD_UTM_ANY_PREFIX = 'lead_utm_any_';
+
     protected const LEAD_MARKETING_FIELDS = [
         'utm_source',
         'utm_medium',
@@ -118,6 +122,12 @@ class FieldResolverService
             return $this->resolveLeadMarketingFor($deal->contact, Str::after($field, 'lead_marketing_'));
         }
 
+        // 4b. Multi-touch UTM (format: lead_utm_any_{utm column}) — every value
+        // across the first touch and later touches.
+        if (Str::startsWith($field, self::LEAD_UTM_ANY_PREFIX)) {
+            return $this->resolveLeadUtmHistoryFor($deal->contact, Str::after($field, self::LEAD_UTM_ANY_PREFIX));
+        }
+
         // 5. Lead (contact) custom fields (format: lead_custom_field_{id})
         if (Str::startsWith($field, 'lead_custom_field_')) {
             return $this->resolveLeadCustomField($deal, $field);
@@ -151,6 +161,7 @@ class FieldResolverService
             if (Str::startsWith($field, 'lead_custom_field_')
                 || Str::startsWith($field, 'custom_field_')
                 || Str::startsWith($field, 'lead_marketing_')
+                || Str::startsWith($field, self::LEAD_UTM_ANY_PREFIX)
                 || Str::startsWith($field, 'followup_')
                 || Str::startsWith($field, 'last_followup_')) {
                 return null;
@@ -166,6 +177,7 @@ class FieldResolverService
             || Str::startsWith($field, 'followup_')
             || Str::startsWith($field, 'last_followup_')
             || Str::startsWith($field, 'lead_marketing_')
+            || Str::startsWith($field, self::LEAD_UTM_ANY_PREFIX)
             || Str::startsWith($field, 'lead_custom_field_')
             || Str::startsWith($field, 'lead_field_')) {
             return null;
@@ -192,6 +204,16 @@ class FieldResolverService
 
         if (Str::startsWith($field, 'lead_marketing_')) {
             return $this->resolveLeadMarketingFor($lead, Str::after($field, 'lead_marketing_'));
+        }
+
+        // entry_* / first_entry_*: the channel the lead came in through (not a Lead column).
+        $entryFields = app(LeadEntryFieldResolver::class);
+        if ($entryFields->handles($field)) {
+            return $entryFields->resolve($lead, $field);
+        }
+
+        if (Str::startsWith($field, self::LEAD_UTM_ANY_PREFIX)) {
+            return $this->resolveLeadUtmHistoryFor($lead, Str::after($field, self::LEAD_UTM_ANY_PREFIX));
         }
 
         $column = Str::startsWith($field, 'lead_field_') ? Str::after($field, 'lead_field_') : $field;
@@ -241,6 +263,32 @@ class FieldResolverService
         $marketing = $lead->marketing;
 
         return $marketing ? $this->rawAttribute($marketing, $column) : null;
+    }
+
+    /**
+     * Every distinct value of one UTM column across the lead's first touch
+     * (lead_marketing) and all later touches (lead_utm_touches) — the same
+     * "any touch" scope the lead list's UTM filter uses. Returned as a list so
+     * `=`/`contains` match if any touch matches and `exists` is false when no
+     * touch ever carried the column.
+     *
+     * @return array<int, string>
+     */
+    protected function resolveLeadUtmHistoryFor(?Lead $lead, string $column): array
+    {
+        if (! $lead || ! in_array($column, LeadUtmTouch::UTM_FIELDS, true)) {
+            return [];
+        }
+
+        $values = collect([$lead->marketing?->getAttributes()[$column] ?? null])
+            ->merge($lead->utmTouches()->pluck($column));
+
+        return $values
+            ->filter(fn ($v) => $v !== null && $v !== '')
+            ->map(fn ($v) => (string) $v)
+            ->unique()
+            ->values()
+            ->all();
     }
 
     protected function resolveLeadCustomFieldFor(Lead $lead, string $customFieldId)

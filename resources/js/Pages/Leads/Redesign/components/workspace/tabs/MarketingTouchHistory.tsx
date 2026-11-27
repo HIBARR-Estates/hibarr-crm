@@ -53,22 +53,28 @@ function TouchHistoryList() {
                             <span className="v2-mkt-touch-date">
                                 {formatCompanyDateTime(touch.created_at)}
                             </span>
-                            {touch.is_first_touch && (
-                                <span className="v2-pill v2-pill-blue">
-                                    {t("pages.leads.marketing.touch_first")}
-                                </span>
-                            )}
-                            {index === 0 && !touch.is_first_touch && (
-                                <span className="v2-pill v2-pill-green">
-                                    {t("pages.leads.marketing.touch_latest")}
-                                </span>
-                            )}
-                            {origin && (
-                                <span className="v2-pill v2-pill-gray">
-                                    {t("pages.leads.marketing.touch_origin")}:{" "}
-                                    {origin}
-                                </span>
-                            )}
+                            <div className="v2-mkt-touch-badges">
+                                {touch.is_first_touch && (
+                                    <span className="v2-pill v2-pill-blue">
+                                        {t("pages.leads.marketing.touch_first")}
+                                    </span>
+                                )}
+                                {index === 0 && !touch.is_first_touch && (
+                                    <span className="v2-pill v2-pill-green">
+                                        {t(
+                                            "pages.leads.marketing.touch_latest",
+                                        )}
+                                    </span>
+                                )}
+                                {origin && (
+                                    <span className="v2-pill v2-pill-gray">
+                                        {t(
+                                            "pages.leads.marketing.touch_origin",
+                                        )}
+                                        : {origin}
+                                    </span>
+                                )}
+                            </div>
                         </div>
                         <dl className="v2-mkt-touch-values">
                             {values.map(([field, labelKey]) => (

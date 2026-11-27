@@ -1,4 +1,5 @@
 import { AutomationCatalog, ConditionOperator, CustomFieldOption, SubjectType } from "../types";
+import { entryFieldKind, entryFieldValueOptions, isEntryField } from "./entryFields";
 
 /** Mirrors condition-row.blade.php's operator <select> exactly. "changed"
  * evaluates true when the field changed on the same save that fired this
@@ -36,6 +37,14 @@ export const DEAL_SETTABLE_FIELDS: Record<string, string> = {
     deposit_confirmation: "Deposit Confirmation",
     reservation_agreement: "Reservation Agreement",
     sales_contract: "Sales Contract",
+    // Manual value adjustments (deals.discount_*, deduction_*). Not editable
+    // anywhere else outside the deal value modal; setting one here recomputes
+    // the deal's value server-side (DealAutomationService::performSetFieldValue).
+    // One field for the whole discount, as on the value card: the value is
+    // "10%" (percent) or "500" (fixed) — see parseDiscountValue().
+    discount_value: "Discount Value",
+    deduction_amount: "Deduction Amount",
+    deduction_note: "Deduction Note",
 };
 
 const DEAL_BOOLEAN_FIELDS = new Set([
@@ -69,6 +78,21 @@ export function fieldValueOptions(fieldName: string | null): { value: string; la
         ];
     }
     return null;
+}
+
+/** Deal value-card adjustments with a dedicated amount input. */
+export const DEAL_ADJUSTMENT_AMOUNT_FIELDS = ["discount_value", "deduction_amount"] as const;
+
+/** A discount action value is "10%" for a percentage or "500" for a fixed
+ * amount — mirrored by DealAutomationService::performSetFieldValue(). */
+export function parseDiscountValue(value: string | null | undefined): { mode: "percent" | "fixed"; amount: string } {
+    const raw = (value ?? "").trim();
+    if (raw.endsWith("%")) return { mode: "percent", amount: raw.slice(0, -1).trim() };
+    return { mode: "fixed", amount: raw };
+}
+
+export function formatDiscountValue(mode: "percent" | "fixed", amount: string): string {
+    return mode === "percent" ? `${amount}%` : amount;
 }
 
 /** Fixed brackets — App\Enums\AgeRange's exact backing values. */
@@ -109,6 +133,41 @@ function customFieldValueOptions(field: CustomFieldOption | undefined): { value:
     return values.map((v) => ({ value: String(v), label: String(v) }));
 }
 
+export type UtmTouchMode = "first" | "any";
+
+const UTM_ANY_PREFIX = "lead_utm_any_";
+const UTM_FIRST_PREFIX = "lead_marketing_";
+
+/** UTM column → form-data endpoint that lists its distinct recorded values
+ * (first + later touches — the same list the lead filter uses). */
+export const UTM_FORM_DATA_TYPES = {
+    utm_source: "lead-utm-sources",
+    utm_medium: "lead-utm-mediums",
+    utm_campaign: "lead-utm-campaigns",
+    utm_content: "lead-utm-contents",
+    utm_term: "lead-utm-terms",
+    utm_audience: "lead-utm-audiences",
+} as const;
+
+export type UtmColumn = keyof typeof UTM_FORM_DATA_TYPES;
+
+/** Splits a condition field key into its UTM column and touch mode, or null
+ * when it isn't a UTM field. `lead_marketing_utm_*` is the first touch;
+ * `lead_utm_any_utm_*` matches any touch (FieldResolverService). */
+export function parseUtmField(fieldKey: string | null | undefined): { column: UtmColumn; mode: UtmTouchMode } | null {
+    if (!fieldKey) return null;
+    const read = (prefix: string, mode: UtmTouchMode) => {
+        if (!fieldKey.startsWith(prefix)) return null;
+        const column = fieldKey.slice(prefix.length);
+        return column in UTM_FORM_DATA_TYPES ? { column: column as UtmColumn, mode } : null;
+    };
+    return read(UTM_FIRST_PREFIX, "first") ?? read(UTM_ANY_PREFIX, "any");
+}
+
+export function utmFieldKey(column: UtmColumn, mode: UtmTouchMode): string {
+    return `${mode === "any" ? UTM_ANY_PREFIX : UTM_FIRST_PREFIX}${column}`;
+}
+
 /** Fixed option list for a condition's Value input, when the selected field
  * has a known finite set of values — a select-typed field (see
  * fieldValueType()) always resolves here or falls back to free text.
@@ -116,6 +175,8 @@ function customFieldValueOptions(field: CustomFieldOption | undefined): { value:
  * pipeline scope, supplied separately at the call site. */
 export function conditionValueOptions(fieldKey: string | null | undefined, catalog: AutomationCatalog | null): { value: string; label: string }[] | null {
     if (!fieldKey || !catalog) return null;
+
+    if (isEntryField(fieldKey, catalog)) return entryFieldValueOptions(fieldKey, catalog);
 
     if (fieldKey.startsWith("lead_marketing_")) {
         const column = fieldKey.slice("lead_marketing_".length);
@@ -213,6 +274,14 @@ export function conditionFieldGroups(subjectType: SubjectType, catalog: Automati
         })),
     });
 
+    // Entry conditions only exist for lead automations (a deal has no single entry).
+    if (subjectType === "lead") {
+        groups.push({
+            label: "Entry Channel",
+            options: Object.entries(catalog.entryFields ?? {}).map(([key, label]) => ({ value: key, label })),
+        });
+    }
+
     return groups.filter((g) => g.options.length > 0);
 }
 
@@ -281,7 +350,7 @@ export function mergeTagGroups(subjectType: SubjectType, catalog: AutomationCata
  * numeric-coerces both sides for `=`/`>`/`<` when the value looks numeric —
  * this is purely about not offering a nonsensical operator in the UI.
  */
-export type FieldValueType = "number" | "date" | "select" | "string" | "file" | "unknown";
+export type FieldValueType = "number" | "date" | "select" | "string" | "file" | "membership" | "unknown";
 
 const NATIVE_FIELD_TYPES: Record<string, FieldValueType> = {
     // DEAL_NATIVE_FIELDS
@@ -383,6 +452,8 @@ const CUSTOM_FIELD_TYPE_CATEGORY: Record<string, FieldValueType> = {
 export function fieldValueType(fieldKey: string | null | undefined, catalog: AutomationCatalog | null): FieldValueType {
     if (!fieldKey || !catalog) return "unknown";
 
+    if (isEntryField(fieldKey, catalog)) return entryFieldKind(fieldKey);
+
     if (fieldKey.startsWith("custom_field_")) {
         const id = Number(fieldKey.slice("custom_field_".length));
         const field = catalog.dealCustomFields.find((f) => f.id === id);
@@ -394,6 +465,8 @@ export function fieldValueType(fieldKey: string | null | undefined, catalog: Aut
         const field = catalog.leadCustomFields.find((f) => f.id === id);
         return (field && CUSTOM_FIELD_TYPE_CATEGORY[field.type]) || "unknown";
     }
+
+    if (fieldKey.startsWith(UTM_ANY_PREFIX)) return "string";
 
     if (fieldKey.startsWith("lead_marketing_")) {
         const column = fieldKey.slice("lead_marketing_".length);
@@ -414,6 +487,8 @@ const OPERATORS_BY_TYPE: Record<FieldValueType, ConditionOperator[]> = {
     select: ["=", "exists", "changed"],
     string: ["=", "contains", "exists", "changed"],
     file: ["exists", "changed"],
+    // Lists (a channel and its ancestors, tags): "contains" is the only comparison that means anything.
+    membership: ["contains", "exists"],
     unknown: ["=", ">", "<", "contains", "exists", "changed"],
 };
 

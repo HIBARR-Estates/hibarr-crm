@@ -302,6 +302,8 @@ class LeadContactController extends AccountBaseController
      */
     public const AGENT_CONTACT_UNUSED_PROPS = [
         'utmTouches',
+        'leadEntries',
+        'contactSla',
         'callSummary',
         'dealFileFields',
         'taskLabels',
@@ -562,6 +564,25 @@ class LeadContactController extends AccountBaseController
                 fn () => $leadContact->utmTouches()->reorder('id', 'desc')->get(),
                 'marketing'
             ),
+            // The contact clock the lead page's timer starts from (the page then polls the JSON route).
+            'contactSla' => Inertia::defer(
+                fn () => app(\App\Services\LeadContactSlaService::class)->currentFor((int) $leadContact->id),
+                'marketing'
+            ),
+            // Every way this lead came in (newest first), for the Marketing tab's entry history.
+            'leadEntries' => Inertia::defer(
+                fn () => \App\Models\LeadEntry::query()
+                    ->where('lead_id', $leadContact->id)
+                    ->orderByDesc('occurred_at')
+                    ->orderByDesc('id')
+                    ->limit(50)
+                    ->with('contactSla')
+                    ->get([
+                        'id', 'channel_name', 'channel_type', 'channel_path', 'source_entity_type', 'source_label',
+                        'is_new_lead', 'occurred_at', 'campaign_label', 'campaign_key', 'utm_source', 'utm_medium', 'form_key',
+                    ]),
+                'marketing'
+            ),
             // Calls tab: count for the tab bar only; the tab loads its rows from
             // lead-contact.calls.index when opened. Null when calls are off.
             'callSummary' => Inertia::defer(function () use ($leadContact) {
@@ -677,7 +698,7 @@ class LeadContactController extends AccountBaseController
             'taskLabels' => Inertia::defer(fn () => \App\Models\TaskLabelList::all(), 'taskMeta'),
             'taskBoardColumns' => Inertia::defer(fn () => \App\Models\TaskboardColumn::orderBy('priority')->get(), 'taskMeta'),
             'projects' => Inertia::defer(fn () => \App\Models\Project::all(), 'taskMeta'),
-            'leadPipelines' => Inertia::defer(fn () => LeadPipeline::orderBy('default', 'DESC')->get(), 'dealMeta'),
+            'leadPipelines' => Inertia::defer(fn () => LeadPipeline::visibleInSystem()->orderBy('default', 'DESC')->get(), 'dealMeta'),
             'leadStages' => Inertia::defer(fn () => PipelineStage::all(), 'dealMeta'),
             'stages' => Inertia::defer(fn () => PipelineStage::all(), 'dealMeta'),
             'leadAgents' => Inertia::defer(fn () => LeadAgent::with('user')->whereHas('user', function ($q) {
@@ -757,7 +778,7 @@ class LeadContactController extends AccountBaseController
         }
 
         $tab = request('tab');
-        $this->pipelines = LeadPipeline::all();
+        $this->pipelines = LeadPipeline::visibleInSystem()->get();
 
         $defaultPipeline = $this->pipelines->filter(function ($value, $key) {
             return $value->default == 1;
@@ -2387,6 +2408,25 @@ class LeadContactController extends AccountBaseController
         }
 
         return response()->download($sampleFilePath, 'lead-contact-sample.xlsx');
+    }
+
+    /**
+     * The first-contact clock to show on the lead (JSON): the one due first, else the latest ended.
+     * Polled by the lead page's timer so it stays true as contact is made elsewhere.
+     */
+    public function contactSla(Request $request, $leadId)
+    {
+        $lead = Lead::findOrFail($leadId);
+        $access = PermissionService::checkAccess(user(), 'view_lead', $lead, [
+            'added' => 'added_by',
+            'owned' => 'lead_owner',
+        ]);
+        abort_403(! $access['canAccess']);
+
+        return response()->json([
+            'status' => 'success',
+            'data' => app(\App\Services\LeadContactSlaService::class)->currentFor((int) $lead->id),
+        ]);
     }
 
     public function leadSallyInsights(Request $request, $id)

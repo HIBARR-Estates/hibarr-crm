@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\User;
+use App\Services\CallBridge\InboundCallRotation;
 use App\Services\CallLog\CallKey;
 use App\Services\CallLog\CallLogService;
 use App\Services\FeatureFlagService;
@@ -281,6 +282,134 @@ class CallLogServiceTest extends TestCase
         $this->assertSame('busy', $row['outcome']);
         $this->assertFalse($row['answered']);
         $this->assertSame('busy', $row['failure_reason'], 'The reason it did not connect is kept.');
+    }
+
+    public function test_an_outbound_call_ended_before_answer_updates_from_started_to_missed_or_failed(): void
+    {
+        $viewer = $this->actingAsUser(['manage_calls' => 'all']);
+
+        // Outbound call that rang and was ended by the agent updates from started -> missed.
+        $this->insertEvent(['direction' => 'outbound', 'slug' => 'call_started', 'metadata' => ['call_id' => 'out-ring-end', 'phone_number' => '+49170111'], 'occurred_at' => now()->subSeconds(20)]);
+        $this->insertEvent(['direction' => 'outbound', 'slug' => 'call_missed', 'metadata' => ['call_id' => 'out-ring-end', 'phone_number' => '+49170111', 'failure_reason' => 'no-answer'], 'occurred_at' => now()->subSeconds(10)]);
+
+        // Outbound call ended before connecting updates from started -> failed.
+        $this->insertEvent(['direction' => 'outbound', 'slug' => 'call_started', 'metadata' => ['call_id' => 'out-cancel', 'phone_number' => '+49170222'], 'occurred_at' => now()->subSeconds(5)]);
+        $this->insertEvent(['direction' => 'outbound', 'slug' => 'call_failed', 'metadata' => ['call_id' => 'out-cancel', 'phone_number' => '+49170222', 'failure_reason' => 'cancelled'], 'occurred_at' => now()->subSeconds(2)]);
+
+        $rows = collect($this->rows(app(CallLogService::class)->paginate($viewer, self::COMPANY_ID, [], null, 50)));
+
+        $this->assertCount(2, $rows);
+        $missed = $rows->firstWhere('phone_number', '+49170111');
+        $failed = $rows->firstWhere('phone_number', '+49170222');
+
+        $this->assertSame('missed', $missed['outcome']);
+        $this->assertFalse($missed['answered']);
+        $this->assertCount(2, $missed['event_ids']);
+
+        $this->assertSame('failed', $failed['outcome']);
+        $this->assertFalse($failed['answered']);
+        $this->assertCount(2, $failed['event_ids']);
+    }
+
+    public function test_an_unanswered_inbound_call_updates_from_started_to_missed(): void
+    {
+        $viewer = $this->actingAsUser(['manage_calls' => 'all']);
+
+        $this->insertEvent(['direction' => 'inbound', 'slug' => 'call_started', 'metadata' => ['call_id' => 'in-miss-1', 'phone_number' => '+49170333'], 'occurred_at' => now()->subSeconds(30)]);
+        $this->insertEvent(['direction' => 'inbound', 'slug' => 'call_missed', 'metadata' => ['call_id' => 'in-miss-1', 'phone_number' => '+49170333', 'failure_reason' => 'no-answer'], 'occurred_at' => now()->subSeconds(10)]);
+
+        $rows = $this->rows(app(CallLogService::class)->paginate($viewer, self::COMPANY_ID, [], null, 50));
+
+        $this->assertCount(1, $rows);
+        $this->assertSame('missed', $rows[0]['outcome']);
+        $this->assertFalse($rows[0]['answered']);
+        $this->assertSame(1, app(CallLogService::class)->summary(self::COMPANY_ID, null)['missed']);
+    }
+
+    public function test_stale_unanswered_inbound_started_calls_read_filter_and_count_as_missed(): void
+    {
+        $viewer = $this->actingAsUser(['manage_calls' => 'all']);
+
+        // Historical unanswered inbound call with only call_started (> 2 minutes old).
+        $this->insertEvent([
+            'direction' => 'inbound',
+            'slug' => 'call_started',
+            'metadata' => ['call_id' => 'in-stale-1', 'phone_number' => '00905391223611'],
+            'occurred_at' => now()->subMinutes(10),
+        ]);
+
+        // Live ringing inbound call (just started) remains started until it ends or times out.
+        $this->insertEvent([
+            'direction' => 'inbound',
+            'slug' => 'call_started',
+            'metadata' => ['call_id' => 'in-live-1', 'phone_number' => '00905399999999'],
+            'occurred_at' => now()->subSeconds(5),
+        ]);
+
+        $service = app(CallLogService::class);
+        $all = collect($this->rows($service->paginate($viewer, self::COMPANY_ID, [], null, 50)));
+
+        $stale = $all->firstWhere('phone_number', '00905391223611');
+        $live = $all->firstWhere('phone_number', '00905399999999');
+
+        $this->assertSame('missed', $stale['outcome']);
+        $this->assertFalse($stale['answered']);
+        $this->assertSame('started', $live['outcome']);
+
+        $missedFilter = $this->rows($service->paginate($viewer, self::COMPANY_ID, ['outcome' => 'missed'], null, 50));
+        $this->assertCount(1, $missedFilter);
+        $this->assertSame('00905391223611', $missedFilter[0]['phone_number']);
+
+        $startedFilter = $this->rows($service->paginate($viewer, self::COMPANY_ID, ['outcome' => 'started'], null, 50));
+        $this->assertCount(1, $startedFilter);
+        $this->assertSame('00905399999999', $startedFilter[0]['phone_number']);
+
+        $summary = $service->summary(self::COMPANY_ID, null);
+        $this->assertSame(1, $summary['missed']);
+        $this->assertSame(0, $summary['connected']);
+    }
+
+    public function test_the_stale_ring_window_follows_the_companys_rotation_length(): void
+    {
+        $viewer = $this->actingAsUser(['manage_calls' => 'all']);
+
+        // 60s slots and 3 roster agents: 60 * (2 * (3 + 1) + 1) + 15 = 555s
+        // of possible ringing, so a 5-minute-old call may still be ringing.
+        Schema::create('companies', function (Blueprint $table) {
+            $table->increments('id');
+            $table->unsignedInteger('incoming_call_fallback_seconds')->nullable();
+        });
+        Schema::create('softphone_call_agents', function (Blueprint $table) {
+            $table->increments('id');
+            $table->unsignedInteger('company_id');
+            $table->unsignedInteger('user_id');
+            $table->boolean('active')->default(true);
+        });
+        DB::table('companies')->insert(['id' => self::COMPANY_ID, 'incoming_call_fallback_seconds' => 60]);
+        foreach ([1, 2, 3, 3] as $userId) {
+            DB::table('softphone_call_agents')->insert(['company_id' => self::COMPANY_ID, 'user_id' => $userId, 'active' => true]);
+        }
+        DB::table('softphone_call_agents')->insert(['company_id' => self::COMPANY_ID, 'user_id' => 4, 'active' => false]);
+
+        $this->insertEvent(['direction' => 'inbound', 'slug' => 'call_started', 'metadata' => ['call_id' => 'in-rotating', 'phone_number' => '+49170444'], 'occurred_at' => now()->subMinutes(5)]);
+        $this->insertEvent(['direction' => 'inbound', 'slug' => 'call_started', 'metadata' => ['call_id' => 'in-gone', 'phone_number' => '+49170555'], 'occurred_at' => now()->subMinutes(10)]);
+
+        $service = app(CallLogService::class);
+        $rows = collect($this->rows($service->paginate($viewer, self::COMPANY_ID, [], null, 50)));
+
+        $this->assertSame('started', $rows->firstWhere('phone_number', '+49170444')['outcome']);
+        $this->assertSame('missed', $rows->firstWhere('phone_number', '+49170555')['outcome']);
+
+        $missed = $this->rows($service->paginate($viewer, self::COMPANY_ID, ['outcome' => 'missed'], null, 50));
+        $this->assertSame(['+49170555'], array_column($missed, 'phone_number'));
+        $this->assertSame(1, $service->summary(self::COMPANY_ID, null)['missed']);
+    }
+
+    public function test_max_ring_seconds_is_clamped_between_the_floor_and_the_rotation_ttl(): void
+    {
+        $this->assertSame(InboundCallRotation::MIN_RING_SECONDS, InboundCallRotation::maxRingSeconds(20, 0));
+        $this->assertSame(555, InboundCallRotation::maxRingSeconds(60, 3));
+        $this->assertSame(InboundCallRotation::TTL_SECONDS, InboundCallRotation::maxRingSeconds(60, 50));
     }
 
     public function test_an_older_missed_leg_joins_the_call_it_rang_for_across_window_boundaries(): void
@@ -692,7 +821,7 @@ class CallLogServiceTest extends TestCase
 
     private function dropSchema(): void
     {
-        foreach (['crm_events', 'crm_event_types', 'crm_event_categories', 'call_recordings', 'deals', 'leads', 'users'] as $table) {
+        foreach (['softphone_call_agents', 'companies', 'crm_events', 'crm_event_types', 'crm_event_categories', 'call_recordings', 'deals', 'leads', 'users'] as $table) {
             Schema::dropIfExists($table);
         }
     }

@@ -134,15 +134,21 @@ export default function useTaskLeadCall(task: Task): TaskLeadCall {
                     {
                         leadId: lead.id,
                         leadName: lead.client_name ?? null,
+                        entityType: "lead",
+                        entityId: lead.id,
                     },
                     deviceId,
                 );
                 toast.info(t("pages.telephony.calling_number", { phone }));
+                const liveCall = softphone.getState().call;
                 void axios
                     .post(route("telephony.softphone.events.store"), {
-                        phone,
+                        phone: liveCall?.peer ?? dialingPhone,
+                        ...(liveCall?.id ? { call_id: liveCall.id } : {}),
+                        ...(deviceId ?? activeDeviceId ? { device_id: deviceId ?? activeDeviceId } : {}),
                         entity_type: "lead",
                         entity_id: lead.id,
+                        direction: "outbound",
                         event: "call.started",
                     })
                     .catch(() => {

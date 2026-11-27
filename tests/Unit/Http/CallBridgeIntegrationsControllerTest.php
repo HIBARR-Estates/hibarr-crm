@@ -3,6 +3,7 @@
 namespace Tests\Unit\Http;
 
 use App\Http\Controllers\Api\CallBridgeIntegrationsController;
+use App\Support\SipProviderRegistry;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Http;
@@ -48,6 +49,7 @@ class CallBridgeIntegrationsControllerTest extends TestCase
                 'data' => [
                     'wss' => 'wss://sip.sipgate.de',
                     'sipUriFormat' => 'sip:{username}@sipgate.de',
+                    'profile' => SipProviderRegistry::clientProfile('sipgate'),
                 ],
             ],
             $response->getData(true),
@@ -112,6 +114,8 @@ class CallBridgeIntegrationsControllerTest extends TestCase
                 'data' => [
                     'wss' => 'wss://ol.example/de',
                     'sipUriFormat' => 'sip:{username}@ol.example',
+                    // The softphone profile is always the CRM's own.
+                    'profile' => SipProviderRegistry::clientProfile('sipgate'),
                 ],
             ],
             $response->getData(true),

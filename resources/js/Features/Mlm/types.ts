@@ -29,6 +29,8 @@ export interface LevelData {
 
 // ── MLM Enums ────────────────────────────────────────────────────
 export type MlmMetric = "nsa" | "nsd" | "vsa" | "vsd" | "nsa_nsd" | "vsa_vsd";
+/** The same rule shape as a package's commission. A partner's "none" is stored as no terms. */
+export type ReferralCommissionType = "percentage" | "fixed" | "none";
 export type MlmCommissionType = "agent" | "upline" | "system" | "referral";
 export type MlmCommissionStatus = "pending" | "paid" | "reverted";
 export type CriteriaOperator = ">=" | "<=" | "=" | ">" | "<";
@@ -372,11 +374,49 @@ export interface AgentCommissionRateAuditLog {
     new_direct_rate: number | null;
     previous_override_rate: number | null;
     new_override_rate: number | null;
-    previous_referral_pool_rate?: number | null;
-    new_referral_pool_rate?: number | null;
+    previous_referral_commission_type?: ReferralCommissionType | null;
+    previous_referral_commission_value?: number | null;
+    new_referral_commission_type?: ReferralCommissionType | null;
+    new_referral_commission_value?: number | null;
     changed_at: string;
     reason: string | null;
     changed_by_user?: { id: number; name: string } | null;
+}
+
+/** One package an agent has terms on: what they earn as its closer and as its referrer. */
+export interface PartnerPackageTermsRow {
+    package_id: number;
+    package_name: string;
+    package_value: number;
+    package_currency: string | null;
+    /** What the closer earns on this package when the agent has no override. */
+    package_default: { type: ReferralCommissionType | null; value: number | null };
+    /** Null: no closer override, the package default applies. */
+    commission_type: ReferralCommissionType | null;
+    commission_value: number | null;
+    /** Null: no referral terms on this package. */
+    referral_commission_type: ReferralCommissionType | null;
+    referral_commission_value: number | null;
+}
+
+export interface PartnerPackageTermsPackage {
+    id: number;
+    name: string;
+    value: number;
+    currency: string | null;
+}
+
+export interface PartnerPackageTermsData {
+    rows: PartnerPackageTermsRow[];
+    /** Every package, so the view can offer the ones the agent has no terms on yet. */
+    packages: PartnerPackageTermsPackage[];
+}
+
+export interface PartnerPackageTermsPayload {
+    commission_type: ReferralCommissionType | null;
+    commission_value: number | null;
+    referral_commission_type: ReferralCommissionType | null;
+    referral_commission_value: number | null;
 }
 
 export interface AgentCommissionProfile {
@@ -388,7 +428,9 @@ export interface AgentCommissionProfile {
         default_commission_rate: number;
     } | null;
     custom_commission_rate: number | null;
-    referral_pool_rate?: number | null;
+    /** What the partner earns on a referred deal with no package, from the deal value. */
+    referral_commission_type?: ReferralCommissionType | null;
+    referral_commission_value?: number | null;
     is_partner?: boolean;
     bounds: AgentCommissionRateBounds;
     audit: PaginatedResponse<AgentCommissionRateAuditLog>;
@@ -396,7 +438,8 @@ export interface AgentCommissionProfile {
 
 export interface AgentCommissionProfileUpdatePayload {
     custom_commission_rate?: number | null;
-    referral_pool_rate?: number | null;
+    referral_commission_type?: ReferralCommissionType | null;
+    referral_commission_value?: number | null;
     reason?: string | null;
 }
 

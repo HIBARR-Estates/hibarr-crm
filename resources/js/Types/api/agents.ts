@@ -9,8 +9,9 @@ export interface Agent {
     parent_agent_id: number | null;
     status: "enabled" | "disabled";
     is_partner?: boolean;
-    /** Decimal string from the `decimal:2` cast, e.g. "12.50". */
-    referral_pool_rate?: string | null;
+    /** What a partner earns on a referred deal with no package; a decimal string from the `decimal:2` cast. */
+    referral_commission_type?: "percentage" | "fixed" | null;
+    referral_commission_value?: string | null;
     added_by: number | null;
     last_updated_by: number | null;
     created_at: string;

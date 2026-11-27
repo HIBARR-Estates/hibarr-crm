@@ -19,6 +19,7 @@ import AddFollowup from "../Tabs/followups/AddFollowup";
 import useTranslation from "@/Hooks/useTranslation";
 import useClickToCall from "@/Hooks/useClickToCall";
 import useSoftphone, { canMakeSoftphoneCalls } from "@/Hooks/useSoftphone";
+import { softphone } from "@/lib/softphone/SoftphoneClient";
 import { resolveLeadPhoneDisplay } from "@/lib/utils";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 
@@ -75,12 +76,12 @@ export default function QuickActions({ deal, permissions }: Props) {
             const dialingPhone = contactPhone.replace(/\s/g, "");
             void softphoneCall(
                 dialingPhone,
-                deal.contact?.id
-                    ? {
-                          leadId: deal.contact.id,
-                          leadName: deal.contact.client_name ?? null,
-                      }
-                    : null,
+                {
+                    leadId: deal.contact?.id ?? null,
+                    leadName: deal.contact?.client_name ?? null,
+                    entityType: "deal",
+                    entityId: deal.id,
+                },
                 deviceId,
             )
                 .then(() => {
@@ -89,11 +90,15 @@ export default function QuickActions({ deal, permissions }: Props) {
                             phone: contactPhone,
                         }),
                     );
+                    const liveCall = softphone.getState().call;
                     void axios
                         .post(route("telephony.softphone.events.store"), {
-                            phone: contactPhone,
+                            phone: liveCall?.peer ?? dialingPhone,
+                            ...(liveCall?.id ? { call_id: liveCall.id } : {}),
+                            ...(deviceId ?? activeDeviceId ? { device_id: deviceId ?? activeDeviceId } : {}),
                             entity_type: "deal",
                             entity_id: deal.id,
+                            direction: "outbound",
                             event: "call.started",
                         })
                         .catch(() => undefined);

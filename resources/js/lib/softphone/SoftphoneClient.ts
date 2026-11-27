@@ -9,10 +9,12 @@ import {
 import type {
     SoftphoneCall,
     SoftphoneCallContext,
+    SoftphoneCallEndReason,
     SoftphoneCallFailure,
     SoftphoneCallFailureCode,
     SoftphoneCallStage,
     SoftphoneConfig,
+    SoftphoneEndedCall,
     SoftphoneRegistrationState,
     SoftphoneState,
     SoftphoneWaitingCall,
@@ -32,21 +34,32 @@ import {
     type BoostedMicProcessor,
     type MicProfileName,
 } from "./micAudioProcessor";
+import {
+    PreSignedDigestStore,
+    bindServerSignedAuth,
+    createDeviceChallengeSigner,
+    createServerSignedTransportClass,
+} from "./ServerSignedSipAuth";
+import { providerMessage, resolveProviderProfile } from "./providerProfile";
 
 export type {
     SoftphoneCall,
     SoftphoneCallContext,
+    SoftphoneCallEndReason,
     SoftphoneCallFailure,
     SoftphoneCallFailureCode,
     SoftphoneCallStage,
     SoftphoneConfig,
+    SoftphoneEndedCall,
     SoftphoneRegistrationState,
     SoftphoneState,
     SoftphoneWaitingCall,
 };
 
 /**
- * Thin SIP.js wrapper that turns sipgate Neo into an in-browser softphone.
+ * Thin SIP.js wrapper that turns a SIP-over-WebSocket line (today sipgate
+ * Neo) into an in-browser softphone. Per-provider behaviour and wording come
+ * from the line's provider profile (see providerProfile.ts).
  *
  * The browser registers as the SIP user agent over WSS and owns the audio
  * path directly with sipgate. It deliberately does NOT talk to OL's call
@@ -68,6 +81,9 @@ export interface OutboundAudioDiagnostics {
 
 interface SDHLike {
     peerConnection?: RTCPeerConnection | null;
+    localMediaStream?: MediaStream | null;
+    _localMediaStream?: MediaStream | null;
+    close?: () => void;
 }
 
 /** A peer connection we already attached media-path listeners to. */
@@ -102,12 +118,15 @@ const EMPTY_STATE: SoftphoneState = {
     call: null,
     waitingCall: null,
     callFailure: null,
+    lastEndedCall: null,
     lastCallError: null,
     quality: "unknown",
 };
 
 /**
- * Maps a negative final SIP response onto something an agent can act on.
+ * Maps a negative final SIP response onto something an agent can act on. The
+ * wording here is provider-neutral; a provider overrides it per status in its
+ * profile (SipProviderRegistry `messages.call_status`).
  * sip.js 0.21 exposes the status code only through the INVITE request
  * delegate, so these are the codes a carrier realistically returns for a call
  * that never connects.
@@ -190,6 +209,10 @@ class SoftphoneClient {
     private answering = false;
     /** The agent pressed decline/hang up — not a failed call, so no notice. */
     private endedByUser = false;
+    /** Whether this call reached the "ringing" stage before ending. */
+    private reachedRinging = false;
+    /** Outcome passed to reject() so unanswered timeout logs "missed" vs explicit "declined". */
+    private rejectOutcome: "missed" | "declined" | null = null;
     /** A reason is already on record for this attempt (don't overwrite it). */
     private failureRecorded = false;
     /** Tracks whether an inbound INVITE was canceled due to answer elsewhere. */
@@ -200,6 +223,12 @@ class SoftphoneClient {
     private state: SoftphoneState = EMPTY_STATE;
     private outboundMicProcessor: BoostedMicProcessor | null = null;
     private rawSenderTrack: MediaStreamTrack | null = null;
+    private micBoostTimers = new Set<number>();
+    private clonedLocalTracks = new Set<MediaStreamTrack>();
+    /** The call the shared media above belongs to (set when a call begins). */
+    private mediaOwner: ManagedSession | null = null;
+    /** Server-signed Digest responses for the registered line, if it uses them. */
+    private digestStore: PreSignedDigestStore | null = null;
 
     subscribe(listener: Listener): () => void {
         this.listeners.add(listener);
@@ -274,13 +303,14 @@ class SoftphoneClient {
 
                 this.config = config;
                 this.setState({ ...EMPTY_STATE, registration: "registering" });
+                const profile = resolveProviderProfile(config);
                 const rawUri = (config.uri || "").trim();
-                const lineDomain = domainOf(rawUri) || (config.provider ? `${config.provider}.de` : "sipgate.de");
+                const lineDomain = domainOf(rawUri) || profile.sip_domain || "";
                 const normalizedUri = /^sips?:/i.test(rawUri)
                     ? rawUri
                     : rawUri.includes("@")
                         ? `sip:${rawUri}`
-                        : config.authorization_username
+                        : config.authorization_username && lineDomain
                             ? `sip:${config.authorization_username}@${lineDomain}`
                             : `sip:${rawUri}`;
                 const uri = UserAgent.makeURI(normalizedUri);
@@ -288,22 +318,44 @@ class SoftphoneClient {
                     throw new Error(`Invalid SIP URI: ${config.uri}`);
                 }
 
-                const iceServers: Array<{ urls: string }> = [
-                    { urls: "stun:stun.l.google.com:19302" },
-                ];
-                if (config.stun_url) {
-                    iceServers.push({ urls: config.stun_url });
-                } else if (lineDomain) {
-                    iceServers.push({ urls: `stun:stun.${lineDomain}:3478` });
-                }
+                const iceServers = profile.ice_servers.map((server) => ({ ...server }));
+
+                const useChallengeSigning =
+                    config.auth_mode === "challenge" ||
+                    (!config.authorization_password &&
+                        !config.authorization_ha1 &&
+                        typeof config.id === "number");
+
+                const digestStore = useChallengeSigning
+                    ? new PreSignedDigestStore()
+                    : null;
+                const transportConstructor =
+                    useChallengeSigning &&
+                    digestStore &&
+                    typeof config.id === "number"
+                        ? createServerSignedTransportClass(
+                              createDeviceChallengeSigner(config.id),
+                              digestStore,
+                              profile.digest_algorithms,
+                          )
+                        : undefined;
 
                 const userAgent = new UserAgent({
                     uri,
+                    ...(transportConstructor ? { transportConstructor } : {}),
                     transportOptions: { server: config.wss_url },
                     authorizationUsername:
                         config.authorization_username || undefined,
-                    authorizationPassword:
-                        config.authorization_password || undefined,
+                    // Saved lines sign SIP Digest challenges server-side so
+                    // neither the password nor HA1 ever reaches the browser.
+                    ...(useChallengeSigning
+                        ? {}
+                        : config.authorization_ha1
+                          ? { authorizationHa1: config.authorization_ha1 }
+                          : {
+                                authorizationPassword:
+                                    config.authorization_password || undefined,
+                            }),
                     displayName: config.display_name || undefined,
                     sessionDescriptionHandlerFactoryOptions: {
                         peerConnectionConfiguration: {
@@ -312,6 +364,15 @@ class SoftphoneClient {
                     },
                     logLevel: "error",
                 });
+
+                this.digestStore = digestStore;
+                if (useChallengeSigning && digestStore) {
+                    bindServerSignedAuth(
+                        userAgent,
+                        digestStore,
+                        config.authorization_username || uri.user || "",
+                    );
+                }
 
                 userAgent.delegate = {
                     onInvite: (invitation) => this.onIncoming(invitation),
@@ -333,7 +394,7 @@ class SoftphoneClient {
                         cleanup();
                         reject(
                             new Error(
-                                "The line did not answer the registration in time.",
+                                providerMessage(profile, "registration_timeout"),
                             ),
                         );
                     }, 10_000);
@@ -379,8 +440,8 @@ class SoftphoneClient {
                                     reject(
                                         new Error(
                                             status === 401 || status === 403
-                                                ? "The line rejected the username or password."
-                                                : `The line rejected the registration (${status ?? "unknown"}).`,
+                                                ? providerMessage(profile, "registration_auth_failed")
+                                                : providerMessage(profile, "registration_rejected", { status }),
                                         ),
                                     );
                                 },
@@ -477,10 +538,9 @@ class SoftphoneClient {
             throw new Error("No phone line is registered for this browser.");
         }
         if (!this.userAgent || this.state.registration !== "registered") {
-            const providerLabel = this.config.provider || "the provider";
             const reason =
                 this.state.registrationError ||
-                `Your phone line isn't connected to ${providerLabel}. Pick a line in the phone panel, then retry.`;
+                providerMessage(resolveProviderProfile(this.config), "not_registered");
             this.reportSetupFailure(target, reason, context, "connection_failed");
             throw new Error(
                 this.state.registrationError ||
@@ -497,7 +557,8 @@ class SoftphoneClient {
             return;
         }
 
-        const domain = domainOf(this.config.uri);
+        const profile = resolveProviderProfile(this.config);
+        const domain = domainOf(this.config.uri) || profile.sip_domain || "";
         const dialTarget = normalizePhoneForSip(target, domain);
         if (!dialTarget) {
             this.reportSetupFailure(
@@ -537,23 +598,41 @@ class SoftphoneClient {
         this.beginCall(inviter, "outbound", target, context);
 
         try {
-            // Same identity header as before the regressions: the line's own
-            // SIP URI (this is what sipgate accepted when calls last worked).
-            const extraHeaders = this.config.uri
-                ? [`P-Preferred-Identity: ${this.config.uri.startsWith("sip:") ? `<${this.config.uri}>` : `<sip:${this.config.authorization_username || this.config.uri}@${domain || "sipgate.de"}>`}`]
-                : [];
+            // The line's own SIP URI as caller identity, in whichever header
+            // the provider expects (none when its profile says so).
+            const identityUri = this.config.uri.startsWith("sip:")
+                ? this.config.uri
+                : domain
+                  ? `sip:${this.config.authorization_username || this.config.uri}@${domain}`
+                  : null;
+            const extraHeaders =
+                profile.identity_header && identityUri
+                    ? [`${profile.identity_header}: <${identityUri}>`]
+                    : [];
             trace("softphone INVITE sent", dialTarget.startsWith("+") ? "e164+" : "digits");
             await (inviter as unknown as Inviter).invite({
-                requestDelegate: this.inviteDelegate(),
+                requestDelegate: this.inviteDelegate(inviter),
                 requestOptions: {
                     extraHeaders,
                 },
             } as never);
             // SessionDescriptionHandler exists only after invite() — attach remote audio now.
-            if (this.session) {
-                this.attachRemoteFromSession(this.session);
+            if (this.session === inviter) {
+                this.attachRemoteFromSession(inviter);
                 this.refreshRemoteAudio();
-                this.watchMediaPath(this.session);
+                this.watchMediaPath(inviter);
+            } else {
+                // Call was already ended while invite()/getUserMedia was in flight — release any acquired mic immediately.
+                this.releaseSessionMedia(inviter);
+                try {
+                    if (inviter.state === SessionState.Established) {
+                        void inviter.bye().catch(() => undefined);
+                    } else if (inviter.state !== SessionState.Terminated) {
+                        void inviter.cancel().catch(() => undefined);
+                    }
+                } catch {
+                    // ignore
+                }
             }
         } catch (error: unknown) {
             console.error("[softphone] INVITE failed");
@@ -562,13 +641,17 @@ class SoftphoneClient {
             // to build the request. This is the failure agents hit most often
             // (offline, no line, bad number) and it used to look like nothing
             // had happened at all.
-            const providerName = this.config?.provider || "the provider";
-            this.failCall(
-                "connection_failed",
-                detail
-                    ? `The call could not be placed: ${detail}`
-                    : `The call could not be placed — the request to ${providerName} failed.`,
-            );
+            this.releaseSessionMedia(inviter);
+            // A late rejection for a call the agent already left must not
+            // fail whatever call is current now.
+            if (this.session === inviter) {
+                this.failCall(
+                    "connection_failed",
+                    detail
+                        ? `The call could not be placed: ${detail}`
+                        : providerMessage(profile, "invite_failed"),
+                );
+            }
             throw error;
         }
     }
@@ -605,6 +688,11 @@ class SoftphoneClient {
                 },
                 sessionDescriptionHandlerModifiers: [sdpModifier],
             });
+            if (this.session !== session || this.state.call?.id !== answeringCallId) {
+                // Call ended while accept()/getUserMedia was in flight — release any acquired mic immediately.
+                this.releaseSessionMedia(session);
+                return;
+            }
             this.attachRemoteFromSession(session);
             this.refreshRemoteAudio();
             window.setTimeout(() => this.refreshRemoteAudio(), 250);
@@ -619,6 +707,12 @@ class SoftphoneClient {
                 });
             }
         } catch (error) {
+            if (
+                this.session !== session ||
+                (session.state as SessionState) === SessionState.Terminated
+            ) {
+                this.releaseSessionMedia(session);
+            }
             // Only the fixed message is logged: the rejected error carries the
             // SIP URI and other customer data.
             trace("softphone answer() failed");
@@ -635,12 +729,14 @@ class SoftphoneClient {
         }
     }
 
-    async reject(): Promise<void> {
+    async reject(outcome: "missed" | "declined" = "missed"): Promise<void> {
         const session = this.session;
         if (!session) {
             return;
         }
-        // Declining is a choice, not a failure — no notice for it.
+        // Declining or rotation timeout is not an alarming error popup — record
+        // the outcome cleanly so the call log updates from "started".
+        this.rejectOutcome = outcome;
         this.endedByUser = true;
         try {
             await session.reject();
@@ -692,6 +788,9 @@ class SoftphoneClient {
             } else if (session.state !== SessionState.Established) {
                 // bye() is only valid on an established session. Cancelling an
                 // outbound INVITE that never got a 200 OK throws otherwise.
+                // A 407 for this INVITE may still be out for signing: make
+                // sure it cannot come back as an authenticated re-INVITE.
+                this.digestStore?.cancelPending("INVITE");
                 await session.cancel();
             } else {
                 await session.bye();
@@ -798,7 +897,9 @@ class SoftphoneClient {
             return null;
         }
         try {
-            return new MediaStream([this.rawSenderTrack.clone()]);
+            const cloned = this.rawSenderTrack.clone();
+            this.trackClonedLocalTrack(cloned);
+            return new MediaStream([cloned]);
         } catch {
             return null;
         }
@@ -871,7 +972,9 @@ class SoftphoneClient {
             return null;
         }
         try {
-            return new MediaStream([audioSender.track.clone()]);
+            const cloned = audioSender.track.clone();
+            this.trackClonedLocalTrack(cloned);
+            return new MediaStream([cloned]);
         } catch {
             return null;
         }
@@ -976,9 +1079,14 @@ class SoftphoneClient {
          * this is where an outbound call learns that the far end started ringing and
          * — when it never connects — why.
          */
-    private inviteDelegate() {
+    private inviteDelegate(inviter: ManagedSession) {
+        // Responses can arrive after this call was ended and a new one began
+        // (e.g. the 487 for a cancelled call): they must never touch the new
+        // call's stage, flags or outcome.
+        const isCurrent = () => this.session === inviter;
         return {
             onProgress: (response: { statusCode?: number; message?: { statusCode?: number } }) => {
+                if (!isCurrent()) return;
                 const code = response.message?.statusCode ?? response.statusCode;
                 console.info("[softphone] INVITE progress", code);
                 // 180 Ringing or 183 Session Progress with early media
@@ -987,6 +1095,7 @@ class SoftphoneClient {
                 }
             },
             onRedirect: (response: { statusCode?: number; reasonPhrase?: string; message?: { statusCode?: number; reasonPhrase?: string } }) => {
+                if (!isCurrent()) return;
                 const code = response.message?.statusCode ?? response.statusCode;
                 const phrase = response.message?.reasonPhrase ?? response.reasonPhrase;
                 this.failFromStatus(code, phrase);
@@ -995,6 +1104,7 @@ class SoftphoneClient {
                 const code = response.message?.statusCode ?? response.statusCode;
                 const phrase = response.message?.reasonPhrase ?? response.reasonPhrase;
                 console.warn("[softphone] INVITE rejected", code, phrase);
+                if (!isCurrent()) return;
                 this.failFromStatus(code, phrase);
             },
         };
@@ -1033,18 +1143,67 @@ class SoftphoneClient {
         if (!call || !context) {
             return;
         }
-        this.setState({ call: { ...call, context } });
+        this.setState({
+            call: {
+                ...call,
+                context: {
+                    ...call.context,
+                    ...context,
+                },
+            },
+        });
     }
 
     /** A negative final response: remember why, then tear the session down. */
     private failFromStatus(statusCode?: number, reasonPhrase?: string): void {
+        // When the agent intentionally clicked End (hangup -> CANCEL -> 487),
+        // don't flash an error popup; endCall() still logs the final outcome.
+        if (this.endedByUser) {
+            this.endCall();
+            return;
+        }
+        // The failure code (busy, declined, ...) is standard SIP; only the
+        // wording can be the provider's own (its profile's call_status).
         const mapped =
             statusCode != null ? FAILURE_BY_STATUS[statusCode] : undefined;
+        const providerReason =
+            statusCode != null
+                ? resolveProviderProfile(this.config).messages.call_status[String(statusCode)]
+                : undefined;
 
-        this.failCall(mapped?.code ?? "unknown", mapped?.reason ??
+        this.failCall(mapped?.code ?? "unknown", providerReason ?? mapped?.reason ??
             (reasonPhrase
                 ? `The call could not be completed (${statusCode ?? ""} ${reasonPhrase}).`.trim()
                 : "The call could not be completed."));
+    }
+
+    /** Map a failure code onto the corresponding Calls page outcome. */
+    private mapFailureToEndReason(
+        direction: "outbound" | "inbound",
+        code: SoftphoneCallFailureCode,
+        wasAnswered: boolean,
+    ): SoftphoneCallEndReason {
+        if (wasAnswered) {
+            return "completed";
+        }
+        if (code === "answered_elsewhere") {
+            return "answered_elsewhere";
+        }
+        if (direction === "inbound") {
+            return code === "declined" ? "declined" : "missed";
+        }
+        switch (code) {
+            case "busy":
+                return "busy";
+            case "declined":
+                return "declined";
+            case "no-answer":
+                return "missed";
+            case "cancelled":
+                return this.reachedRinging ? "missed" : "failed";
+            default:
+                return "failed";
+        }
     }
 
     /**
@@ -1058,6 +1217,10 @@ class SoftphoneClient {
         if (!call) {
             return;
         }
+        const wasAnswered =
+            call.answeredAt !== null ||
+            call.connectedAt !== null ||
+            call.phase === "active";
         const failure: SoftphoneCallFailure = {
             code,
             reason,
@@ -1071,7 +1234,19 @@ class SoftphoneClient {
             lastCallError: reason,
         });
         this.failureRecorded = true;
-        this.endCall();
+        // SIP can answer (200 OK sets answeredAt) before audio connects. If
+        // the media path then never connects, the call did not complete: log
+        // it as failed with the reason the agent saw. A media drop after the
+        // audio was connected still ends a completed call.
+        const mediaSetupFailed = code === "media" && call.connectedAt === null;
+        const completed = wasAnswered && !mediaSetupFailed;
+        this.endCall({
+            reason: mediaSetupFailed
+                ? "failed"
+                : this.mapFailureToEndReason(call.direction, code, wasAnswered),
+            failureCode: completed ? null : code,
+            failureMessage: completed ? null : reason,
+        });
     }
 
     private onIncoming(invitation: Invitation): void {
@@ -1148,11 +1323,14 @@ class SoftphoneClient {
         context: SoftphoneCallContext | null = null,
     ): void {
         this.session = session;
+        this.mediaOwner = session;
         this.callSeq += 1;
         const id = sipCallIdOf(session) ?? `call-${this.callSeq}`;
         // A fresh attempt starts from a clean slate: no stale failure notice,
         // and nothing here counts as "the agent hung up".
         this.endedByUser = false;
+        this.reachedRinging = direction === "inbound";
+        this.rejectOutcome = null;
         this.failureRecorded = false;
 
         this.setState({
@@ -1225,13 +1403,17 @@ class SoftphoneClient {
                         // SIP.js transitions the session to Terminated before calling onReject/onRedirect delegates.
                         // Defer fallback termination to allow the final-response delegate to record the specific status first.
                         setTimeout(() => {
+                            if (this.session !== session) {
+                                this.releaseSessionMedia(session);
+                                return;
+                            }
                             if (!this.failureRecorded && !this.endedByUser && this.state.call) {
                                 this.failCall(
                                     "terminated",
                                     "The call ended before it connected.",
                                 );
                             } else if (!this.state.call) {
-                                // Already cleaned up
+                                this.releaseSessionMedia(session);
                             } else {
                                 this.endCall();
                             }
@@ -1260,6 +1442,9 @@ class SoftphoneClient {
         const call = this.state.call;
         if (!call || call.stage === stage) {
             return;
+        }
+        if (stage === "ringing") {
+            this.reachedRinging = true;
         }
         if (stage === "connected" && this.outboundMicProcessor) {
             const ctxState = this.outboundMicProcessor.audioContext.state;
@@ -1316,13 +1501,75 @@ class SoftphoneClient {
         evaluate();
     }
 
-    private endCall(): void {
+    private endCall(override?: {
+        reason?: SoftphoneCallEndReason;
+        failureCode?: SoftphoneCallFailureCode | null;
+        failureMessage?: string | null;
+    }): void {
+        const session = this.session;
+        const call = this.state.call;
         this.session = null;
-        if (this.outboundMicProcessor) {
-            this.outboundMicProcessor.dispose();
-            this.outboundMicProcessor = null;
+
+        let endedCall: SoftphoneEndedCall | null = null;
+        if (call) {
+            const wasAnswered =
+                call.answeredAt !== null ||
+                call.connectedAt !== null ||
+                call.phase === "active";
+
+            let reason: SoftphoneCallEndReason;
+            let failureCode: SoftphoneCallFailureCode | null = override?.failureCode ?? null;
+            let failureMessage: string | null = override?.failureMessage ?? null;
+
+            if (override?.reason) {
+                reason = override.reason;
+            } else if (wasAnswered) {
+                reason = "completed";
+                failureCode = null;
+                failureMessage = null;
+            } else if (call.direction === "inbound") {
+                if (this.inboundCanceledReason === "answered_elsewhere") {
+                    reason = "answered_elsewhere";
+                    failureCode = "answered_elsewhere";
+                    failureMessage = "This call was answered on another device.";
+                } else if (this.rejectOutcome === "declined") {
+                    reason = "declined";
+                    failureCode = "declined";
+                    failureMessage = "Call declined.";
+                } else {
+                    reason = "missed";
+                    failureCode = "no-answer";
+                    failureMessage = "Missed incoming call.";
+                }
+            } else if (this.reachedRinging) {
+                reason = "missed";
+                failureCode = "no-answer";
+                failureMessage = "Call ended before it was answered.";
+            } else {
+                reason = "failed";
+                failureCode = "cancelled";
+                failureMessage = "Call ended before connecting.";
+            }
+
+            endedCall = {
+                callId: call.id,
+                peer: call.peer,
+                direction: call.direction,
+                stage: call.stage,
+                wasAnswered,
+                answeredAt: call.answeredAt,
+                endedAt: Date.now(),
+                endedByUser: this.endedByUser,
+                reason,
+                failureCode,
+                failureMessage,
+                context: call.context,
+            };
         }
-        this.rawSenderTrack = null;
+
+        this.releaseSessionMedia(session);
+        this.rejectOutcome = null;
+
         if (this.remoteAudio) {
             const audio = this.remoteAudio;
             try {
@@ -1340,8 +1587,8 @@ class SoftphoneClient {
                 // ignore cleanup errors
             }
         }
-        if (this.state.call) {
-            this.setState({ call: null });
+        if (call) {
+            this.setState({ call: null, lastEndedCall: endedCall });
         }
 
         // The call that was waiting now rings like any other inbound call.
@@ -1351,6 +1598,135 @@ class SoftphoneClient {
             if (waiting.state !== SessionState.Terminated) {
                 this.onIncoming(waiting);
             }
+        }
+    }
+
+    private trackClonedLocalTrack(track: MediaStreamTrack): void {
+        this.clonedLocalTracks.add(track);
+        const cleanup = () => {
+            this.clonedLocalTracks.delete(track);
+        };
+        track.addEventListener("ended", cleanup, { once: true });
+    }
+
+    /**
+     * Stop every microphone / WebRTC media track owned by a session so the
+     * browser releases the hardware microphone immediately on any call end.
+     *
+     * The boost processor, raw sender track, boost timers and recording
+     * clones belong to the call that began last (`mediaOwner`). A session
+     * that is no longer that call (an old call whose invite()/accept()
+     * settled late) only releases its own peer connection, so it can never
+     * stop the next call's microphone. `null` means "the client is going
+     * away": release everything.
+     */
+    private releaseSessionMedia(session: ManagedSession | null): void {
+        if (session !== null && session !== this.mediaOwner) {
+            this.releasePeerConnectionMedia(session);
+            return;
+        }
+        this.mediaOwner = null;
+
+        this.micBoostTimers.forEach((id) => window.clearTimeout(id));
+        this.micBoostTimers.clear();
+
+        if (this.outboundMicProcessor) {
+            try {
+                this.outboundMicProcessor.dispose();
+            } catch {
+                // ignore
+            }
+            this.outboundMicProcessor = null;
+        }
+
+        if (this.rawSenderTrack) {
+            try {
+                this.rawSenderTrack.stop();
+            } catch {
+                // ignore
+            }
+            this.rawSenderTrack = null;
+        }
+
+        this.clonedLocalTracks.forEach((track) => {
+            try {
+                track.stop();
+            } catch {
+                // ignore
+            }
+        });
+        this.clonedLocalTracks.clear();
+
+        if (session) {
+            this.releasePeerConnectionMedia(session);
+        }
+    }
+
+    /** Stop the tracks held by one session's own peer connection / SDH. */
+    private releasePeerConnectionMedia(session: ManagedSession): void {
+        const sdh = session.sessionDescriptionHandler as unknown as
+            | SDHLike
+            | undefined;
+
+        const stopStream = (stream: MediaStream | null | undefined) => {
+            if (!stream) return;
+            try {
+                stream.getTracks().forEach((track) => {
+                    try {
+                        track.stop();
+                    } catch {
+                        // ignore
+                    }
+                });
+            } catch {
+                // ignore
+            }
+        };
+
+        stopStream(sdh?.localMediaStream);
+        stopStream(sdh?._localMediaStream);
+
+        const pc = sdh?.peerConnection;
+        if (pc) {
+            try {
+                pc.getSenders().forEach((sender) => {
+                    try {
+                        sender.track?.stop();
+                    } catch {
+                        // ignore
+                    }
+                });
+            } catch {
+                // ignore
+            }
+            try {
+                pc.getTransceivers?.().forEach((transceiver) => {
+                    try {
+                        transceiver.sender?.track?.stop();
+                    } catch {
+                        // ignore
+                    }
+                });
+            } catch {
+                // ignore
+            }
+            try {
+                pc.getReceivers().forEach((receiver) => {
+                    try {
+                        receiver.track?.stop();
+                    } catch {
+                        // ignore
+                    }
+                });
+            } catch {
+                // ignore
+            }
+        }
+
+        try {
+            sdh?.close?.();
+        } catch {
+            // ignore
         }
     }
 
@@ -1440,8 +1816,11 @@ class SoftphoneClient {
         }
 
         let isBoosting = false;
+        // A sender that refused the processed track keeps its raw track; a
+        // retry would only build another processor on that live track.
+        let boostRefused = false;
         const findAndBoost = async () => {
-            if (this.session !== session || isBoosting) {
+            if (this.session !== session || isBoosting || boostRefused) {
                 return;
             }
             const sender = pc.getSenders().find((s) => s.track && s.track.kind === "audio");
@@ -1461,19 +1840,48 @@ class SoftphoneClient {
                 const rawStream = new MediaStream([rawTrack]);
 
                 const processor = createBoostedMicStream(rawStream);
+                if (this.session !== session) {
+                    processor.dispose();
+                    rawTrack.stop();
+                    return;
+                }
                 if (this.outboundMicProcessor) {
                     this.outboundMicProcessor.dispose();
                 }
                 this.outboundMicProcessor = processor;
                 await processor.ensureRunning();
+                if (this.session !== session) {
+                    processor.dispose();
+                    if (this.outboundMicProcessor === processor) {
+                        this.outboundMicProcessor = null;
+                    }
+                    rawTrack.stop();
+                    return;
+                }
                 inspectAndLogRawTrackSettings(rawTrack, undefined, processor.audioContext.state);
 
                 try {
                     await sender.replaceTrack(processor.track);
+                    if (this.session !== session) {
+                        processor.dispose();
+                        if (this.outboundMicProcessor === processor) {
+                            this.outboundMicProcessor = null;
+                        }
+                        rawTrack.stop();
+                        return;
+                    }
                     await ensureAudioSenderBitrateUncapped(sender);
                     trace("softphone outbound mic boost applied to sender");
                 } catch (err) {
                     console.warn("[softphone] replaceTrack with boosted mic failed:", err);
+                    // The sender still sends the raw track: drop the unused
+                    // processor without stopping that track, and send raw
+                    // (unboosted) audio for the rest of the call.
+                    boostRefused = true;
+                    processor.dispose({ keepSourceTracks: true });
+                    if (this.outboundMicProcessor === processor) {
+                        this.outboundMicProcessor = null;
+                    }
                 }
             } finally {
                 isBoosting = false;
@@ -1481,17 +1889,20 @@ class SoftphoneClient {
         };
 
         void findAndBoost();
-        setTimeout(() => void findAndBoost(), 250);
-        setTimeout(() => void findAndBoost(), 1000);
+        for (const delayMs of [250, 1000]) {
+            const timerId = window.setTimeout(() => {
+                this.micBoostTimers.delete(timerId);
+                void findAndBoost();
+            }, delayMs);
+            this.micBoostTimers.add(timerId);
+        }
     }
 
     private async teardown(): Promise<void> {
         this.dropWaiting();
-        if (this.outboundMicProcessor) {
-            this.outboundMicProcessor.dispose();
-            this.outboundMicProcessor = null;
-        }
-        this.rawSenderTrack = null;
+        const session = this.session;
+        this.session = null;
+        this.releaseSessionMedia(session);
         try {
             await this.registerer?.unregister();
         } catch {

@@ -655,7 +655,13 @@ export interface BoostedMicProcessor {
     setNegotiatedCodec(codecMimeType: string | null): void;
     getLowPassFrequency(): number;
     getLiveLevelSnapshot(): LiveLevelSnapshot;
-    dispose(): void;
+    /**
+     * Tear the processor down. By default the raw microphone tracks are
+     * stopped too (the processed track replaced them on the sender). Pass
+     * `keepSourceTracks` when the raw track may still be live on a sender,
+     * e.g. after `replaceTrack` failed and the processor was never installed.
+     */
+    dispose(options?: { keepSourceTracks?: boolean }): void;
 }
 
 /**
@@ -1038,25 +1044,63 @@ export function createBoostedMicStream(
         return computeEffectiveLowPassHz(cfg);
     };
 
-    const dispose = () => {
+    const dispose = (options?: { keepSourceTracks?: boolean }) => {
         disposed = true;
         try {
             window.removeEventListener("pointerdown", retryResumeOnGesture, true);
             window.removeEventListener("keydown", retryResumeOnGesture, true);
-            destination.stream.getTracks().forEach((t) => t.stop());
-            source.disconnect();
-            hpf.disconnect();
-            rnnoiseNode?.disconnect();
-            expanderNode?.disconnect();
-            lowMidCut.disconnect();
-            manualGainNode.disconnect();
-            compressor.disconnect();
-            makeupGainNode.disconnect();
-            highShelf.disconnect();
-            lowPass.disconnect();
-            limiter.disconnect();
-            ceilingShaper.disconnect();
-            analyser.disconnect();
+        } catch {
+            // ignore
+        }
+        // Stop the underlying hardware mic tracks (rawStream) so the browser
+        // releases the mic even after RTCRtpSender.replaceTrack swapped the
+        // raw track out — unless the caller says a sender may still use them.
+        if (!options?.keepSourceTracks) {
+            try {
+                rawStream.getTracks().forEach((t) => {
+                    try {
+                        t.stop();
+                    } catch {
+                        // ignore
+                    }
+                });
+            } catch {
+                // ignore
+            }
+        }
+        try {
+            destination.stream.getTracks().forEach((t) => {
+                try {
+                    t.stop();
+                } catch {
+                    // ignore
+                }
+            });
+        } catch {
+            // ignore
+        }
+        for (const node of [
+            source,
+            hpf,
+            rnnoiseNode,
+            expanderNode,
+            lowMidCut,
+            manualGainNode,
+            compressor,
+            makeupGainNode,
+            highShelf,
+            lowPass,
+            limiter,
+            ceilingShaper,
+            analyser,
+        ]) {
+            try {
+                node?.disconnect();
+            } catch {
+                // ignore
+            }
+        }
+        try {
             if (ctx.state !== "closed") {
                 void ctx.close().catch(() => undefined);
             }

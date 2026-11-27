@@ -43,6 +43,12 @@ return [
         'crm.deal-exposes-tab',
         'crm.tasks-workspace-redesign',
         'crm.automation-v2',
+        // Routes a lead on the entry channel it came in through: the lead_entry_received trigger and the
+        // assign_lead_owner action. Needs crm.automation-v2. Entries are stored whether or not it is on.
+        'crm.lead-entry-routing',
+        // Starts a first-contact clock for the assigned agent when a lead arrives through a channel that
+        // sets an SLA, shows it on the lead, and logs the outcome. Entries are stored without it.
+        'crm.lead-contact-sla',
         'crm.custom-fields-cross-model-optimizations',
         'crm.meeting-attendance-confirmation',
         'crm.meeting-host',
@@ -109,5 +115,7 @@ return [
         'crm.agent-workspace' => true,
         'softphone.voicemail' => true,
         'crm.softphone' => true,
+        'crm.automation-v2' => true,
+        'crm.deal-view-redesign' => true,
     ],
 ];

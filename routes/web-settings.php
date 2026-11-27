@@ -20,6 +20,7 @@ use App\Http\Controllers\CrmEventSettingController;
 use App\Http\Controllers\CurrencySettingController;
 use App\Http\Controllers\CustomFieldCategoryController;
 use App\Http\Controllers\CustomFieldController;
+use App\Http\Controllers\CustomFieldMappingController;
 use App\Http\Controllers\CustomFieldSettingsController;
 use App\Http\Controllers\CustomLinkSettingController;
 use App\Http\Controllers\CustomModuleController;
@@ -313,6 +314,8 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account/settings'], function 
     Route::get('custom-fields-settings', [CustomFieldSettingsController::class, 'index'])->name('custom-fields-settings.index');
     Route::get('custom-fields/fields-by-group', [CustomFieldController::class, 'fieldsByGroup'])->name('custom-fields.fields-by-group');
     Route::get('custom-fields/pipeline-options', [CustomFieldController::class, 'pipelineOptions'])->name('custom-fields.pipeline-options');
+    Route::post('custom-fields/mapping/preview', [CustomFieldMappingController::class, 'preview'])->name('custom-fields.mapping.preview');
+    Route::post('custom-fields/mapping/apply', [CustomFieldMappingController::class, 'apply'])->name('custom-fields.mapping.apply');
     Route::resource('custom-fields', CustomFieldController::class);
     Route::get('custom-fields/{id}/record-options', [CustomFieldController::class, 'recordOptions'])->name('custom-fields.record-options');
     Route::get('custom-fields/{id}/rule-set', [CustomFieldController::class, 'getRuleSet'])->name('custom-fields.rule-set');
@@ -372,6 +375,7 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account/settings'], function 
 
     Route::get('lead-pipeline-update/{statusId}', [LeadPipelineSettingController::class, 'statusUpdate'])->name('lead-pipeline-update.stageUpdate');
     Route::put('lead-pipeline-setting/{id}/nav-visibility', [LeadPipelineSettingController::class, 'updateNavVisibility'])->name('lead-pipeline-setting.nav-visibility');
+    Route::put('lead-pipeline-setting/{id}/system-visibility', [LeadPipelineSettingController::class, 'updateSystemVisibility'])->name('lead-pipeline-setting.system-visibility');
     Route::put('lead-pipeline-setting/{id}/analysis-script', [\App\Http\Controllers\PipelineAnalysisScriptController::class, 'upsert'])->name('pipeline.analysis-script.upsert');
     Route::get('lead-pipeline-setting/{id}/analysis-script', [\App\Http\Controllers\PipelineAnalysisScriptController::class, 'show'])->name('pipeline.analysis-script.show');
     Route::get('analysis-script-builder', [\App\Http\Controllers\PipelineAnalysisScriptController::class, 'builder'])->name('analysis-script-builder.show');
@@ -483,6 +487,9 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
     // Meta Events (used by deal automation "Meta Conversion" actions)
     Route::post('meta-events/send-test', [MetaEventController::class, 'sendTest'])->name('meta-events.send-test');
     Route::resource('meta-events', MetaEventController::class)->except(['show', 'create', 'edit']);
+
+    // Lead assignment pools (used by the assign_lead_owner automation action)
+    Route::resource('lead-assignment-pools', \App\Http\Controllers\LeadAssignmentPoolController::class)->except(['show', 'create', 'edit']);
 
     // CRM Event Engine Settings
     Route::get('company-settings/crm-events', [SettingsController::class, 'crm_events'])->name('company-settings.crm_events');

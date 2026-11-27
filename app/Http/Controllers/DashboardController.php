@@ -1127,7 +1127,7 @@ class DashboardController extends AccountBaseController
         $startDate = $this->startDate->toDateString();
         $endDate = $this->endDate->toDateString();
 
-        $this->leadPipelines = LeadPipeline::all();
+        $this->leadPipelines = LeadPipeline::visibleInSystem()->get();
 
         $this->leadStatusChart = $this->leadStatusChart($startDate, $endDate, $pipelineId);
 
