@@ -721,7 +721,7 @@ class LeadSummaryInputBuilder
             'channel' => $redactor->clean($marketing?->utm_source, 60),
             'medium' => $redactor->clean($marketing?->utm_medium, 60),
             'ad_content' => $redactor->clean($marketing?->utm_content, 120),
-            'search_term' => $redactor->clean($marketing?->utm_term, 120),
+            'utm_term' => $redactor->clean($marketing?->utm_term, 120),
             'first_touch_days_ago' => $touches['first_touch_days_ago'] ?? null,
             'touch_count' => ($touches['touch_count'] ?? 0) > 1 ? $touches['touch_count'] : null,
             'later_touches' => $touches['later_touches'] ?? null,
@@ -771,7 +771,7 @@ class LeadSummaryInputBuilder
                 'medium' => $redactor->clean($touch->utm_medium, 60),
                 'campaign' => $redactor->clean($touch->utm_campaign, 120),
                 'ad_content' => $redactor->clean($touch->utm_content, 120),
-                'search_term' => $redactor->clean($touch->utm_term, 120),
+                'utm_term' => $redactor->clean($touch->utm_term, 120),
             ], fn ($value) => $value !== null && $value !== ''))
             ->values()
             ->all();

@@ -225,9 +225,15 @@ class LeadSummaryServiceTest extends TestCase
             $this->assertStringContainsString($interest, $text, "the example drops: {$interest}");
         }
 
-        // Marketing is used: the search term and the returning visit.
-        $this->assertStringContainsString('umzug nordzypern', $example['summary']);
+        // Marketing is used: the campaign and the returning visit.
+        $this->assertStringContainsString('Relocation DE', $example['summary']);
         $this->assertStringContainsString('Returned', $example['summary']);
+
+        // utm_term is an opaque internal identifier, never a search term: its value is not
+        // written and the example never calls it a search.
+        $this->assertStringNotContainsString('ag-4821', json_encode($example));
+        $this->assertStringNotContainsString('ag-7302', json_encode($example));
+        $this->assertStringNotContainsString('search', strtolower(json_encode($example)));
 
         // None of the filler the prompt bans.
         foreach (['no details', 'not yet recorded', 'not yet known', 'nothing else on file', 'has not shared'] as $filler) {

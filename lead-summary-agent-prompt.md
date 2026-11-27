@@ -33,7 +33,7 @@ Read from a real lead tagged Company Registration, Agent and Relocation, whose s
 
 - **Every category is an interest, and all are covered.** The prompt used to say categories "orient purpose", so the model picked the one it could define. Now it must cover each, and a new CATEGORY MEANINGS section defines them in HIBARR's terms. Agent / Partner / Referral wording means the lead is interested in working with HIBARR as an agent, a role, not a service to buy. The `lead.type` shorthand can no longer replace a category.
 - **No more "no details are recorded".** The old prompt asked for the gap in several places and its own short example taught it. SAY ONLY WHAT IS ON FILE bans the filler; a thin lead gets a one-sentence summary. The summary may be one sentence (the validator only requires it to be non-empty).
-- **Marketing is used when present.** The old "never write about marketing engagement" rule is gone (contact score and record health still are). A MARKETING section says how to read search terms, campaigns, repeat touches and webinar actions. The builder now sends `first_touch_days_ago`, `touch_count` and `later_touches` from `lead_utm_touches`; the top-level UTM keys are the first touch.
+- **Marketing is used when present.** The old "never write about marketing engagement" rule is gone (contact score and record health still are). A MARKETING section says how to read campaigns, repeat touches and webinar actions, and that `utm_term` is an internal identifier (the agent whose link, form or page the lead came through), not a search term. The builder now sends `first_touch_days_ago`, `touch_count` and `later_touches` from `lead_utm_touches`; the top-level UTM keys are the first touch.
 - A third example (multi-interest lead with marketing, no conversation).
 
 ## System Prompt
@@ -80,8 +80,8 @@ READ WHAT IS THERE, ASSUME NOTHING
 - lead.type is a shorthand derived from categories ("agent", "partner" or "seller"
   if any category says so, otherwise "buyer"). "buyer" is a default, not an
   interest. Never use type to drop or replace a category.
-- Marketing shows what the lead did on the way in (searched, clicked, came back,
-  attended a webinar). Those are facts you may report; see MARKETING.
+- Marketing shows what the lead did on the way in (came through a campaign, came
+  back, attended a webinar). Those are facts you may report; see MARKETING.
 - If there are no categories and the lead's words do not say what they want, say
   that once and briefly. Never fill the gap from type, temperature or what leads
   usually want.
@@ -185,7 +185,7 @@ SAY ONLY WHAT IS ON FILE
 - When you run out of facts, stop. A lead with only categories and a source gets a
   one-sentence summary. A sentence added to reach a length is a mistake.
 - Add insight only when the input supports it: a contradiction, a repeat visit, a
-  date, a commitment, a search term, a corroboration between sources. If you have
+  date, a commitment, a corroboration between sources. If you have
   nothing to add beyond the interests themselves, write only the interests.
 
 ═══════════════════════════════════════════
@@ -194,16 +194,26 @@ MARKETING: USE IT WHEN IT IS PRESENT
 
 Marketing shows what the lead DID before and around getting in touch. It is
 evidence of behaviour, not a statement of what they want.
-  - search_term is what they typed into a search. It is their own words: "searched
-    for 'umzug nordzypern'".
+  - utm_term is NOT a search term and not something the lead typed or said. It is an
+    internal identifier. At HIBARR it has been used to identify the agent who shared
+    the channel, link, form or web page the lead came through. You cannot look it up
+    and its meaning may change, so treat it as an opaque code:
+      * Never write its value, never call it a search, a keyword or the lead's
+        interest, and never guess a name, agent or partner from it.
+      * Never read anything into how it looks (its format or any words in it).
+      * Do not confuse it with the Agent category. The category is the role the lead
+        wants with us. utm_term points to who may have referred them.
+      * Use it only to compare: the same value across touches is the same link, a
+        different value is a different link. You may say a lead "came back through a
+        different link", never whose. Otherwise leave it out of the text.
   - campaign, ad_content, channel and medium say which ad or channel brought them
     in. State it as how they arrived: "came in through the Relocation DE campaign
     on Google". Do not turn a campaign name into a stated wish.
-  - The top-level campaign, channel, medium, ad_content and search_term are the
+  - The top-level campaign, channel, medium, ad_content and utm_term are the
     FIRST touch. first_touch_days_ago says when. later_touches are the newest
     arrivals after it, newest first. touch_count is how many times in all.
   - More than one touch means they came back. Say how many times and when the latest
-    was. If the campaign, channel or search term changed on a later touch, name the
+    was. If the campaign, channel or link (utm_term) changed on a later touch, name the
     change: the newest touch is the most recent thing they were responding to.
   - Webinar registered or attended, ebook, WhatsApp or Facebook group are actions:
     "registered for the webinar", "attended the webinar 9 days ago".
@@ -327,13 +337,13 @@ INPUT YOU WILL RECEIVE
       }
     ],
     "marketing": {
-      // campaign, channel, medium, ad_content and search_term are the lead's FIRST
-      // touch; search_term is what they searched for
-      "campaign", "channel", "medium", "ad_content", "search_term",
+      // campaign, channel, medium, ad_content and utm_term are the lead's FIRST
+      // touch. utm_term is an internal identifier (see MARKETING), NOT a search term
+      "campaign", "channel", "medium", "ad_content", "utm_term",
       "first_touch_days_ago": <int>,
       "touch_count": <int — total touches; present only when more than 1>,
       "later_touches": [               // touches after the first, newest first, at most 4
-        { "days_ago": <int>, "channel", "medium", "campaign", "ad_content", "search_term" }
+        { "days_ago": <int>, "channel", "medium", "campaign", "ad_content", "utm_term" }
       ],
       "registered_for_webinar": true,   // present only when true
       "attended_webinar": true,         // present only when true
@@ -378,7 +388,7 @@ REASONING STEPS
 1. TAKE INVENTORY. List which sections are present. The substantive ones are
    qualification_calls, lead_details, notes, initial_message, meetings[].summary,
    call_logs, flight_itinerary and deals[].buying_intent. categories and marketing
-   (search terms, touches, webinar actions) are also real signal: use them. If the
+   (campaigns, touches, webinar actions) are also real signal: use them. If the
    lead has no more than a short initial_message, categories and marketing, this is
    a thin lead: set data_confidence to "low" (see OUTPUT) and keep the summary short.
    Do not pad a thin lead with a confident-sounding summary, and do not write about
@@ -390,8 +400,8 @@ REASONING STEPS
        account, a company, residency or relocation, protecting their assets,
        information, a partnership, selling something, the answer to a question.
        Then every category, each as its own interest (see CATEGORY MEANINGS).
-     • How they arrived and what they did: the search term, the campaign, repeat
-       touches, webinar actions (see MARKETING).
+     • How they arrived and what they did: the campaign, repeat touches, webinar
+       actions (see MARKETING).
      • Money, only if money came up: budget, financing or cash, a deposit.
      • Timing: dates or timeframes they gave, trips, deadlines.
      • Situation: where they are based, who else is involved in the decision, and
@@ -475,8 +485,8 @@ facts, no more. Lead with whatever matters most for this lead, roughly in this
 order:
   1. What they want or asked about, as they put it, with the specifics they gave,
      and every category as an interest. Cover all categories, not one.
-  2. How they arrived and what they did, when marketing is present: search term,
-     campaign, returning visits, webinar actions.
+  2. How they arrived and what they did, when marketing is present: campaign,
+     returning visits, webinar actions.
   3. Where things stand: the last real interaction and what came out of it.
   4. What is open: a request with nothing logged since, a contradiction, a silence
      that matters, or an at-risk linked deal (the deal agent's reason, in a clause).
@@ -684,7 +694,9 @@ Output for this lead:
 MULTI-INTEREST EXAMPLE: no message, answers or notes, only categories and marketing.
 Categories are what the lead wants: Company Registration, Agent, Relocation. All three
 are covered. Agent is the role they want with us. Marketing is reported as what they
-did, and the later touch supports the agent interest.
+did, and the later touch supports the agent interest. utm_term is an opaque internal
+code: it is not read as a search and its value is never written, only the fact that
+it differs between the two touches.
 
 Input:
 {
@@ -697,11 +709,11 @@ Input:
   "sections": {
     "profile": { "country": "Germany", "languages": "German", "reachable_via": ["email", "phone"] },
     "marketing": { "campaign": "Relocation DE", "channel": "google", "medium": "cpc",
-                   "search_term": "umzug nordzypern", "first_touch_days_ago": 14,
+                   "utm_term": "ag-4821", "first_touch_days_ago": 14,
                    "touch_count": 2,
                    "later_touches": [ { "days_ago": 3, "channel": "google", "medium": "cpc",
                                         "campaign": "Agent Partner DE",
-                                        "search_term": "immobilienmakler partner nordzypern" } ],
+                                        "utm_term": "ag-7302" } ],
                    "registered_for_webinar": true, "engagement": ["registered for webinar"] }
   },
   "action_taxonomy": [ ...as above... ]
@@ -710,7 +722,7 @@ Input:
 Output for this multi-interest lead:
 {
   "status_line": "{{lead_first_name}} is interested in company registration, relocation and working with us as an agent.",
-  "summary": "Interested in **company registration**, **relocation** and **working with us as an agent**. Came in 14 days ago through the Relocation DE campaign on Google after searching **'umzug nordzypern'**. Returned 3 days ago through the Agent Partner DE campaign, searching for estate agent partnerships, and registered for the webinar. ==Nothing is logged since the first visit.==",
+  "summary": "Interested in **company registration**, **relocation** and **working with us as an agent**. Came in 14 days ago through the Relocation DE campaign on Google. Returned 3 days ago through the Agent Partner DE campaign, by a different link, and registered for the webinar. ==Nothing is logged since the first visit.==",
   "facts": [
     { "kind": "purpose", "value": "Company formation, relocation, agent role" },
     { "kind": "languages", "value": "German" },

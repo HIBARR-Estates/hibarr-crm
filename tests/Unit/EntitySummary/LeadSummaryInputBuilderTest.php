@@ -694,19 +694,19 @@ class LeadSummaryInputBuilderTest extends TestCase
             'marketing' => new LeadMarketing([
                 'utm_source' => 'google',
                 'utm_campaign' => 'Relocation DE',
-                'utm_term' => 'umzug nordzypern',
+                'utm_term' => 'ag-4821',
             ]),
         ]);
 
         $first = LeadUtmTouch::create([
             'lead_id' => 19, 'utm_source' => 'google', 'utm_campaign' => 'Relocation DE',
-            'utm_term' => 'umzug nordzypern', 'origin' => 'api', 'is_first_touch' => true,
+            'utm_term' => 'ag-4821', 'origin' => 'api', 'is_first_touch' => true,
         ]);
         $first->forceFill(['created_at' => now()->subDays(14)])->save();
 
         $later = LeadUtmTouch::create([
             'lead_id' => 19, 'utm_source' => 'google', 'utm_campaign' => 'Agent Partner DE',
-            'utm_term' => 'immobilienmakler partner nordzypern', 'origin' => 'api',
+            'utm_term' => 'ag-7302', 'origin' => 'api',
         ]);
         $later->forceFill(['created_at' => now()->subDays(3)])->save();
 
@@ -717,6 +717,11 @@ class LeadSummaryInputBuilderTest extends TestCase
         $this->assertCount(1, $marketing['later_touches'], 'the first touch is the top-level utm keys, not repeated');
         $this->assertSame(3, $marketing['later_touches'][0]['days_ago']);
         $this->assertSame('Agent Partner DE', $marketing['later_touches'][0]['campaign']);
+        // utm_term goes through under its own name (it is an internal id, not a search term).
+        $this->assertSame('ag-4821', $marketing['utm_term']);
+        $this->assertSame('ag-7302', $marketing['later_touches'][0]['utm_term']);
+        $this->assertArrayNotHasKey('search_term', $marketing);
+        $this->assertArrayNotHasKey('search_term', $marketing['later_touches'][0]);
         $this->assertStringNotContainsString('api', json_encode($marketing), 'origin is internal');
     }
 
@@ -770,7 +775,7 @@ class LeadSummaryInputBuilderTest extends TestCase
         ], [
             'marketing' => new LeadMarketing([
                 'utm_source' => 'google', 'utm_medium' => 'cpc', 'utm_campaign' => 'Q3',
-                'utm_content' => 'villa-ad', 'utm_term' => 'villa antalya',
+                'utm_content' => 'villa-ad', 'utm_term' => 'ag-1042',
                 'has_registered_for_the_webinar' => true,
                 'has_attended_the_webinar' => true, 'last_webinar_date' => Carbon::now()->subDays(5),
                 'contact_score' => 40,
@@ -787,7 +792,7 @@ class LeadSummaryInputBuilderTest extends TestCase
         $firstTouch->forceFill(['created_at' => now()->subDays(9)])->save();
         LeadUtmTouch::create([
             'lead_id' => 20, 'utm_source' => 'google', 'utm_medium' => 'cpc', 'utm_campaign' => 'Q4',
-            'utm_content' => 'banner', 'utm_term' => 'villa girne',
+            'utm_content' => 'banner', 'utm_term' => 'ag-2210',
         ]);
 
         DB::table('lead_notes')->insert(['lead_id' => 20, 'details' => 'A note', 'created_at' => now(), 'updated_at' => now()]);
