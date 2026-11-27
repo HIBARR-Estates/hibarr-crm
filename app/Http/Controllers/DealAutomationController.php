@@ -88,6 +88,8 @@ class DealAutomationController extends AccountBaseController
                 'date_field' => $this->resolvedTriggerDateField($request),
                 'date_recurrence' => $this->resolvedTriggerDateRecurrence($request),
                 'meeting_type_ids' => $this->resolvedMeetingTypeIds($request),
+                'entry_channel_uuids' => $this->resolvedEntryChannelUuids($request),
+                'entry_channel_include_descendants' => $this->resolvedEntryChannelIncludeDescendants($request),
                 'wait_duration_value' => $this->resolvedWaitDurationValue($request),
                 'wait_duration_unit' => $this->resolvedWaitDurationUnit($request),
                 'active' => $request->input('active') ? 1 : 0,
@@ -148,6 +150,8 @@ class DealAutomationController extends AccountBaseController
                 'date_field' => $this->resolvedTriggerDateField($request),
                 'date_recurrence' => $this->resolvedTriggerDateRecurrence($request),
                 'meeting_type_ids' => $this->resolvedMeetingTypeIds($request),
+                'entry_channel_uuids' => $this->resolvedEntryChannelUuids($request),
+                'entry_channel_include_descendants' => $this->resolvedEntryChannelIncludeDescendants($request),
                 'wait_duration_value' => $this->resolvedWaitDurationValue($request),
                 'wait_duration_unit' => $this->resolvedWaitDurationUnit($request),
                 'active' => $request->input('active') ? 1 : 0,
@@ -642,6 +646,36 @@ class DealAutomationController extends AccountBaseController
         return $ids === [] ? null : $ids;
     }
 
+    /**
+     * Channel scope: only meaningful for trigger = 'lead_entry_received'; cleared for every other
+     * trigger. An empty selection is stored as null, meaning "every channel". Uuids are OL's, so
+     * they are checked for shape only (the CRM does not own the channel list).
+     *
+     * @return array<int, string>|null
+     */
+    protected function resolvedEntryChannelUuids(Request $request): ?array
+    {
+        if ($request->trigger !== DealAutomation::TRIGGER_LEAD_ENTRY_RECEIVED) {
+            return null;
+        }
+
+        $uuids = collect($request->input('trigger_entry_channel_uuids', []))
+            ->map(fn ($uuid) => strtolower(trim((string) $uuid)))
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+
+        return $uuids === [] ? null : $uuids;
+    }
+
+    /** On unless explicitly switched off; only meaningful for lead_entry_received. */
+    protected function resolvedEntryChannelIncludeDescendants(Request $request): bool
+    {
+        return $request->trigger !== DealAutomation::TRIGGER_LEAD_ENTRY_RECEIVED
+            || $request->boolean('trigger_entry_channel_include_descendants', true);
+    }
+
     protected function resolvedTriggerDateRecurrence(Request $request): ?string
     {
         return $request->trigger === DealAutomation::TRIGGER_DATE_BASED
@@ -700,6 +734,7 @@ class DealAutomationController extends AccountBaseController
             DealAutomation::TRIGGER_LEAD_FOLLOWUP_CREATED,
             DealAutomation::TRIGGER_LEAD_CREATED_API,
             DealAutomation::TRIGGER_LEAD_UPDATED_API,
+            DealAutomation::TRIGGER_LEAD_ENTRY_RECEIVED,
         ];
 
         return array_merge(
@@ -726,6 +761,9 @@ class DealAutomationController extends AccountBaseController
             'trigger_date_recurrence' => ['required_if:trigger,'.DealAutomation::TRIGGER_DATE_BASED, 'nullable', Rule::in(array_keys(AutomationFieldCatalog::DATE_RECURRENCES))],
             'trigger_meeting_type_ids' => ['nullable', 'array'],
             'trigger_meeting_type_ids.*' => ['integer', Rule::exists('meeting_types', 'id')->where('company_id', company()->id)],
+            'trigger_entry_channel_uuids' => ['nullable', 'array'],
+            'trigger_entry_channel_uuids.*' => ['uuid'],
+            'trigger_entry_channel_include_descendants' => ['nullable', 'boolean'],
             'wait_duration_value' => 'nullable|integer|min:1|max:3650',
             'wait_duration_unit' => ['nullable', Rule::in(array_keys(AutomationFieldCatalog::WAIT_DURATION_UNITS))],
             'priority' => 'required|integer',
@@ -764,6 +802,11 @@ class DealAutomationController extends AccountBaseController
             'actions.*.meta_event_value_source' => ['nullable', Rule::in([DealAutomationAction::META_VALUE_SOURCE_FIXED, DealAutomationAction::META_VALUE_SOURCE_DEAL_VALUE])],
             'actions.*.wait_duration_value' => 'nullable|integer|min:1|max:3650',
             'actions.*.wait_duration_unit' => ['nullable', Rule::in(array_keys(AutomationFieldCatalog::WAIT_DURATION_UNITS))],
+            'actions.*.assign_strategy' => ['required_if:actions.*.action_type,assign_lead_owner', 'nullable', Rule::in(array_keys(AutomationFieldCatalog::OWNER_STRATEGIES))],
+            'actions.*.assign_user_id' => ['required_if:actions.*.assign_strategy,specific_user', 'nullable', Rule::exists('users', 'id')->where('company_id', company()->id)],
+            'actions.*.assign_pool_id' => ['required_if:actions.*.assign_strategy,round_robin', 'nullable', Rule::exists('lead_assignment_pools', 'id')->where('company_id', company()->id)],
+            'actions.*.assign_when_owned' => ['nullable', Rule::in(array_keys(AutomationFieldCatalog::WHEN_OWNED_OPTIONS))],
+            'actions.*.assign_notify' => ['nullable', 'boolean'],
         ];
     }
 
@@ -784,6 +827,27 @@ class DealAutomationController extends AccountBaseController
         }
     }
 
+    /**
+     * The assign_lead_owner config, stored in the action's payload column.
+     *
+     * @param  array<string, mixed>  $action
+     * @return array<string, mixed>
+     */
+    protected function assignOwnerPayload(array $action): array
+    {
+        $strategy = $action['assign_strategy'] ?? 'specific_user';
+
+        return [
+            'strategy' => $strategy,
+            'user_id' => $strategy === 'specific_user' ? (int) ($action['assign_user_id'] ?? 0) ?: null : null,
+            'pool_id' => $strategy === 'round_robin' ? (int) ($action['assign_pool_id'] ?? 0) ?: null : null,
+            'when_owned' => in_array($action['assign_when_owned'] ?? null, array_keys(AutomationFieldCatalog::WHEN_OWNED_OPTIONS), true)
+                ? $action['assign_when_owned']
+                : 'skip',
+            'notify' => ! empty($action['assign_notify']),
+        ];
+    }
+
     protected function syncActions(DealAutomation $automation, Request $request, string $subjectType): void
     {
         $allowedActionTypes = $subjectType === DealAutomation::SUBJECT_LEAD
@@ -802,6 +866,7 @@ class DealAutomationController extends AccountBaseController
             $isCreateTask = $actionType === 'create_task';
             $isMetaConversion = $actionType === 'meta_conversion';
             $isWait = $actionType === 'wait';
+            $isAssignOwner = $actionType === 'assign_lead_owner';
             $recipientTypes = $isSendEmail ? array_values((array) ($action['recipient_types'] ?? ['client'])) : null;
 
             $automation->actions()->create([
@@ -835,6 +900,7 @@ class DealAutomationController extends AccountBaseController
                     && ($action['meta_event_value_source'] ?? null) === DealAutomationAction::META_VALUE_SOURCE_DEAL_VALUE
                     ? DealAutomationAction::META_VALUE_SOURCE_DEAL_VALUE
                     : null,
+                'payload' => $isAssignOwner ? $this->assignOwnerPayload($action) : null,
                 'wait_duration_value' => $isWait ? ($action['wait_duration_value'] ?? null) : null,
                 'wait_duration_unit' => $isWait && ! empty($action['wait_duration_value'])
                     ? (in_array($action['wait_duration_unit'] ?? null, array_keys(AutomationFieldCatalog::WAIT_DURATION_UNITS))

@@ -137,6 +137,7 @@ class Kernel extends ConsoleKernel
 
         // Every Minute
         $schedule->command('send-event-reminder')->everyMinute();
+        $schedule->command('lead-contact-sla:flag-breaches')->everyMinute()->withoutOverlapping();
         $schedule->command('auto-clock-out')->everyMinute();
         $schedule->command('hide-cron-message')->everyMinute();
         $schedule->command('send-attendance-reminder')->everyMinute();

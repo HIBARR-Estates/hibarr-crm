@@ -178,6 +178,41 @@ class AutomationFieldCatalog
     ];
 
     /**
+     * Conditions on the entry a lead came in through (lead automations, resolved by
+     * LeadEntryFieldResolver). Keys are used as they are, with no prefix. For the channel fields the
+     * operator `contains` means "is in this channel or one below it"; for tags it means "has this tag".
+     */
+    public const ENTRY_FIELDS = [
+        'entry_channel' => 'Entry Channel',
+        'entry_channel_type' => 'Entry Channel Type',
+        'entry_channel_family' => 'Entry Channel Family',
+        'entry_channel_tag' => 'Entry Channel Tag',
+        'entry_campaign' => 'Entry Campaign',
+        'entry_attribution_link' => 'Entry Attribution Link',
+        'entry_partner' => 'Entry Partner',
+        'entry_referral_agent' => 'Entry Referring Agent',
+        'entry_utm_source' => 'Entry UTM Source',
+        'entry_utm_medium' => 'Entry UTM Medium',
+        'entry_is_new_lead' => 'Entry Is A New Lead',
+        'first_entry_channel' => 'First Entry Channel',
+        'first_entry_channel_type' => 'First Entry Channel Type',
+        'entry_count_30d' => 'Entries In The Last 30 Days',
+    ];
+
+    /** How assign_lead_owner picks the owner. */
+    public const OWNER_STRATEGIES = [
+        'specific_user' => 'A specific user',
+        'round_robin' => 'Next person in a pool',
+    ];
+
+    /** What assign_lead_owner does when the lead already has an owner. */
+    public const WHEN_OWNED_OPTIONS = [
+        'skip' => 'Leave the current owner',
+        'overwrite' => 'Replace the current owner',
+        'overwrite_if_default_owner' => 'Replace only the default owner',
+    ];
+
+    /**
      * Date fields a date_based trigger can anchor on, grouped by automation
      * subject type. Every key must resolve to a parseable date through
      * FieldResolverService::resolve() — bare Lead columns for lead automations,
@@ -213,7 +248,7 @@ class AutomationFieldCatalog
      */
     public const DEAL_ACTION_TYPES = ['stage_transition', 'set_field_value', 'lock_deal', 'send_email', 'create_task', 'create_note', 'meta_conversion', 'wait'];
 
-    public const LEAD_ACTION_TYPES = ['set_field_value', 'send_email', 'create_task', 'create_note', 'meta_conversion', 'wait'];
+    public const LEAD_ACTION_TYPES = ['set_field_value', 'send_email', 'create_task', 'create_note', 'meta_conversion', 'wait', 'assign_lead_owner'];
 
     /**
      * Units a create_task action's due-date delta can be expressed in — the

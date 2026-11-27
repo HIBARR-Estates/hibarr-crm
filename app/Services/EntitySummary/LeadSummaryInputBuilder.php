@@ -14,6 +14,7 @@ use App\Models\LeadMarketing;
 use App\Models\LeadNote;
 use App\Models\LeadQualification;
 use App\Models\LeadQualificationAnswer;
+use App\Models\LeadUtmTouch;
 use App\Models\MeetingSummary;
 use App\Services\CallLog\CallKey;
 use Carbon\Carbon;
@@ -48,6 +49,9 @@ class LeadSummaryInputBuilder
     private const MAX_CALL_LOGS = 10;
 
     private const MAX_FLIGHTS = 10;
+
+    /** Newest UTM touches after the first that are sent (the first lives in the top-level utm keys). */
+    private const MAX_LATER_TOUCHES = 4;
 
     private const SUMMARY_SECTION_CHARS = 600;
 
@@ -695,37 +699,88 @@ class LeadSummaryInputBuilder
     private function buildMarketingSection(Lead $lead, Carbon $now, LeadSummaryRedactor $redactor): ?array
     {
         $marketing = $lead->marketing;
+        $touches = $this->buildUtmTouches($lead, $now, $redactor);
 
-        if (! $marketing) {
+        if (! $marketing && $touches === []) {
             return null;
         }
 
-        $engagement = array_values(array_filter([
+        $engagement = $marketing ? array_values(array_filter([
             $marketing->has_registered_for_the_webinar ? 'registered for webinar' : null,
             $marketing->has_attended_the_webinar ? 'attended webinar' : null,
             $marketing->registered_for_zoom_meeting ? 'registered for Zoom meeting' : null,
             $marketing->has_downloaded_the_ebook ? 'downloaded ebook' : null,
             $marketing->has_joined_the_whatsapp_group ? 'joined WhatsApp group' : null,
             $marketing->has_joined_the_facebook_group ? 'joined Facebook group' : null,
-        ]));
+        ])) : [];
 
+        // lead_marketing.utm_* is the FIRST touch and is never overwritten (see
+        // LeadUtmService); every later UTM set is in lead_utm_touches.
         $section = array_filter([
-            'campaign' => $redactor->clean($marketing->utm_campaign, 120),
-            'channel' => $redactor->clean($marketing->utm_source, 60),
-            'medium' => $redactor->clean($marketing->utm_medium, 60),
-            'ad_content' => $redactor->clean($marketing->utm_content, 120),
-            'search_term' => $redactor->clean($marketing->utm_term, 120),
+            'campaign' => $redactor->clean($marketing?->utm_campaign, 120),
+            'channel' => $redactor->clean($marketing?->utm_source, 60),
+            'medium' => $redactor->clean($marketing?->utm_medium, 60),
+            'ad_content' => $redactor->clean($marketing?->utm_content, 120),
+            'search_term' => $redactor->clean($marketing?->utm_term, 120),
+            'first_touch_days_ago' => $touches['first_touch_days_ago'] ?? null,
+            'touch_count' => ($touches['touch_count'] ?? 0) > 1 ? $touches['touch_count'] : null,
+            'later_touches' => $touches['later_touches'] ?? null,
             // First-class webinar flags (also listed in engagement when true).
-            'registered_for_webinar' => $marketing->has_registered_for_the_webinar ? true : null,
-            'attended_webinar' => $marketing->has_attended_the_webinar ? true : null,
+            'registered_for_webinar' => $marketing?->has_registered_for_the_webinar ? true : null,
+            'attended_webinar' => $marketing?->has_attended_the_webinar ? true : null,
             'engagement' => $engagement,
-            'last_webinar_days_ago' => $marketing->last_webinar_date
+            'last_webinar_days_ago' => $marketing?->last_webinar_date
                 ? $this->daysAgo(Carbon::parse($marketing->last_webinar_date), $now)
                 : null,
-            'contact_score' => $marketing->contact_score,
+            'contact_score' => $marketing?->contact_score,
         ], fn ($value) => $value !== null && $value !== '' && $value !== []);
 
         return $section === [] ? null : $section;
+    }
+
+    /**
+     * The lead's UTM touch history: how many times they arrived, when the first
+     * was, and the newest few after it. Origin ("api", "backfill") is internal
+     * and left out.
+     *
+     * @return array{touch_count?: int, first_touch_days_ago?: int, later_touches?: list<array<string, mixed>>}
+     */
+    private function buildUtmTouches(Lead $lead, Carbon $now, LeadSummaryRedactor $redactor): array
+    {
+        if (! $lead->id || ! Schema::hasTable('lead_utm_touches')) {
+            return [];
+        }
+
+        $query = LeadUtmTouch::query()->where('lead_id', $lead->id);
+        $count = (clone $query)->count();
+
+        if ($count === 0) {
+            return [];
+        }
+
+        $first = (clone $query)->orderBy('id')->first();
+
+        $later = (clone $query)
+            ->where('id', '!=', $first?->id)
+            ->orderByDesc('id')
+            ->limit(self::MAX_LATER_TOUCHES)
+            ->get()
+            ->map(fn (LeadUtmTouch $touch) => array_filter([
+                'days_ago' => $this->daysAgo($touch->created_at, $now),
+                'channel' => $redactor->clean($touch->utm_source, 60),
+                'medium' => $redactor->clean($touch->utm_medium, 60),
+                'campaign' => $redactor->clean($touch->utm_campaign, 120),
+                'ad_content' => $redactor->clean($touch->utm_content, 120),
+                'search_term' => $redactor->clean($touch->utm_term, 120),
+            ], fn ($value) => $value !== null && $value !== ''))
+            ->values()
+            ->all();
+
+        return array_filter([
+            'touch_count' => $count,
+            'first_touch_days_ago' => $first?->created_at ? $this->daysAgo($first->created_at, $now) : null,
+            'later_touches' => $later,
+        ], fn ($value) => $value !== null && $value !== []);
     }
 
     /**
@@ -822,7 +877,13 @@ class LeadSummaryInputBuilder
             return null;
         }
 
+        $touches = Schema::hasTable('lead_utm_touches')
+            ? LeadUtmTouch::where('lead_id', $lead->id)
+            : null;
+
         return hash('sha256', json_encode([
+            'utm_touch_count' => $touches?->count(),
+            'utm_touch_max_id' => $touches?->max('id'),
             'updated_at' => $row->updated_at?->toIso8601String(),
             'utm_campaign' => $row->utm_campaign,
             'utm_source' => $row->utm_source,
@@ -878,8 +939,8 @@ class LeadSummaryInputBuilder
     }
 
     /**
-     * Team taxonomy of the lead's intent/purpose (multi-select). Falls back to
-     * the legacy scalar category when the pivot has not been populated yet.
+     * What the lead wants — intent/purpose categories (multi-select). Falls back
+     * to the legacy scalar category when the pivot has not been populated yet.
      *
      * @return list<string>
      */

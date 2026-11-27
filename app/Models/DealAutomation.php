@@ -20,6 +20,8 @@ class DealAutomation extends BaseModel
         'date_field',
         'date_recurrence',
         'meeting_type_ids',
+        'entry_channel_uuids',
+        'entry_channel_include_descendants',
         'wait_duration_value',
         'wait_duration_unit',
         'active',
@@ -81,6 +83,14 @@ class DealAutomation extends BaseModel
     public const TRIGGER_DEAL_UPDATED_API = 'deal_updated_api';
 
     /**
+     * Fires once for every entry the backend (OL) reports for a lead, new or returning: the lead came
+     * in through a channel (a webinar registration, a consultation booking...). Runs after
+     * lead_created_api / lead_updated_api. Lead automations only; this is what routes ownership.
+     * Scoped by entry_channel_uuids (see DealAutomationService::matchesTriggerScope()).
+     */
+    public const TRIGGER_LEAD_ENTRY_RECEIVED = 'lead_entry_received';
+
+    /**
      * How a date_based trigger repeats: on the matching month/day every year
      * (birthdays/anniversaries) or only on the exact date, once ever.
      */
@@ -101,6 +111,8 @@ class DealAutomation extends BaseModel
         'active' => 'boolean',
         'priority' => 'integer',
         'meeting_type_ids' => 'array',
+        'entry_channel_uuids' => 'array',
+        'entry_channel_include_descendants' => 'boolean',
     ];
 
     /**

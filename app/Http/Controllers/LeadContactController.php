@@ -302,6 +302,8 @@ class LeadContactController extends AccountBaseController
      */
     public const AGENT_CONTACT_UNUSED_PROPS = [
         'utmTouches',
+        'leadEntries',
+        'contactSla',
         'callSummary',
         'dealFileFields',
         'taskLabels',
@@ -560,6 +562,25 @@ class LeadContactController extends AccountBaseController
             // Full UTM history (newest first) for the Marketing tab; lead_marketing keeps only the first touch.
             'utmTouches' => Inertia::defer(
                 fn () => $leadContact->utmTouches()->reorder('id', 'desc')->get(),
+                'marketing'
+            ),
+            // The contact clock the lead page's timer starts from (the page then polls the JSON route).
+            'contactSla' => Inertia::defer(
+                fn () => app(\App\Services\LeadContactSlaService::class)->currentFor((int) $leadContact->id),
+                'marketing'
+            ),
+            // Every way this lead came in (newest first), for the Marketing tab's entry history.
+            'leadEntries' => Inertia::defer(
+                fn () => \App\Models\LeadEntry::query()
+                    ->where('lead_id', $leadContact->id)
+                    ->orderByDesc('occurred_at')
+                    ->orderByDesc('id')
+                    ->limit(50)
+                    ->with('contactSla')
+                    ->get([
+                        'id', 'channel_name', 'channel_type', 'channel_path', 'source_entity_type', 'source_label',
+                        'is_new_lead', 'occurred_at', 'campaign_label', 'campaign_key', 'utm_source', 'utm_medium', 'form_key',
+                    ]),
                 'marketing'
             ),
             // Calls tab: count for the tab bar only; the tab loads its rows from
@@ -2387,6 +2408,25 @@ class LeadContactController extends AccountBaseController
         }
 
         return response()->download($sampleFilePath, 'lead-contact-sample.xlsx');
+    }
+
+    /**
+     * The first-contact clock to show on the lead (JSON): the one due first, else the latest ended.
+     * Polled by the lead page's timer so it stays true as contact is made elsewhere.
+     */
+    public function contactSla(Request $request, $leadId)
+    {
+        $lead = Lead::findOrFail($leadId);
+        $access = PermissionService::checkAccess(user(), 'view_lead', $lead, [
+            'added' => 'added_by',
+            'owned' => 'lead_owner',
+        ]);
+        abort_403(! $access['canAccess']);
+
+        return response()->json([
+            'status' => 'success',
+            'data' => app(\App\Services\LeadContactSlaService::class)->currentFor((int) $lead->id),
+        ]);
     }
 
     public function leadSallyInsights(Request $request, $id)

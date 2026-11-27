@@ -543,6 +543,7 @@ Route::group(['middleware' => ['auth', 'partner.restrict'], 'prefix' => 'account
     Route::delete('lead-contact-files/{lead_contact_file}', [LeadContactFileController::class, 'destroy'])->name('lead-contact-files.destroy');
     Route::get('lead-contact/{leadId}/files', [LeadContactFileController::class, 'index'])->name('lead-contact.files.index');
     Route::get('lead-contact/{leadId}/sally-insights', [LeadContactController::class, 'leadSallyInsights'])->name('lead-contact.sally-insights.index');
+    Route::get('lead-contact/{leadId}/contact-sla', [LeadContactController::class, 'contactSla'])->name('lead-contact.contact-sla')->whereNumber('leadId');
     Route::patch('sally-insights/{insight}', [LeadContactController::class, 'updateSallyInsight'])->name('sally-insights.update');
     Route::patch('sally-insights/{insight}/suggestions/{suggestionId}', [LeadContactController::class, 'updateSallySuggestion'])->name('sally-insights.suggestions.update');
     Route::post('sally-insights/{insight}/suggestions/{suggestionId}/log', [LeadContactController::class, 'logSallySuggestion'])->name('sally-insights.suggestions.log');
