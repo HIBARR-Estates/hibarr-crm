@@ -4,35 +4,51 @@ x-infisical: &infisical-env
   INFISICAL_PROJECT_ID: ${INFISICAL_PROJECT_ID:?Set INFISICAL_PROJECT_ID in .env}
   INFISICAL_ENV: ${INFISICAL_ENV:-dev}
 
-# One image, three roles. Set CRM_IMAGE to a registry tag when the image is built elsewhere.
-x-crm-image: &crm-image
-  image: ${CRM_IMAGE:-hibarr-crm:latest}
+# Settings every service shares.
+x-crm-env: &crm-env
+  <<: *infisical-env
+  OTEL_LOGS_ENABLED: ${OTEL_LOGS_ENABLED:-false}
+  APP_URL: ${APP_URL:-http://localhost:8080}
+  APP_BUNDLER: vite
+  REDIRECT_HTTPS: ${REDIRECT_HTTPS:-false}
+  TRUSTED_PROXIES: ${TRUSTED_PROXIES:-}
+  OPTIMIZE_ON_BOOT: ${OPTIMIZE_ON_BOOT:-true}
 
+x-crm-volumes: &crm-volumes
+  - hibarr_storage:/var/www/html/storage
+  - hibarr_uploads:/var/www/html/public/user-uploads
+
+x-build-args: &build-args
+  BUILD_ID: ${BUILD_ID:-}
+  BUILD_PREFIX: ${BUILD_PREFIX:-hibarr-crm}
+
+# Three images from docker/Dockerfile (see the header there):
+#   lean  CRM_IMAGE       queue worker
+#   pdf   CRM_PDF_IMAGE   adds Chromium + Node: app, expose worker, scheduler
+#   grpc  CRM_GRPC_IMAGE  adds generated protobuf classes + RoadRunner
+# Set the CRM_*_IMAGE variables to registry tags when the images are built elsewhere.
 services:
+  # Web. Expose PDF downloads render inside the web request, so it needs Chromium.
   app:
     build:
       context: .
       dockerfile: docker/Dockerfile
+      target: runtime
       args:
-        BUILD_ID: ${BUILD_ID:-}
-        BUILD_PREFIX: ${BUILD_PREFIX:-hibarr-crm}
-    <<: *crm-image
+        <<: *build-args
+        FLAVOR: pdf
+    image: ${CRM_PDF_IMAGE:-hibarr-crm:pdf}
     restart: unless-stopped
     ports:
       - "${APP_PORT:-8080}:80"
     environment:
-      <<: *infisical-env
+      <<: *crm-env
       GRPC_ENABLED: "false"
       CONTAINER_ROLE: app
       RUN_MIGRATIONS: ${RUN_MIGRATIONS:-false}
-      OTEL_LOGS_ENABLED: ${OTEL_LOGS_ENABLED:-false}
-      APP_URL: ${APP_URL:-http://localhost:8080}
-      APP_BUNDLER: vite
-      REDIRECT_HTTPS: ${REDIRECT_HTTPS:-false}
-      TRUSTED_PROXIES: ${TRUSTED_PROXIES:-}
-    volumes:
-      - hibarr_storage:/var/www/html/storage
-      - hibarr_uploads:/var/www/html/public/user-uploads
+      # Cache clears + reminder defaults, as the Jenkins deploy does after migrating.
+      RUN_DEPLOY_TASKS: ${RUN_DEPLOY_TASKS:-true}
+    volumes: *crm-volumes
     extra_hosts:
       - "host.docker.internal:host-gateway"
     # nginx is up before PHP-FPM; / boots Laravel and 302s to login when healthy.
@@ -47,46 +63,99 @@ services:
       retries: 3
       start_period: 300s
 
+  # General queue worker (same queues as the supervisor config on the Jenkins hosts).
   queue:
-    <<: *crm-image
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+      target: runtime
+      args:
+        <<: *build-args
+        FLAVOR: lean
+    image: ${CRM_IMAGE:-hibarr-crm:latest}
     restart: unless-stopped
     environment:
-      <<: *infisical-env
+      <<: *crm-env
       GRPC_ENABLED: "false"
       CONTAINER_ROLE: queue
-      OTEL_LOGS_ENABLED: ${OTEL_LOGS_ENABLED:-false}
       RUN_MIGRATIONS: "false"
-      APP_URL: ${APP_URL:-http://localhost:8080}
-      APP_BUNDLER: vite
-      REDIRECT_HTTPS: ${REDIRECT_HTTPS:-false}
-      TRUSTED_PROXIES: ${TRUSTED_PROXIES:-}
-    volumes:
-      - hibarr_storage:/var/www/html/storage
-      - hibarr_uploads:/var/www/html/public/user-uploads
+    volumes: *crm-volumes
     extra_hosts:
       - "host.docker.internal:host-gateway"
     depends_on:
       app:
         condition: service_healthy
 
-  scheduler:
-    <<: *crm-image
+  # Expose PDF worker: the supervisor `hibarr_crm_expose` program (queue expose,
+  # 660 s timeout, single try).
+  expose:
+    image: ${CRM_PDF_IMAGE:-hibarr-crm:pdf}
     restart: unless-stopped
     environment:
-      <<: *infisical-env
+      <<: *crm-env
       GRPC_ENABLED: "false"
-      CONTAINER_ROLE: scheduler
-      OTEL_LOGS_ENABLED: ${OTEL_LOGS_ENABLED:-false}
+      CONTAINER_ROLE: queue
       RUN_MIGRATIONS: "false"
-      APP_URL: ${APP_URL:-http://localhost:8080}
-      APP_BUNDLER: vite
-      REDIRECT_HTTPS: ${REDIRECT_HTTPS:-false}
-      TRUSTED_PROXIES: ${TRUSTED_PROXIES:-}
-    volumes:
-      - hibarr_storage:/var/www/html/storage
-      - hibarr_uploads:/var/www/html/public/user-uploads
+      QUEUE_NAMES: expose
+      QUEUE_SLEEP: "1"
+      QUEUE_TRIES: "1"
+      QUEUE_TIMEOUT: "660"
+    volumes: *crm-volumes
+    # Chromium needs more than Docker's 64 MB /dev/shm for large expose pages.
+    shm_size: 1gb
     extra_hosts:
       - "host.docker.internal:host-gateway"
+    depends_on:
+      app:
+        condition: service_healthy
+
+  # Laravel scheduler. On the pdf image because Kernel.php also schedules a
+  # fallback queue:work that drains `expose`.
+  scheduler:
+    image: ${CRM_PDF_IMAGE:-hibarr-crm:pdf}
+    restart: unless-stopped
+    environment:
+      <<: *crm-env
+      GRPC_ENABLED: "false"
+      CONTAINER_ROLE: scheduler
+      RUN_MIGRATIONS: "false"
+    volumes: *crm-volumes
+    shm_size: 1gb
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      app:
+        condition: service_healthy
+
+  # gRPC API (RoadRunner), replacing the roadrunner-grpc systemd service.
+  # TLS is not terminated here: put your proxy in front of port 9001 as nginx
+  # does on the Jenkins hosts (scripts/nginx-grpc-staging.conf).
+  grpc:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+      target: grpc
+      args:
+        <<: *build-args
+        FLAVOR: lean
+    image: ${CRM_GRPC_IMAGE:-hibarr-crm:grpc}
+    restart: unless-stopped
+    ports:
+      - "${GRPC_PORT:-9001}:9001"
+    environment:
+      <<: *crm-env
+      GRPC_ENABLED: "true"
+      CONTAINER_ROLE: grpc
+      RUN_MIGRATIONS: "false"
+    volumes: *crm-volumes
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    healthcheck:
+      test: curl -fsS -o /dev/null --max-time 8 http://127.0.0.1:2114/health || exit 1
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 300s
     depends_on:
       app:
         condition: service_healthy

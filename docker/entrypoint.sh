@@ -64,6 +64,10 @@ fetch_infisical_env() {
   [ -n "${REDIRECT_HTTPS:-}" ] && upsert_env REDIRECT_HTTPS "$REDIRECT_HTTPS"
   [ -n "${APP_URL:-}" ] && upsert_env APP_URL "$APP_URL"
   [ -n "${TRUSTED_PROXIES:-}" ] && upsert_env TRUSTED_PROXIES "$TRUSTED_PROXIES"
+  # Headless browser paths (pdf image flavor); config/pdf_browser.php reads them.
+  [ -n "${BROWSERSHOT_NODE_BINARY:-}" ] && upsert_env BROWSERSHOT_NODE_BINARY "$BROWSERSHOT_NODE_BINARY"
+  [ -n "${BROWSERSHOT_NODE_MODULES_PATH:-}" ] && upsert_env BROWSERSHOT_NODE_MODULES_PATH "$BROWSERSHOT_NODE_MODULES_PATH"
+  [ -n "${BROWSERSHOT_CHROME_PATH:-}" ] && upsert_env BROWSERSHOT_CHROME_PATH "$BROWSERSHOT_CHROME_PATH"
 
   chmod 600 "$env_file"
 
@@ -134,34 +138,69 @@ fetch_infisical_env
 
 role="${CONTAINER_ROLE:-app}"
 
-if [ "$role" = "app" ] || [ "$role" = "queue" ] || [ "$role" = "scheduler" ]; then
+if [ "$role" = "app" ] || [ "$role" = "queue" ] || [ "$role" = "scheduler" ] || [ "$role" = "grpc" ]; then
   wait_for_db
   ensure_app_key
 fi
 
-if [ "$role" = "app" ] && [ "${RUN_MIGRATIONS:-true}" = "true" ]; then
-  # No `|| true`: a failed migration must stop the container, not serve a half-migrated schema.
-  php artisan migrate --force --no-interaction
+# Same steps the Jenkins deploy runs (Makefile: finalize-deploy). Only the web
+# role does them; other roles start from the same image and database.
+if [ "$role" = "app" ]; then
+  if [ "${RUN_MIGRATIONS:-true}" = "true" ]; then
+    # No `|| true`: a failed migration must stop the container, not serve a half-migrated schema.
+    php artisan migrate --force --no-interaction
+  fi
+
+  # public/storage is gitignored, so every new container needs the link.
   php artisan storage:link --force --no-interaction 2>/dev/null || true
+
+  if [ "${RUN_DEPLOY_TASKS:-true}" = "true" ]; then
+    # The storage volume outlives the image, so drop caches written by the previous release.
+    php artisan translations:clear --no-interaction || echo "WARNING: translations:clear failed"
+    php artisan cache:clear --no-interaction || echo "WARNING: cache:clear failed"
+    php artisan config:clear --no-interaction || true
+    php artisan route:clear --no-interaction || true
+    # Idempotent: company EntityReminderDefault + ReminderEmailTemplate rows.
+    php artisan reminders:seed-entity-defaults --no-interaction || echo "WARNING: reminders:seed-entity-defaults failed (are migrations applied?)"
+  fi
+fi
+
+# Jenkins runs these after switching releases. Every role reads the same .env,
+# so each one caches its own copy. Set OPTIMIZE_ON_BOOT=false to skip.
+if [ "$role" != "grpc" ] && [ "${OPTIMIZE_ON_BOOT:-true}" = "true" ]; then
+  php artisan config:cache --no-interaction || echo "WARNING: config:cache failed"
+  php artisan route:cache --no-interaction || echo "WARNING: route:cache failed"
+  php artisan view:cache --no-interaction || echo "WARNING: view:cache failed"
 fi
 
 chown -R www-data:www-data storage bootstrap/cache public/user-uploads 2>/dev/null || true
 
+# Run workers as www-data. As root they would create files in the shared
+# storage volume (laravel-<date>.log, cache) that PHP-FPM cannot write to.
+as_www() {
+  exec runuser -u www-data -- "$@"
+}
+
 case "$role" in
   queue)
-    echo "Starting queue worker..."
-    exec php artisan queue:work "${QUEUE_CONNECTION:-database}" \
-      --queue="${QUEUE_NAMES:-default,communication_activities,resolvers,PropertyImport,LeadImport,DealImport,reminders-prepare,reminders-send}" \
-      --sleep=3 \
-      --tries=3 \
-      --timeout=300
+    echo "Starting queue worker (${QUEUE_NAMES:-default})..."
+    as_www php artisan queue:work "${QUEUE_CONNECTION:-database}" \
+      --queue="${QUEUE_NAMES:-default,communication_activities,resolvers,PropertyImport,LeadImport,DealImport,reminders-prepare,reminders-send,ol_webhooks}" \
+      --sleep="${QUEUE_SLEEP:-3}" \
+      --tries="${QUEUE_TRIES:-3}" \
+      --timeout="${QUEUE_TIMEOUT:-300}"
     ;;
   scheduler)
-    echo "Starting scheduler loop..."
-    while true; do
-      php artisan schedule:run --no-interaction >> /dev/null 2>&1 || true
-      sleep 60
-    done
+    echo "Starting scheduler..."
+    # schedule:work ticks on the minute and starts each run in the background.
+    # A sleep loop drifts by the run time and skips minutes, which drops dailyAt
+    # tasks, and blocks on the long queue:work that Kernel.php schedules.
+    as_www php artisan schedule:work --no-interaction
+    ;;
+  grpc)
+    echo "Starting RoadRunner gRPC server..."
+    [ -x ./rr ] || { echo "ERROR: ./rr not found. Build the image with --target grpc."; exit 1; }
+    as_www ./rr serve -c .rr.staging.yaml
     ;;
   app|*)
     exec "$@"

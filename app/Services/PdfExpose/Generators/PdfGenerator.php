@@ -23,7 +23,22 @@ class PdfGenerator
     {
         $browsershot->noSandbox();
         $browsershot->disableSetuidSandbox();
+
+        // Set by the Docker pdf flavor; unset elsewhere, so Browsershot keeps
+        // its default lookup.
+        if ($nodeBinary = config('pdf_browser.node_binary')) {
+            $browsershot->setNodeBinary($nodeBinary);
+        }
+        if ($nodeModules = config('pdf_browser.node_modules_path')) {
+            $browsershot->setNodeModulePath($nodeModules);
+        }
+        if ($chromePath = config('pdf_browser.chrome_path')) {
+            $browsershot->setChromePath($chromePath);
+        }
+
         $browsershot->setOption('args', [
+            // Chromium's crash handler needs a writable HOME; www-data has none.
+            '--crash-dumps-dir=/tmp',
             '--disable-dev-shm-usage',
             '--ignore-certificate-errors',
             '--allow-running-insecure-content',
