@@ -1,5 +1,7 @@
 pipeline {
-    agent any
+    // The Mix production build peaks at ~7GB of RAM (measured), which the controller and the deploy hosts cannot
+    // spare. Run the whole pipeline on the large builder node.
+    agent { label 'backend-server-builder' }
     options {
         skipDefaultCheckout()
         // One deploy per branch job at a time: overlapping runs would race on the deploy host's shared/.env and the
