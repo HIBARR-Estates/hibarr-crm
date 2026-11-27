@@ -133,7 +133,7 @@ services:
         condition: service_healthy
 
   # gRPC API (RoadRunner), replacing the roadrunner-grpc systemd service.
-  # TLS is not terminated here: put your proxy in front of port 9001 as nginx
+  # TLS is not terminated here: put your proxy in front of port 9010 as nginx
   # does on the Jenkins hosts (scripts/nginx-grpc-staging.conf).
   grpc:
     build:
@@ -146,10 +146,11 @@ services:
     image: ${CRM_GRPC_IMAGE:-hibarr-crm:grpc}
     restart: unless-stopped
     ports:
-      - "${GRPC_PORT:-9001}:9001"
+      - "${GRPC_PORT:-9010}:${GRPC_PORT:-9010}"
     environment:
       <<: *crm-env
       GRPC_ENABLED: "true"
+      GRPC_PORT: ${GRPC_PORT:-9010}
       CONTAINER_ROLE: grpc
       RUN_MIGRATIONS: "false"
     volumes: *crm-volumes

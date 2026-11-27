@@ -202,7 +202,8 @@ case "$role" in
   grpc)
     echo "Starting RoadRunner gRPC server..."
     [ -x ./rr ] || { echo "ERROR: ./rr not found. Build the image with --target grpc."; exit 1; }
-    as_www ./rr serve -c .rr.staging.yaml
+    # .rr.staging.yaml (shared with the Jenkins hosts) listens on 9001; override it here.
+    as_www ./rr serve -c .rr.staging.yaml -o "grpc.listen=tcp://0.0.0.0:${GRPC_PORT:-9010}"
     ;;
   app|*)
     exec "$@"

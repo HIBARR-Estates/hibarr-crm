@@ -221,7 +221,7 @@ RUN mkdir -p app/Grpc/Generated \
     && chown -R www-data:www-data app/Grpc/Generated
 
 ENV GRPC_ENABLED=true
-EXPOSE 9001 2114
+EXPOSE 9010 2114
 
 # -----------------------------------------------------------------------------
 # Default target: the web/queue image (flavor chosen by --build-arg FLAVOR)
