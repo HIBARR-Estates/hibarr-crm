@@ -27,7 +27,6 @@ class RemoveSvgStylingPlugin {
 
                 if (fs.existsSync(tailwindPath)) {
                     let css = fs.readFileSync(tailwindPath, "utf8");
-                    css = require("./docker/strip-blade-preflight")(css);
 
                     // Remove SVG-related styles
                     css = css.replace(

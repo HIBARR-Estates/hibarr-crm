@@ -14,6 +14,10 @@
     {{-- Add Main CSS --}}
     {{-- <link type="text/css" rel="stylesheet" media="all" href="{{ mix('css/main.css') }}"> --}}
 
+    {{-- IBM Plex Sans used to be @import-ed at the top of redesign.css. It moved
+         to the layouts so Vite can hash that file; keep the Mix layout in step. --}}
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
+
     {{-- Add Tailwind CSS --}}
     @if (config('app.bundler') === 'vite')
         @vite(['resources/css/tailwind.css', 'resources/js/Components/Redesign/redesign.css'])

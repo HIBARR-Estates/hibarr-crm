@@ -36,13 +36,17 @@ class PdfGenerator
             $browsershot->setChromePath($chromePath);
         }
 
-        $browsershot->setOption('args', [
-            // Chromium's crash handler needs a writable HOME; www-data has none.
-            '--crash-dumps-dir=/tmp',
+        $args = [
             '--disable-dev-shm-usage',
             '--ignore-certificate-errors',
             '--allow-running-insecure-content',
-        ]);
+        ];
+        // Docker only: Chromium's crash handler needs a writable HOME and
+        // www-data has none. Other hosts keep the original flag set.
+        if (config('pdf_browser.chrome_path')) {
+            array_unshift($args, '--crash-dumps-dir=/tmp');
+        }
+        $browsershot->setOption('args', $args);
 
         // "load" is faster and more predictable than networkIdle, which can hang
         // when Minio or background requests keep connections open.
