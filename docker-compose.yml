@@ -45,7 +45,8 @@ services:
       <<: *crm-env
       GRPC_ENABLED: "false"
       CONTAINER_ROLE: app
-      RUN_MIGRATIONS: ${RUN_MIGRATIONS:-false}
+      # Jenkins runs `migrate --force` on every deploy, so compose does too. Set false to opt out.
+      RUN_MIGRATIONS: ${RUN_MIGRATIONS:-true}
       # Cache clears + reminder defaults, as the Jenkins deploy does after migrating.
       RUN_DEPLOY_TASKS: ${RUN_DEPLOY_TASKS:-true}
     volumes: *crm-volumes
