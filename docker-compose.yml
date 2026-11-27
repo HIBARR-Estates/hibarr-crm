@@ -81,6 +81,8 @@ services:
       CONTAINER_ROLE: queue
       RUN_MIGRATIONS: "false"
     volumes: *crm-volumes
+    # Let a running job finish on deploy (supervisor: stopwaitsecs=3600).
+    stop_grace_period: 15m
     extra_hosts:
       - "host.docker.internal:host-gateway"
     depends_on:
@@ -104,6 +106,8 @@ services:
     volumes: *crm-volumes
     # Chromium needs more than Docker's 64 MB /dev/shm for large expose pages.
     shm_size: 1gb
+    # A job can run 660 s (supervisor: stopwaitsecs=7200).
+    stop_grace_period: 15m
     extra_hosts:
       - "host.docker.internal:host-gateway"
     depends_on:

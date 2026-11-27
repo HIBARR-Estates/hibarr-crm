@@ -177,8 +177,10 @@ chown -R www-data:www-data storage bootstrap/cache public/user-uploads 2>/dev/nu
 
 # Run workers as www-data. As root they would create files in the shared
 # storage volume (laravel-<date>.log, cache) that PHP-FPM cannot write to.
+# setpriv execs the command itself (runuser may stay as a parent), so the worker
+# is PID 1 and gets SIGTERM directly: queue:work then finishes its current job.
 as_www() {
-  exec runuser -u www-data -- "$@"
+  exec setpriv --reuid=www-data --regid=www-data --init-groups -- "$@"
 }
 
 case "$role" in
