@@ -7,6 +7,7 @@ import {
     formatCompanyDateTime,
 } from "@/lib/companyDateTime";
 import MarketingSection from "./MarketingSection";
+import MarketingEntryHistory from "./MarketingEntryHistory";
 import MarketingTouchHistory from "./MarketingTouchHistory";
 import { useLeadWorkspace } from "../../../context/LeadWorkspaceContext";
 
@@ -146,14 +147,17 @@ export default function MarketingTab() {
 
     if (!marketing) {
         return (
-            <EmptyState
-                icon="target"
-                title={t("pages.leads.marketing.empty")}
-                description={td(
-                    "Campaign and UTM details appear here once this lead arrives from a tracked source.",
-                    { source: "en" },
-                )}
-            />
+            <>
+                <EmptyState
+                    icon="target"
+                    title={t("pages.leads.marketing.empty")}
+                    description={td(
+                        "Campaign and UTM details appear here once this lead arrives from a tracked source.",
+                        { source: "en" },
+                    )}
+                />
+                <MarketingEntryHistory />
+            </>
         );
     }
 
@@ -298,6 +302,7 @@ export default function MarketingTab() {
                     <SectionFields fields={section.fields} yes={yes} no={no} />
                 </MarketingSection>
             ))}
+            <MarketingEntryHistory />
             <MarketingTouchHistory />
         </div>
     );

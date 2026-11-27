@@ -201,6 +201,52 @@ class LeadSummaryServiceTest extends TestCase
     }
 
     /**
+     * The multi-interest example is what teaches the model to cover every category and to
+     * use marketing, so it is held to the validator and to those two behaviours.
+     */
+    public function test_the_prompts_multi_interest_example_covers_every_category_and_uses_marketing(): void
+    {
+        $prompt = (new EntitySummaryPromptLoader())->loadLeadSummaryPrompt();
+
+        $this->assertSame(1, preg_match('/Output for this multi-interest lead:\s*(\{.*?\n\})/s', $prompt, $match), 'prompt has no multi-interest example');
+        $example = json_decode($match[1], true);
+        $this->assertIsArray($example, 'multi-interest example is not valid JSON: '.json_last_error_msg());
+
+        (new EntitySummaryValidator())->validateLeadSummary($example);
+
+        $this->assertLessThanOrEqual(20, $this->words($example['status_line']), 'status_line');
+        $this->assertLessThanOrEqual(80, $this->words($example['summary']), 'summary words');
+        $this->assertLessThanOrEqual(1, preg_match_all('/==[^=]+==/u', $example['summary']), 'at most one open item');
+        $this->assertNameIsInTheHeaderOnly($example);
+
+        // Every category shows up, in the header or the summary.
+        $text = strtolower($example['status_line'].' '.$example['summary']);
+        foreach (['company registration', 'relocation', 'agent'] as $interest) {
+            $this->assertStringContainsString($interest, $text, "the example drops: {$interest}");
+        }
+
+        // Marketing is used: the search term and the returning visit.
+        $this->assertStringContainsString('umzug nordzypern', $example['summary']);
+        $this->assertStringContainsString('Returned', $example['summary']);
+
+        // None of the filler the prompt bans.
+        foreach (['no details', 'not yet recorded', 'not yet known', 'nothing else on file', 'has not shared'] as $filler) {
+            $this->assertStringNotContainsString($filler, strtolower(json_encode($example)));
+        }
+    }
+
+    public function test_no_example_in_the_prompt_teaches_the_banned_filler(): void
+    {
+        $prompt = (new EntitySummaryPromptLoader())->loadLeadSummaryPrompt();
+
+        // Keep only the example outputs: the rules themselves list the banned phrases.
+        $examples = substr($prompt, (int) strpos($prompt, 'SHORT EXAMPLE'));
+        foreach (['no details', 'not yet recorded', 'nothing else on file', 'is all we have'] as $filler) {
+            $this->assertStringNotContainsString($filler, strtolower($examples));
+        }
+    }
+
+    /**
      * The lead is named once, in the header (status_line). The summary, facts and next
      * step use pronouns (gendered when profile.gender is set, otherwise they/their).
      *

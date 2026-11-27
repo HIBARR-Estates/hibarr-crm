@@ -11,6 +11,7 @@ const ACTION_TYPE_ICON: Record<ActionType, string> = {
     create_note: "file-text",
     meta_conversion: "target",
     wait: "clock",
+    assign_lead_owner: "user",
 };
 
 export function actionTypeIcon(actionType: ActionType): string {
@@ -36,6 +37,8 @@ export function actionTypeSubtitle(actionType: ActionType): string {
             return "Sends a Meta Conversion event";
         case "wait":
             return "Pauses the flow before continuing";
+        case "assign_lead_owner":
+            return "Hands the lead to a user, or to the next person in a pool";
         default:
             return "";
     }
@@ -50,6 +53,7 @@ const ACTION_TYPE_LABEL: Record<ActionType, string> = {
     create_note: "Add note",
     meta_conversion: "Meta conversion",
     wait: "Wait",
+    assign_lead_owner: "Assign lead owner",
 };
 
 /** English source string — wrap with td() at the render site. */
@@ -72,6 +76,7 @@ const TRIGGER_LABEL: Record<TriggerKey, string> = {
     lead_updated_api: "Lead Updated (via API)",
     deal_created_api: "Deal Created (via API)",
     deal_updated_api: "Deal Updated (via API)",
+    lead_entry_received: "Lead Entry Received",
 };
 
 /** English source string — wrap with td() at the render site. */
@@ -96,6 +101,7 @@ export const TRIGGER_SUBJECT: Record<TriggerKey, "deal" | "lead" | "any"> = {
     lead_updated_api: "lead",
     deal_created_api: "deal",
     deal_updated_api: "deal",
+    lead_entry_received: "lead",
 };
 
 const TRIGGER_ICON: Record<TriggerKey, string> = {
@@ -113,6 +119,7 @@ const TRIGGER_ICON: Record<TriggerKey, string> = {
     lead_updated_api: "edit",
     deal_created_api: "zap",
     deal_updated_api: "edit",
+    lead_entry_received: "zap",
 };
 
 /** Plain-language explanation of exactly what fires each trigger, rendered
@@ -135,6 +142,7 @@ const TRIGGER_EXPLANATION: Record<TriggerKey, string> = {
     lead_created_api: "Fires whenever an external system creates a new lead through the CRM's API (contact/create or deal/create) — this is the only reliable trigger for API-originated leads, since those API writes normally bypass the regular \"Lead Created\" trigger above.",
     lead_updated_api: "Fires whenever an external system updates an existing lead's details through the CRM's API (contact/create or deal/create) — this is the only reliable trigger for API-originated lead edits, since those API writes normally bypass the regular \"Lead Updated\" trigger above.",
     deal_created_api: "Fires whenever an external system creates a new deal through the CRM's API (deal/create) — this is the only reliable trigger for API-originated deals, since those API writes normally bypass the regular \"Deal Created\" trigger above.",
+    lead_entry_received: "Fires every time a lead comes in through one of the channels the website reports (a webinar registration, a consultation booking, a lead magnet, an ad form, a package interest...), whether the lead is new or returning. Runs after the Lead Created / Updated (via API) triggers. Optionally limit it to particular channels. This is the trigger to route lead ownership from.",
     deal_updated_api: "Fires whenever an external system updates an existing deal through the CRM's API (deal/create with an existing lead_id) — this is the only reliable trigger for API-originated deal edits, since those API writes normally bypass the regular \"Deal Updated\" trigger above.",
 };
 
@@ -157,6 +165,7 @@ const CHANNEL_ICON: Record<LogChannel, string> = {
     note: "file-text",
     meta: "target",
     wait: "clock",
+    owner: "user",
 };
 
 export function channelIcon(channel: LogChannel | null): string {

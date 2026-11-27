@@ -206,6 +206,12 @@ class FieldResolverService
             return $this->resolveLeadMarketingFor($lead, Str::after($field, 'lead_marketing_'));
         }
 
+        // entry_* / first_entry_*: the channel the lead came in through (not a Lead column).
+        $entryFields = app(LeadEntryFieldResolver::class);
+        if ($entryFields->handles($field)) {
+            return $entryFields->resolve($lead, $field);
+        }
+
         if (Str::startsWith($field, self::LEAD_UTM_ANY_PREFIX)) {
             return $this->resolveLeadUtmHistoryFor($lead, Str::after($field, self::LEAD_UTM_ANY_PREFIX));
         }

@@ -306,6 +306,11 @@ class LeadObserver
             return;
         }
 
+        // A new owner starts a contact clock that was waiting for one, or takes over a running one.
+        app(\App\Services\LeadContactSlaService::class)->safely(
+            fn () => app(\App\Services\LeadContactSlaService::class)->ownerAssigned($leadContact)
+        );
+
         $newOwner = User::find($newOwnerId);
         if (! $newOwner) {
             return;

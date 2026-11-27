@@ -6,6 +6,7 @@ export type AutomationScreen =
     | "templates"
     | "editor"
     | "metaEvents"
+    | "pools"
     | "logs";
 
 export type SubjectType = "deal" | "lead";
@@ -24,7 +25,8 @@ export type TriggerKey =
     | "lead_created_api"
     | "lead_updated_api"
     | "deal_created_api"
-    | "deal_updated_api";
+    | "deal_updated_api"
+    | "lead_entry_received";
 
 export type ActionType =
     | "stage_transition"
@@ -34,7 +36,8 @@ export type ActionType =
     | "create_task"
     | "create_note"
     | "meta_conversion"
-    | "wait";
+    | "wait"
+    | "assign_lead_owner";
 
 /** Exactly the operators ConditionEvaluatorService understands. "changed"
  * evaluates true when the field changed on the same save that fired the
@@ -47,7 +50,7 @@ export type ConditionLogic = "all" | "any";
 
 export type LogStatus = "success" | "failed" | "skipped";
 
-export type LogChannel = "stage" | "field" | "lock" | "email" | "task" | "note" | "meta" | "wait";
+export type LogChannel = "stage" | "field" | "lock" | "email" | "task" | "note" | "meta" | "wait" | "owner";
 
 export interface DealAutomationCondition {
     id?: number;
@@ -83,6 +86,19 @@ export interface DealAutomationAction {
     meta_event_value_source: "fixed" | "deal_value" | null;
     wait_duration_value: number | null;
     wait_duration_unit: "minutes" | "hours" | "days" | null;
+    /** assign_lead_owner config. The server keeps it in `payload`; the builder edits these flat fields. */
+    assign_strategy?: "specific_user" | "round_robin";
+    assign_user_id?: number | null;
+    assign_pool_id?: number | null;
+    assign_when_owned?: "skip" | "overwrite" | "overwrite_if_default_owner";
+    assign_notify?: boolean;
+    payload?: {
+        strategy?: "specific_user" | "round_robin";
+        user_id?: number | null;
+        pool_id?: number | null;
+        when_owned?: "skip" | "overwrite" | "overwrite_if_default_owner";
+        notify?: boolean;
+    } | null;
     targetStage?: { id: number; name: string } | null;
     emailTemplate?: { id: number; name: string } | null;
 }
@@ -97,6 +113,10 @@ export interface Automation {
     date_recurrence: "yearly" | "once" | null;
     /** meeting_attended trigger only: meeting types it fires for. null/empty = every type. */
     meeting_type_ids?: number[] | null;
+    /** lead_entry_received trigger only: OL channel uuids it fires for. null/empty = every channel. */
+    entry_channel_uuids?: string[] | null;
+    /** With channels selected, also fire for entries in channels below them. Default true. */
+    entry_channel_include_descendants?: boolean;
     wait_duration_value: number | null;
     wait_duration_unit: "minutes" | "hours" | "days" | null;
     active: boolean;
@@ -272,6 +292,26 @@ export interface AutomationStatsSummary {
     fired_for_total: number;
 }
 
+export interface AssignmentPool {
+    id: number;
+    name: string;
+    strategy: string;
+    active: boolean;
+    members: { user_id: number; name: string; active: boolean }[];
+}
+
+export interface EntryChannelOption {
+    uuid: string;
+    key: string;
+    name: string;
+    type: string;
+    path: string;
+    depth: number;
+    parentUuid: string | null;
+    status: "active" | "archived";
+    tags: string[];
+}
+
 export interface CustomFieldOption {
     id: number;
     label: string;
@@ -320,6 +360,15 @@ export interface AutomationCatalog {
     dateRecurrences: Record<string, string>;
     /** Active meeting types — the meeting_attended trigger can be scoped to some of them. */
     meetingTypes: { id: number; name: string }[];
+    /** Conditions on the entry a lead came in through (key => label). Lead automations only. */
+    entryFields?: Record<string, string>;
+    /** The lead entry channel catalog from OL, archived included so old automations keep their names. */
+    entryChannels?: EntryChannelOption[];
+    ownerStrategies?: Record<string, string>;
+    whenOwnedOptions?: Record<string, string>;
+    assignmentPools?: { id: number; name: string; active: boolean }[];
+    /** crm.lead-entry-routing: the entry trigger and assign_lead_owner only run while this is on. */
+    entryRoutingEnabled?: boolean;
     dealActionTypes: ActionType[];
     leadActionTypes: ActionType[];
     assignmentTypes: Record<string, string>;
