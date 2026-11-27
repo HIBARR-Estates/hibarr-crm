@@ -16,6 +16,8 @@ export interface PageProps extends InertiaPageProps {
     auth: AuthType;
     appName: string;
     featureFlags?: Record<string, boolean>;
+    /** Public WebSocket connection details; null when realtime notifications are not configured. */
+    realtime?: import("@/lib/realtime/types").RealtimeConfig | null;
     integrationsHubUrl?: string;
     sidebar: {
         unreadMessagesCount: number;

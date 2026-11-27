@@ -351,6 +351,11 @@ pipeline {
                                 sudo supervisorctl restart hibarr_crm_staging_expose:* || true
                             fi
 
+                            # Realtime notification socket server (Laravel Reverb). A no-op until REVERB_APP_KEY is
+                            # provisioned in the host .env. It must be restarted on every deploy: a long-running
+                            # process otherwise keeps running the previous release, whose directory step 9 deletes.
+                            LIVE_LINK="$LIVE_LINK" bash "$LIVE_LINK/scripts/fix_for_supervisor_reverb.sh" "$ENV_NAME" || true
+
                             echo 'Step 9: Cleanup old deployments...'
                             cd /home/$TARGET_USER/deployments
                             ls -dt ${ENV_NAME}_build_* | tail -n +6 | xargs rm -rf || true

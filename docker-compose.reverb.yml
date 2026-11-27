@@ -1,0 +1,57 @@
+# Standalone WebSocket server (Laravel Reverb) for realtime notifications — ONE instance per environment.
+#
+# Run it once for staging and once for production, each with its own env file, project name and secrets:
+#
+#   docker compose -p hibarr-reverb-staging    --env-file .env.reverb.staging    -f docker-compose.reverb.yml up -d
+#   docker compose -p hibarr-reverb-production --env-file .env.reverb.production -f docker-compose.reverb.yml up -d
+#
+# Start from docker/reverb.env.example. The instances share nothing (no Redis, no volume), so a token from one
+# environment can never work on the other. Runbook: docs/realtime-notifications-ops.md.
+#
+# The container boots the same application image as the environment's app (it reads config/reverb.php and the
+# env, never the database). Use the SAME image tag as that environment's app. The values it loads from
+# Infisical must be the same REVERB_APP_ID/KEY/SECRET the app and queue worker use.
+#
+# It only listens on REVERB_BIND:REVERB_PORT_LOCAL (default 127.0.0.1:8080). Put the proxy that fronts the
+# environment in front of it so the public `ws.` hostname terminates TLS and forwards /app (WebSocket upgrade,
+# idle timeout >= 120 s) and, if the app publishes through the public address, /apps.
+
+x-infisical: &infisical-env
+  INFISICAL_TOKEN: ${INFISICAL_TOKEN:?Set INFISICAL_TOKEN in the env file}
+  INFISICAL_API_URL: ${INFISICAL_API_URL:?Set INFISICAL_API_URL in the env file}
+  INFISICAL_PROJECT_ID: ${INFISICAL_PROJECT_ID:?Set INFISICAL_PROJECT_ID in the env file}
+  INFISICAL_ENV: ${INFISICAL_ENV:?Set INFISICAL_ENV (staging or prod) in the env file}
+
+services:
+  reverb:
+    image: ${REVERB_IMAGE:?Set REVERB_IMAGE to the same image tag as this environment's app}
+    restart: unless-stopped
+    environment:
+      <<: *infisical-env
+      CONTAINER_ROLE: reverb
+      REVERB_SERVER_PORT: "8080"
+      GRPC_ENABLED: "false"
+      RUN_MIGRATIONS: "false"
+      OTEL_LOGS_ENABLED: ${OTEL_LOGS_ENABLED:-false}
+      APP_BUNDLER: mix
+    ports:
+      # Loopback by default: only the proxy / app on this host can reach it. Set REVERB_BIND=0.0.0.0 (or a
+      # private interface address) when the app or proxy runs on another machine.
+      - "${REVERB_BIND:-127.0.0.1}:${REVERB_PORT_LOCAL:-8080}:8080"
+    ulimits:
+      # One descriptor per open browser tab.
+      nofile:
+        soft: 65536
+        hard: 65536
+    healthcheck:
+      # Reverb has no HTTP health route; "is the port accepting connections" is the honest check.
+      test: ["CMD-SHELL", "php -r 'exit(@fsockopen(\"127.0.0.1\", 8080) ? 0 : 1);'"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"

@@ -121,6 +121,30 @@ class NotificationController extends AccountBaseController
     }
 
     /**
+     * API: Unread notifications created since a cursor (oldest first). The gap-fill
+     * for whatever the realtime socket could not deliver — reconnects, page loads,
+     * outages. Without a cursor it returns no notifications, only the `server_time`
+     * to start from, so a first-ever load never replays history.
+     *
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function apiSince(Request $request)
+    {
+        $request->validate([
+            'cursor' => ['nullable', 'string', 'max:64', 'date'],
+        ]);
+
+        $result = $this->notificationService->getUnreadSince($this->user, $request->input('cursor'));
+
+        return response()->json([
+            'status' => 'success',
+            'data' => $result + [
+                'unread_count' => $this->notificationService->getUnreadCount($this->user),
+            ],
+        ]);
+    }
+
+    /**
      * API: Get available notification types for filtering.
      * 
      * @return \Illuminate\Http\JsonResponse

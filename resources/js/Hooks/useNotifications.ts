@@ -20,6 +20,7 @@ import {
 } from "@/lib/notificationAlerts";
 import { isSafeHttpUrl } from "@/lib/mapNotificationToAlert";
 import useNotificationIslandAlertsFlag from "@/Hooks/useNotificationIslandAlertsFlag";
+import useRealtimeNotificationsEnabled from "@/Hooks/useRealtimeNotificationsEnabled";
 
 const EMPTY_NOTIFICATIONS: Notification[] = [];
 
@@ -40,6 +41,10 @@ export const useNotificationSummary = (
 ) => {
     const queryClient = useQueryClient();
     const islandAlertsEnabled = useNotificationIslandAlertsFlag();
+    // With realtime on, the WebSocket stream (useNotificationStream) writes new
+    // notifications into this query's cache and raises the alerts. This hook then
+    // only reads: no polling, and no seen-ID diffing to decide what is new.
+    const realtimeEnabled = useRealtimeNotificationsEnabled();
 
     const {
         data: response,
@@ -53,7 +58,10 @@ export const useNotificationSummary = (
         // setInterval) so multiple mounted consumers of this hook (bell
         // dropdown + notch bridge) share one polling cadence per query key
         // instead of each running an independent timer against the API.
-        options: { enabled, refetchInterval: enabled ? pollingInterval : false },
+        options: {
+            enabled,
+            refetchInterval: enabled && !realtimeEnabled ? pollingInterval : false,
+        },
     });
 
     const unreadCount = response?.data?.unread_count ?? 0;
@@ -65,6 +73,7 @@ export const useNotificationSummary = (
     // island from showing again for the same notification; multiple hook
     // consumers share one takeUnseenNotifications pass so alerts fire once.
     useEffect(() => {
+        if (realtimeEnabled) return;
         if (!enabled || isLoading || !response?.data) return;
 
         if (!hasSeededIslandSeenIds) {
@@ -83,11 +92,13 @@ export const useNotificationSummary = (
                     n.title,
                     n.text,
                     n.link && isSafeHttpUrl(n.link) ? n.link : undefined,
+                    n.id,
                 );
             });
         }
         onNewNotifications?.(newOnes);
     }, [
+        realtimeEnabled,
         notifications,
         enabled,
         isLoading,

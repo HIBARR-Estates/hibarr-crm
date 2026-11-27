@@ -57,8 +57,6 @@ class PusherSettingsController extends AccountBaseController
         $pusher->messages = $request->messages ? 1 : 0;
         $pusher->save();
 
-        session(['pusher_settings' => PusherSetting::first()]);
-
         return Reply::successWithData(__('messages.updateSuccess'), ['status' => $pusher->status]);
     }
 

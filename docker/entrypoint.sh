@@ -138,6 +138,11 @@ if [ "$role" = "app" ] || [ "$role" = "queue" ] || [ "$role" = "scheduler" ]; th
   ensure_app_key
 fi
 
+# The WebSocket server boots the framework but never touches the database.
+if [ "$role" = "reverb" ]; then
+  ensure_app_key
+fi
+
 if [ "$role" = "app" ] && [ "${RUN_MIGRATIONS:-true}" = "true" ]; then
   php artisan migrate --force --no-interaction || true
   php artisan storage:link --force --no-interaction 2>/dev/null || true
@@ -153,6 +158,13 @@ case "$role" in
       --sleep=3 \
       --tries=3 \
       --timeout=300
+    ;;
+  reverb)
+    echo "Starting WebSocket server (Reverb) on :${REVERB_SERVER_PORT:-8080}..."
+    exec php artisan reverb:start \
+      --host=0.0.0.0 \
+      --port="${REVERB_SERVER_PORT:-8080}" \
+      --no-interaction
     ;;
   scheduler)
     echo "Starting scheduler loop..."

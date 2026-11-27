@@ -11,6 +11,7 @@ use App\Services\I18nTranslationService;
 use App\Support\AgentWorkspaceAccess;
 use App\Support\AppBuild;
 use App\Support\FeatureFlags;
+use App\Support\RealtimeNotifications;
 use App\Support\UserTimezone;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -102,6 +103,9 @@ class HandleInertiaRequests extends Middleware
             'isRtl' => fn () => $this->isRtlLocale(),
             'availableLocales' => fn () => app(I18nTranslationService::class)->getAvailableLocales(),
             'featureFlags' => fn () => FeatureFlags::forInertia(),
+            // Public connection details for the realtime notification socket; null (the browser
+            // keeps polling) unless the server side is enabled and fully configured.
+            'realtime' => fn () => $request->user() ? RealtimeNotifications::clientConfig() : null,
             // Null unless the flag is on and this user is allowlisted. The flag
             // check is first so a disabled module never touches the allowlist.
             'emailMailbox' => fn () => EmailFeature::enabled() && EmailFeature::enabledFor($request->user())
