@@ -11,6 +11,83 @@ use Tests\TestCase;
 
 class TimeRuntimeConformanceServiceTest extends TestCase
 {
+    private string $previousDefaultTimezone = 'UTC';
+
+    private ?string $previousTz = null;
+
+    private bool $hadTz = false;
+
+    private ?string $previousEnvTz = null;
+
+    private bool $hadEnvTz = false;
+
+    private ?string $previousServerTz = null;
+
+    private bool $hadServerTz = false;
+
+    private ?string $previousPhpTzdataVersion = null;
+
+    private bool $hadPhpTzdataVersion = false;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $this->previousDefaultTimezone = date_default_timezone_get();
+
+        $tz = getenv('TZ');
+        $this->hadTz = $tz !== false;
+        $this->previousTz = $tz === false ? null : $tz;
+
+        $this->hadEnvTz = array_key_exists('TZ', $_ENV);
+        $this->previousEnvTz = $this->hadEnvTz ? (string) $_ENV['TZ'] : null;
+
+        $this->hadServerTz = array_key_exists('TZ', $_SERVER);
+        $this->previousServerTz = $this->hadServerTz ? (string) $_SERVER['TZ'] : null;
+
+        $phpTzdataVersion = getenv('PHP_TZDATA_VERSION');
+        $this->hadPhpTzdataVersion = $phpTzdataVersion !== false;
+        $this->previousPhpTzdataVersion = $phpTzdataVersion === false ? null : $phpTzdataVersion;
+
+        // Pin ambient time state so results do not depend on the host TZ env or distro tzdata.
+        putenv('TZ=UTC');
+        $_ENV['TZ'] = 'UTC';
+        $_SERVER['TZ'] = 'UTC';
+        date_default_timezone_set('UTC');
+        putenv('PHP_TZDATA_VERSION=2025b');
+    }
+
+    protected function tearDown(): void
+    {
+        if ($this->hadTz && $this->previousTz !== null && $this->previousTz !== '') {
+            putenv('TZ=' . $this->previousTz);
+        } else {
+            putenv('TZ');
+        }
+
+        if ($this->hadEnvTz) {
+            $_ENV['TZ'] = $this->previousEnvTz;
+        } else {
+            unset($_ENV['TZ']);
+        }
+
+        if ($this->hadServerTz) {
+            $_SERVER['TZ'] = $this->previousServerTz;
+        } else {
+            unset($_SERVER['TZ']);
+        }
+
+        if ($this->hadPhpTzdataVersion && $this->previousPhpTzdataVersion !== null) {
+            putenv('PHP_TZDATA_VERSION=' . $this->previousPhpTzdataVersion);
+        } else {
+            putenv('PHP_TZDATA_VERSION');
+        }
+
+        date_default_timezone_set($this->previousDefaultTimezone);
+
+        parent::tearDown();
+    }
+
     public function test_parse_tzdata_version_normalizes_canonical_php_numeric_and_embedded_formats(): void
     {
         $service = new TimeRuntimeConformanceService();
@@ -28,6 +105,9 @@ class TimeRuntimeConformanceServiceTest extends TestCase
 
     public function test_resolve_php_tzdata_version_honors_override_and_env_fallback(): void
     {
+        // This test exercises env fallback itself, so clear the pinned value from setUp().
+        putenv('PHP_TZDATA_VERSION');
+
         $service = new TimeRuntimeConformanceService();
 
         $fromExplicit = $service->resolvePhpTzdataVersion('2025.2');
