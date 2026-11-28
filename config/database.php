@@ -58,6 +58,7 @@ return [
             'prefix_indexes' => true,
             'strict' => false,
             'engine' => 'InnoDB',
+            'timezone' => env('DB_SESSION_TIMEZONE', '+00:00'),
             'options' => extension_loaded('pdo_mysql') ? array_filter([
                 PDO::MYSQL_ATTR_SSL_CA => env('MYSQL_ATTR_SSL_CA'),
                 PDO::ATTR_EMULATE_PREPARES => true,
@@ -84,6 +85,7 @@ return [
             'prefix_indexes' => true,
             'strict' => false,
             'engine' => 'InnoDB',
+            'timezone' => env('DB_SESSION_TIMEZONE', '+00:00'),
             'options' => extension_loaded('pdo_mysql') ? array_filter([
                 PDO::MYSQL_ATTR_SSL_CA => env('MYSQL_ATTR_SSL_CA'),
                 PDO::ATTR_EMULATE_PREPARES => true,
@@ -103,6 +105,7 @@ return [
             'prefix_indexes' => true,
             'schema' => 'public',
             'sslmode' => 'prefer',
+            'timezone' => env('DB_PGSQL_SESSION_TIMEZONE', 'UTC'),
         ],
 
         'sqlsrv' => [
@@ -167,6 +170,19 @@ return [
             'password' => env('REDIS_PASSWORD', null),
             'port' => env('REDIS_PORT', '6379'),
             'database' => env('REDIS_CACHE_DB', '1'),
+        ],
+
+        // Unprefixed connection for cross-service tzdata drift monitoring (HIB-2000).
+        // Must stay prefix-free so Node/hibarr-backend reads `tzdata:version:php` verbatim.
+        'tzdata' => [
+            'url' => env('REDIS_URL'),
+            'host' => env('REDIS_HOST', '127.0.0.1'),
+            'password' => env('REDIS_PASSWORD', null),
+            'port' => env('REDIS_PORT', '6379'),
+            'database' => env('REDIS_DB', '0'),
+            'options' => [
+                'prefix' => '',
+            ],
         ],
 
     ],
