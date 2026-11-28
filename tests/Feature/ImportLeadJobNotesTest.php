@@ -125,6 +125,7 @@ class ImportLeadJobNotesTest extends TestCase
             $table->string('hash')->nullable();
             $table->unsignedInteger('added_by')->nullable();
             $table->unsignedInteger('last_updated_by')->nullable();
+            $table->softDeletes();
             $table->timestamps();
         });
 
@@ -167,6 +168,7 @@ class ImportLeadJobNotesTest extends TestCase
             $table->text('details')->nullable();
             $table->unsignedInteger('added_by')->nullable();
             $table->unsignedInteger('last_updated_by')->nullable();
+            $table->softDeletes();
             $table->timestamps();
         });
 
@@ -264,6 +266,121 @@ class ImportLeadJobNotesTest extends TestCase
 
         $this->assertTrue($fields->contains(fn ($f) => $f['id'] === 'notes' && $f['name'] === 'Notes' && $f['required'] === 'No'));
         $this->assertTrue($fields->contains(fn ($f) => $f['id'] === 'note'));
+    }
+
+    public function test_fields_includes_website_and_office_phone_aliases(): void
+    {
+        $fields = collect(LeadImport::fields());
+
+        $this->assertTrue($fields->contains(fn ($f) => $f['id'] === 'website'));
+        $this->assertTrue($fields->contains(fn ($f) => $f['id'] === 'company_website'));
+        $this->assertTrue($fields->contains(fn ($f) => $f['id'] === 'office_phone'));
+        $this->assertTrue($fields->contains(fn ($f) => $f['id'] === 'office'));
+        $this->assertTrue($fields->contains(fn ($f) => $f['id'] === 'company_phone'));
+    }
+
+    public function test_imports_lead_with_all_requested_fields(): void
+    {
+        $columns = [
+            0 => 'name',
+            1 => 'email',
+            2 => 'mobile',
+            3 => 'salutation',
+            4 => 'gender',
+            5 => 'company_name',
+            6 => 'website',
+            7 => 'office_phone',
+            8 => 'state',
+            9 => 'city',
+            10 => 'postal_code',
+            11 => 'address',
+            12 => 'notes',
+        ];
+
+        $row = [
+            0 => 'Jane Smith',
+            1 => 'jane.smith@example.com',
+            2 => '+1 202 555 0101',
+            3 => 'Mrs',
+            4 => 'female',
+            5 => 'Acme Corporation',
+            6 => 'https://acme.example.com',
+            7 => '+1 202 555 0199',
+            8 => 'California',
+            9 => 'San Francisco',
+            10 => '94102',
+            11 => '100 Market St, Suite 300',
+            12 => 'Prefers email communication.',
+        ];
+
+        $this->runImport($columns, $row);
+
+        $lead = Lead::withoutGlobalScopes()->where('client_name', 'Jane Smith')->first();
+        $this->assertNotNull($lead);
+        $this->assertSame('jane.smith@example.com', $lead->client_email);
+        $this->assertSame('+1 202 555 0101', $lead->mobile);
+        $this->assertSame('mrs', $lead->salutation instanceof \App\Enums\Salutation ? $lead->salutation->value : $lead->salutation);
+        $this->assertSame('female', $lead->gender instanceof \App\Enums\Gender ? $lead->gender->value : $lead->gender);
+        $this->assertSame('Acme Corporation', $lead->company_name);
+        $this->assertSame('https://acme.example.com', $lead->website);
+        $this->assertSame('+1 202 555 0199', $lead->office);
+        $this->assertSame('California', $lead->state);
+        $this->assertSame('San Francisco', $lead->city);
+        $this->assertSame('94102', $lead->postal_code);
+        $this->assertSame('100 Market St, Suite 300', $lead->address);
+
+        $note = LeadNote::where('lead_id', $lead->id)->first();
+        $this->assertNotNull($note);
+        $this->assertSame('Prefers email communication.', $note->details);
+    }
+
+    public function test_imports_gender_only_accepts_male_or_female(): void
+    {
+        $this->runImport(
+            [0 => 'name', 1 => 'gender'],
+            [0 => 'Male Lead', 1 => 'Male']
+        );
+        $leadMale = Lead::withoutGlobalScopes()->where('client_name', 'Male Lead')->first();
+        $this->assertNotNull($leadMale);
+        $this->assertSame('male', $leadMale->gender instanceof \App\Enums\Gender ? $leadMale->gender->value : $leadMale->gender);
+
+        $this->runImport(
+            [0 => 'name', 1 => 'gender'],
+            [0 => 'Female Lead', 1 => 'FEMALE']
+        );
+        $leadFemale = Lead::withoutGlobalScopes()->where('client_name', 'Female Lead')->first();
+        $this->assertNotNull($leadFemale);
+        $this->assertSame('female', $leadFemale->gender instanceof \App\Enums\Gender ? $leadFemale->gender->value : $leadFemale->gender);
+
+        $this->runImport(
+            [0 => 'name', 1 => 'gender'],
+            [0 => 'Other Gender Lead', 1 => 'other']
+        );
+        $leadOther = Lead::withoutGlobalScopes()->where('client_name', 'Other Gender Lead')->first();
+        $this->assertNotNull($leadOther);
+        $this->assertNull($leadOther->gender);
+    }
+
+    public function test_imports_lead_with_legacy_company_website_and_company_phone(): void
+    {
+        $columns = [
+            0 => 'name',
+            1 => 'company_website',
+            2 => 'company_phone',
+        ];
+
+        $row = [
+            0 => 'Legacy Col Lead',
+            1 => 'https://legacy.example.com',
+            2 => '+1 555 000 1111',
+        ];
+
+        $this->runImport($columns, $row);
+
+        $lead = Lead::withoutGlobalScopes()->where('client_name', 'Legacy Col Lead')->first();
+        $this->assertNotNull($lead);
+        $this->assertSame('https://legacy.example.com', $lead->website);
+        $this->assertSame('+1 555 000 1111', $lead->office);
     }
 
     public function test_creates_lead_note_with_cell_value_and_imported_title(): void

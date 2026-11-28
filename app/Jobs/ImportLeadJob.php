@@ -113,14 +113,22 @@ class ImportLeadJob implements ShouldQueue
                 $lead->company_id = $this->company?->id;
                 $lead->client_name = $this->getColumnValue('name');
                 $lead->client_email = $emailForDupCheck !== '' ? $emailForDupCheck : null;
-                $lead->salutation = $this->isColumnExists('salutation') ? $this->getColumnValue('salutation') : null;
+                $salutationValue = $this->isColumnExists('salutation') ? strtolower(trim((string) $this->getColumnValue('salutation'))) : null;
+                $salutationEnum = $salutationValue ? \App\Enums\Salutation::tryFrom($salutationValue) : null;
+                $lead->salutation = $salutationEnum?->value;
                 $genderValue = $this->isColumnExists('gender') ? strtolower(trim($this->getColumnValue('gender'))) : null;
                 $lead->gender = ($genderValue && in_array($genderValue, ['male', 'female'])) ? $genderValue : null;
                 $lead->note = $this->isColumnExists('note') ? $this->getColumnValue('note') : null;
                 $lead->company_name = $this->isColumnExists('company_name') ? $this->getColumnValue('company_name') : null;
-                $lead->website = $this->isColumnExists('company_website') ? $this->getColumnValue('company_website') : null;
+                $lead->website = $this->isColumnExists('website')
+                    ? $this->getColumnValue('website')
+                    : ($this->isColumnExists('company_website') ? $this->getColumnValue('company_website') : null);
                 $lead->mobile = $this->isColumnExists('mobile') ? $this->getColumnValue('mobile') : null;
-                $lead->office = $this->isColumnExists('company_phone') ? $this->getColumnValue('company_phone') : null;
+                $lead->office = $this->isColumnExists('office_phone')
+                    ? $this->getColumnValue('office_phone')
+                    : ($this->isColumnExists('office')
+                        ? $this->getColumnValue('office')
+                        : ($this->isColumnExists('company_phone') ? $this->getColumnValue('company_phone') : null));
                 $lead->country = $this->isColumnExists('country') ? $this->getColumnValue('country') : null;
                 $lead->state = $this->isColumnExists('state') ? $this->getColumnValue('state') : null;
                 $lead->city = $this->isColumnExists('city') ? $this->getColumnValue('city') : null;
