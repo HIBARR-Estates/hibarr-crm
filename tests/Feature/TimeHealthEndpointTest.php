@@ -140,6 +140,34 @@ class TimeHealthEndpointTest extends TestCase
         ])->assertSuccessful();
     }
 
+    public function test_artisan_time_check_alignment_command_succeeds_in_strict_mode_when_healthy(): void
+    {
+        config([
+            'app.timezone' => 'UTC',
+            'app.cron_timezone' => 'UTC',
+        ]);
+
+        $this->artisan('time:check-alignment', [
+            '--no-publish' => true,
+            '--json' => true,
+            '--strict' => true,
+        ])->assertSuccessful();
+    }
+
+    public function test_artisan_time_check_alignment_command_fails_in_strict_mode_when_unhealthy(): void
+    {
+        config([
+            'app.timezone' => 'Europe/Istanbul',
+            'app.cron_timezone' => 'UTC',
+        ]);
+
+        $this->artisan('time:check-alignment', [
+            '--no-publish' => true,
+            '--json' => true,
+            '--strict' => true,
+        ])->assertFailed();
+    }
+
     public function test_health_time_endpoint_exposes_detailed_diagnostics_with_x_api_token_header(): void
     {
         config([

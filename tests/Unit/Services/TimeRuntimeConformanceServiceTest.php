@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Unit\Services;
 
 use App\Services\TimeRuntimeConformanceService;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Redis;
 use Mockery;
 use Tests\TestCase;
@@ -86,6 +87,14 @@ class TimeRuntimeConformanceServiceTest extends TestCase
         date_default_timezone_set($this->previousDefaultTimezone);
 
         parent::tearDown();
+    }
+
+    private function configureUtcRuntime(): void
+    {
+        config([
+            'app.timezone' => 'UTC',
+            'app.cron_timezone' => 'UTC',
+        ]);
     }
 
     public function test_parse_tzdata_version_normalizes_canonical_php_numeric_and_embedded_formats(): void
@@ -204,5 +213,187 @@ class TimeRuntimeConformanceServiceTest extends TestCase
             ->andThrow(new \RuntimeException('Redis unavailable'));
 
         $this->assertFalse($service->publishPhpTzdataVersion('2025b'));
+    }
+
+    public function test_database_probe_treats_sqlite_as_utc(): void
+    {
+        $this->configureUtcRuntime();
+
+        $connection = Mockery::mock();
+        $connection->shouldReceive('getDriverName')->once()->andReturn('sqlite');
+        $connection->shouldNotReceive('selectOne');
+
+        DB::shouldReceive('connection')->once()->andReturn($connection);
+
+        $report = (new TimeRuntimeConformanceService())->verifyRuntimeUtc();
+
+        $this->assertTrue($report['compliant']);
+        $this->assertSame('UTC', $report['dbSessionTimezone']);
+        $this->assertSame([], $report['issues']);
+    }
+
+    public function test_database_probe_accepts_mysql_system_timezone_with_zero_offset(): void
+    {
+        $this->configureUtcRuntime();
+
+        $connection = Mockery::mock();
+        $connection->shouldReceive('getDriverName')->once()->andReturn('mysql');
+        $connection->shouldReceive('selectOne')
+            ->once()
+            ->with('SELECT @@session.time_zone AS tz, TIMEDIFF(NOW(), UTC_TIMESTAMP()) AS offset_diff')
+            ->andReturn((object) ['tz' => 'SYSTEM', 'offset_diff' => '00:00:00']);
+
+        DB::shouldReceive('connection')->once()->andReturn($connection);
+
+        $report = (new TimeRuntimeConformanceService())->verifyRuntimeUtc();
+
+        $this->assertTrue($report['compliant']);
+        $this->assertSame('SYSTEM', $report['dbSessionTimezone']);
+        $this->assertSame([], $report['issues']);
+    }
+
+    public function test_database_probe_accepts_mysql_explicit_utc_offset(): void
+    {
+        $this->configureUtcRuntime();
+
+        $connection = Mockery::mock();
+        $connection->shouldReceive('getDriverName')->once()->andReturn('mysql');
+        $connection->shouldReceive('selectOne')
+            ->once()
+            ->andReturn((object) ['tz' => '+00:00', 'offset_diff' => '00:00:00']);
+
+        DB::shouldReceive('connection')->once()->andReturn($connection);
+
+        $report = (new TimeRuntimeConformanceService())->verifyRuntimeUtc();
+
+        $this->assertTrue($report['compliant']);
+        $this->assertSame('+00:00', $report['dbSessionTimezone']);
+        $this->assertSame([], $report['issues']);
+    }
+
+    public function test_database_probe_rejects_mysql_system_timezone_with_non_zero_offset(): void
+    {
+        $this->configureUtcRuntime();
+
+        $connection = Mockery::mock();
+        $connection->shouldReceive('getDriverName')->once()->andReturn('mysql');
+        $connection->shouldReceive('selectOne')
+            ->once()
+            ->andReturn((object) ['tz' => 'SYSTEM', 'offset_diff' => '+02:00:00']);
+
+        DB::shouldReceive('connection')->once()->andReturn($connection);
+
+        $report = (new TimeRuntimeConformanceService())->verifyRuntimeUtc();
+
+        $this->assertFalse($report['compliant']);
+        $this->assertSame('SYSTEM', $report['dbSessionTimezone']);
+        $this->assertStringContainsString(
+            "Database session timezone is 'SYSTEM', expected UTC (+00:00).",
+            implode(' ', $report['issues'])
+        );
+    }
+
+    public function test_database_probe_accepts_postgres_timezone_uppercase_column(): void
+    {
+        $this->configureUtcRuntime();
+
+        $connection = Mockery::mock();
+        $connection->shouldReceive('getDriverName')->once()->andReturn('pgsql');
+        $connection->shouldReceive('selectOne')
+            ->once()
+            ->with('SHOW TIME ZONE')
+            ->andReturn((object) ['TimeZone' => 'UTC']);
+
+        DB::shouldReceive('connection')->once()->andReturn($connection);
+
+        $report = (new TimeRuntimeConformanceService())->verifyRuntimeUtc();
+
+        $this->assertTrue($report['compliant']);
+        $this->assertSame('UTC', $report['dbSessionTimezone']);
+        $this->assertSame([], $report['issues']);
+    }
+
+    public function test_database_probe_accepts_postgres_timezone_lowercase_column(): void
+    {
+        $this->configureUtcRuntime();
+
+        $connection = Mockery::mock();
+        $connection->shouldReceive('getDriverName')->once()->andReturn('pgsql');
+        $connection->shouldReceive('selectOne')
+            ->once()
+            ->with('SHOW TIME ZONE')
+            ->andReturn((object) ['timezone' => 'UTC']);
+
+        DB::shouldReceive('connection')->once()->andReturn($connection);
+
+        $report = (new TimeRuntimeConformanceService())->verifyRuntimeUtc();
+
+        $this->assertTrue($report['compliant']);
+        $this->assertSame('UTC', $report['dbSessionTimezone']);
+        $this->assertSame([], $report['issues']);
+    }
+
+    public function test_database_probe_rejects_postgres_non_utc_timezone(): void
+    {
+        $this->configureUtcRuntime();
+
+        $connection = Mockery::mock();
+        $connection->shouldReceive('getDriverName')->once()->andReturn('pgsql');
+        $connection->shouldReceive('selectOne')
+            ->once()
+            ->andReturn((object) ['TimeZone' => 'Europe/Berlin']);
+
+        DB::shouldReceive('connection')->once()->andReturn($connection);
+
+        $report = (new TimeRuntimeConformanceService())->verifyRuntimeUtc();
+
+        $this->assertFalse($report['compliant']);
+        $this->assertSame('Europe/Berlin', $report['dbSessionTimezone']);
+        $this->assertStringContainsString(
+            "Database session timezone is 'Europe/Berlin', expected UTC (+00:00).",
+            implode(' ', $report['issues'])
+        );
+    }
+
+    public function test_database_probe_reports_unsupported_driver(): void
+    {
+        $this->configureUtcRuntime();
+
+        $connection = Mockery::mock();
+        $connection->shouldReceive('getDriverName')->once()->andReturn('sqlsrv');
+        $connection->shouldNotReceive('selectOne');
+
+        DB::shouldReceive('connection')->once()->andReturn($connection);
+
+        $report = (new TimeRuntimeConformanceService())->verifyRuntimeUtc();
+
+        $this->assertFalse($report['compliant']);
+        $this->assertSame('sqlsrv:unknown', $report['dbSessionTimezone']);
+        $this->assertStringContainsString(
+            "Unsupported database driver 'sqlsrv' for session timezone probe.",
+            implode(' ', $report['issues'])
+        );
+    }
+
+    public function test_database_probe_reports_connection_exception(): void
+    {
+        $this->configureUtcRuntime();
+
+        $connection = Mockery::mock();
+        $connection->shouldReceive('getDriverName')->once()->andReturn('mysql');
+        $connection->shouldReceive('selectOne')
+            ->once()
+            ->andThrow(new \RuntimeException('connection lost'));
+
+        DB::shouldReceive('connection')->once()->andReturn($connection);
+
+        $report = (new TimeRuntimeConformanceService())->verifyRuntimeUtc();
+
+        $this->assertFalse($report['compliant']);
+        $this->assertNull($report['dbSessionTimezone']);
+        $this->assertStringContainsString(
+            'Database session timezone probe failed: connection lost',
+            implode(' ', $report['issues'])
+        );
     }
 }

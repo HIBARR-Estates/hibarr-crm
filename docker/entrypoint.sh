@@ -139,7 +139,7 @@ if [ "$role" = "app" ] || [ "$role" = "queue" ] || [ "$role" = "scheduler" ]; th
   wait_for_db
   ensure_app_key
   echo "Checking UTC runtime alignment and publishing PHP tzdata version (INV-11)..."
-  php artisan time:check-alignment --no-interaction || echo "WARNING: Time alignment startup check reported warnings"
+  php artisan time:check-alignment --no-interaction --strict || echo "WARNING: Time alignment startup check reported warnings"
 fi
 
 if [ "$role" = "app" ] && [ "${RUN_MIGRATIONS:-true}" = "true" ]; then
