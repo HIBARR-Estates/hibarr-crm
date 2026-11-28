@@ -182,4 +182,6 @@ ApiRoute::group(['namespace' => 'App\Http\Controllers\Api'], function () {
 
 });
 
-Route::get('health/time', \App\Http\Controllers\Api\TimeHealthController::class)->name('api.health.time');
+Route::get('health/time', \App\Http\Controllers\Api\TimeHealthController::class)
+    ->middleware('throttle:30,1')
+    ->name('api.health.time');

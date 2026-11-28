@@ -177,7 +177,7 @@ class TimeRuntimeConformanceService
      *     issues: list<string>
      * }
      */
-    public function verifyRuntimeUtc(): array
+    public function verifyRuntimeUtc(bool $includeDatabaseProbe = true): array
     {
         $processTz = $this->readEnvValue('TZ');
         $phpDefaultTimezone = date_default_timezone_get();
@@ -208,7 +208,9 @@ class TimeRuntimeConformanceService
             $issues[] = "Current PHP DateTimeImmutable UTC offset is {$utcOffsetSeconds} seconds, expected 0.";
         }
 
-        $dbProbe = $this->resolveDatabaseSessionTimezone();
+        $dbProbe = $includeDatabaseProbe
+            ? $this->resolveDatabaseSessionTimezone()
+            : ['timezone' => null, 'compliant' => true, 'error' => null];
         if ($dbProbe['error'] !== null) {
             $issues[] = 'Database session timezone probe failed: ' . $dbProbe['error'];
         } elseif (! $dbProbe['compliant']) {
@@ -246,7 +248,7 @@ class TimeRuntimeConformanceService
         $ttlSeconds = max(60, (int) config('app.tzdata.redis_ttl_seconds', 86400));
 
         try {
-            Redis::connection($connectionName)->set($key, $versionToPublish, 'EX', $ttlSeconds);
+            Redis::connection($connectionName)->setex($key, $ttlSeconds, $versionToPublish);
 
             return true;
         } catch (Throwable $e) {
@@ -287,9 +289,12 @@ class TimeRuntimeConformanceService
      *     publishedToRedis: bool
      * }
      */
-    public function checkAndPublish(bool $publishToRedis = true): array
-    {
-        $utc = $this->verifyRuntimeUtc();
+    public function checkAndPublish(
+        bool $publishToRedis = true,
+        bool $logWhenHealthy = true,
+        bool $includeDatabaseProbe = true
+    ): array {
+        $utc = $this->verifyRuntimeUtc($includeDatabaseProbe);
         $tzdata = $this->resolvePhpTzdataVersion();
         $published = $publishToRedis ? $this->publishPhpTzdataVersion($tzdata['version']) : false;
         $healthy = $utc['compliant'] && $tzdata['version'] !== null;
@@ -309,7 +314,9 @@ class TimeRuntimeConformanceService
         ];
 
         if ($healthy) {
-            Log::info('CRM runtime UTC alignment and PHP tzdata check passed.', $logContext);
+            if ($logWhenHealthy) {
+                Log::info('CRM runtime UTC alignment and PHP tzdata check passed.', $logContext);
+            }
         } else {
             Log::warning('CRM runtime UTC alignment or PHP tzdata check reported issues.', $logContext);
         }

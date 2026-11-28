@@ -105,7 +105,7 @@ return [
             'prefix_indexes' => true,
             'schema' => 'public',
             'sslmode' => 'prefer',
-            'timezone' => env('DB_SESSION_TIMEZONE', '+00:00'),
+            'timezone' => env('DB_PGSQL_SESSION_TIMEZONE', 'UTC'),
         ],
 
         'sqlsrv' => [

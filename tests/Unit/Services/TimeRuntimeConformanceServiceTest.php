@@ -85,9 +85,9 @@ class TimeRuntimeConformanceServiceTest extends TestCase
         ]);
 
         $redisConnection = Mockery::mock();
-        $redisConnection->shouldReceive('set')
+        $redisConnection->shouldReceive('setex')
             ->once()
-            ->with('tzdata:version:php', '2025b', 'EX', 86400)
+            ->with('tzdata:version:php', 86400, '2025b')
             ->andReturn(true);
 
         Redis::shouldReceive('connection')
@@ -96,6 +96,22 @@ class TimeRuntimeConformanceServiceTest extends TestCase
             ->andReturn($redisConnection);
 
         $this->assertTrue($service->publishPhpTzdataVersion('2025b'));
+    }
+
+    public function test_verify_runtime_utc_skips_database_probe_when_disabled(): void
+    {
+        $service = new TimeRuntimeConformanceService();
+
+        config([
+            'app.timezone' => 'UTC',
+            'app.cron_timezone' => 'UTC',
+        ]);
+
+        $report = $service->verifyRuntimeUtc(false);
+
+        $this->assertTrue($report['compliant']);
+        $this->assertNull($report['dbSessionTimezone']);
+        $this->assertSame([], $report['issues']);
     }
 
     public function test_publish_php_tzdata_version_returns_false_on_redis_failure(): void

@@ -28,6 +28,14 @@ class TimeHealthEndpointTest extends TestCase
         $phpVersion = $response->json('tzdata.phpVersion');
         $this->assertIsString($phpVersion);
         $this->assertMatchesRegularExpression('/^\d{4}[a-z]$/', $phpVersion);
+        $response->assertJsonMissingPath('utc.dbSessionTimezone');
+        $response->assertJsonMissingPath('utc.phpDefaultTimezone');
+        $response->assertJsonMissingPath('tzdata.rawPhpTzdbVersion');
+        $response->assertJsonMissingPath('tzdata.icuTzdataVersion');
+
+        $route = app('router')->getRoutes()->getByName('api.health.time');
+        $this->assertNotNull($route);
+        $this->assertContains('throttle:30,1', $route->gatherMiddleware());
     }
 
     public function test_health_time_endpoint_returns_503_when_timezone_not_utc(): void
